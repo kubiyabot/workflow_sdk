@@ -55,18 +55,19 @@ docs/kubiya/
 
 ## Navigation Configuration
 
-The navigation structure is defined in `docs.json`. The key sections are:
+The navigation structure is defined in `docs.json`. All documentation is accessible through the sidebar navigation with the following main groups:
 
-1. **Home** - Landing page with overview
+1. **Documentation** - Main landing page
 2. **Getting Started** - New user onboarding
 3. **Core Concepts** - Fundamental concepts
 4. **Workflows** - Workflow creation and management
 5. **AI & Automation** - ADK and AI features
 6. **Platform Features** - Advanced features
-7. **SDK Documentation** - Complete SDK reference
-8. **API & Integrations** - External integrations
-9. **Deployment & Operations** - Production deployment
-10. **Resources** - Changelogs and migration guides
+7. **SDK Reference** - Complete SDK reference
+8. **API Documentation** - REST API reference
+9. **Integrations** - External integrations
+10. **Deployment & Operations** - Production deployment
+11. **Resources** - Changelogs and migration guides
 
 ## Adding New Documentation
 
@@ -80,7 +81,7 @@ When adding new documentation:
    description: Brief description of the page content
    ---
    ```
-3. Update `docs.json` to include the new page in navigation
+3. Update `docs.json` to include the new page in the appropriate navigation group
 4. Follow the existing content structure and style
 
 ## Style Guidelines
@@ -90,6 +91,7 @@ When adding new documentation:
 - Use MDX components for rich content (Cards, Tabs, etc.)
 - Add navigation aids (links to related content)
 - Include practical examples and use cases
+- Keep hierarchy flat where possible for easier navigation
 
 ## Building Documentation
 
@@ -99,6 +101,15 @@ The documentation is built using Mintlify. To preview locally:
 npx mintlify dev
 ```
 
+## Navigation Best Practices
+
+Since all navigation is in the sidebar:
+- Keep group names clear and descriptive
+- Limit nesting to 2-3 levels maximum
+- Use logical grouping of related content
+- Ensure the most important pages are easily accessible
+- Use the landing page (index.mdx) to provide quick access to key sections
+
 ## Contributing
 
 Please ensure all documentation:
@@ -106,6 +117,7 @@ Please ensure all documentation:
 - Follows the established structure
 - Includes relevant examples
 - Has been reviewed for clarity and correctness
+- Maintains consistent navigation patterns
 
 ## 🚀 Local Development
 

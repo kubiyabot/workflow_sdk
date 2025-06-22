@@ -30,43 +30,16 @@
     "url": "https://app.kubiya.ai",
     "style": "roundedRectangle"
   },
-  "tabs": [
-    {
-      "name": "Documentation",
-      "url": "/"
-    },
-    {
-      "name": "SDK Reference",
-      "url": "/sdk"
-    },
-    {
-      "name": "API",
-      "url": "/api-reference"
-    }
-  ],
-  "primaryTab": {
-    "name": "Documentation"
-  },
   "anchors": [
-    {
-      "name": "Discord",
-      "icon": "discord",
-      "url": "https://discord.gg/kubiya"
-    },
     {
       "name": "Blog",
       "icon": "newspaper",
       "url": "https://kubiya.ai/blog"
-    },
-    {
-      "name": "Changelog",
-      "icon": "clock",
-      "url": "/changelog"
     }
   ],
   "navigation": [
     {
-      "group": "Home",
+      "group": "Documentation",
       "pages": [
         "index"
       ]
@@ -122,7 +95,7 @@
       ]
     },
     {
-      "group": "SDK Documentation",
+      "group": "SDK Reference",
       "pages": [
         "sdk/overview",
         "sdk/api-reference",
@@ -131,9 +104,14 @@
       ]
     },
     {
-      "group": "API & Integrations",
+      "group": "API Documentation",
       "pages": [
-        "api-reference/compose",
+        "api-reference/compose"
+      ]
+    },
+    {
+      "group": "Integrations",
+      "pages": [
         "mcp/overview",
         "servers/overview"
       ]
