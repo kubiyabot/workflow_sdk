@@ -1,193 +1,252 @@
 ---
 title: Welcome to Kubiya
-description: The platform for orchestrating AI agents and workflows on your infrastructure
-icon: hand-wave
+description: Build intelligent automation workflows that bridge AI and infrastructure
+icon: rocket
 ---
 
-# Welcome to Kubiya
+<div className="hero">
+  <h1 className="text-5xl font-bold mb-4">
+    Kubiya Workflow SDK
+  </h1>
+  <p className="text-xl mb-8">
+    The modern platform for building AI-powered automation workflows that seamlessly integrate with your entire tech stack
+  </p>
+  <div className="flex gap-4">
+    <a href="/getting-started/quickstart" className="button primary-button px-6 py-3">
+      Get Started →
+    </a>
+    <a href="https://github.com/kubiya-sandbox/workflows" className="button secondary-button px-6 py-3">
+      View on GitHub
+    </a>
+  </div>
+</div>
 
-Kubiya is a platform that enables you to build, orchestrate, and execute intelligent workflows and AI agents directly on your infrastructure. It bridges the gap between AI capabilities and your existing systems, providing secure, scalable automation that runs where your data lives.
+## 🚀 Why Kubiya?
 
-## What is Kubiya?
-
-Kubiya provides a comprehensive platform for:
-
-<CardGroup cols={2}>
-  <Card title="Workflow Orchestration" icon="diagram-project" color="#0088ff">
-    Build complex DAGs using simple Python DSL, orchestrate any container, and execute workflows durably on your infrastructure
+<div className="feature-grid">
+  <Card title="AI-Native Platform" icon="brain" color="#0EA5E9">
+    Generate complex workflows using natural language. Our ADK provider uses cutting-edge LLMs to transform your requirements into production-ready automation.
   </Card>
-  <Card title="AI Agent Integration" icon="robot" color="#0066cc">
-    Connect AI agents from various providers (ADK, Claude, GPT) to execute real actions in your environment
+  
+  <Card title="Universal Integration" icon="plug" color="#6366F1">
+    Connect anything: containers, APIs, databases, cloud services, AI models. If it has an interface, Kubiya can orchestrate it.
   </Card>
-  <Card title="Kubernetes Native" icon="dharmachakra" color="#00d4ff">
-    Deploy runners as Kubernetes operators that securely orchestrate containers in your cluster
+  
+  <Card title="Deterministic Execution" icon="shield-check" color="#10B981">
+    Unlike agent frameworks that wander, Kubiya provides rails for AI. Every workflow step runs in isolated containers with defined boundaries.
   </Card>
-  <Card title="MCP Compatible" icon="plug" color="#0088ff">
-    Integrate with Claude Desktop, Cursor, and other MCP-compatible tools for seamless AI assistance
+</div>
+
+## 💡 Key Features
+
+<Tabs>
+  <Tab title="🤖 AI Workflow Generation">
+    ```python
+    from kubiya_workflow_sdk.providers import get_provider
+    
+    # Generate workflows with AI
+    adk = get_provider("adk")
+    result = await adk.compose(
+        task="Create a zero-downtime deployment pipeline with health checks",
+        mode="act"  # Instantly execute!
+    )
+    ```
+  </Tab>
+  
+  <Tab title="🔧 Simple DSL">
+    ```python
+    from kubiya_workflow_sdk import workflow, step
+    
+    @workflow
+    def deploy_app():
+        # Every step runs in its own container
+        build = step("build").docker(
+            image="docker:latest",
+            command="docker build -t myapp:latest ."
+        )
+        
+        test = step("test").docker(
+            image="myapp:latest",
+            command="pytest tests/"
+        ).depends("build")
+        
+        deploy = step("deploy").docker(
+            image="kubectl:latest",
+            command="kubectl apply -f k8s/"
+        ).depends("test")
+    ```
+  </Tab>
+  
+  <Tab title="🧠 Intelligent Agents">
+    ```python
+    @workflow
+    def smart_incident_response():
+        # Embed AI decision-making in workflows
+        analyze = step("analyze").inline_agent(
+            message="Analyze these system metrics: ${METRICS}",
+            agent_name="sre-expert",
+            ai_instructions="You are an expert SRE. Identify issues and recommend fixes.",
+            runners=["kubiya-hosted"],
+            llm_model="gpt-4o"
+        )
+        
+        # AI generates remediation scripts
+        fix = step("auto-fix").inline_agent(
+            message="Generate safe remediation for: ${ANALYSIS}",
+            agent_name="remediation-expert",
+            runners=["kubiya-hosted"]
+        ).depends("analyze")
+    ```
+  </Tab>
+</Tabs>
+
+## 🎯 Common Use Cases
+
+<CardGroup cols={3}>
+  <Card title="CI/CD Pipelines" icon="code-branch">
+    Build sophisticated deployment pipelines with canary releases, rollbacks, and health checks
+  </Card>
+  
+  <Card title="Infrastructure Automation" icon="server">
+    Provision and manage cloud resources across AWS, GCP, Azure with unified workflows
+  </Card>
+  
+  <Card title="Incident Response" icon="bell">
+    Automate runbooks with AI-powered analysis and remediation
+  </Card>
+  
+  <Card title="Data Processing" icon="database">
+    ETL pipelines that span multiple data sources and processing engines
+  </Card>
+  
+  <Card title="Security Automation" icon="shield">
+    Compliance checks, vulnerability scanning, and automated patching
+  </Card>
+  
+  <Card title="ChatOps Integration" icon="message">
+    Connect workflows to Slack, Teams, or AI assistants via MCP
   </Card>
 </CardGroup>
 
-## Why Kubiya?
-
-### 🔒 **Runs on Your Infrastructure**
-Unlike cloud-based solutions, Kubiya runners operate within your environment, ensuring data never leaves your control.
-
-### 🚀 **Production-Ready Orchestration**
-Built on Kubernetes operators, Kubiya provides enterprise-grade workflow execution with built-in durability, retries, and monitoring.
-
-### 🤖 **AI-First Design**
-Designed from the ground up to enable AI agents to build and execute complex workflows using natural language.
-
-### 🔧 **Container Agnostic**
-Orchestrate any container - from simple scripts to complex ML pipelines - using a unified DSL.
-
-## Architecture Overview
-
-```mermaid
-graph TB
-    subgraph "Your Infrastructure"
-        subgraph "Kubernetes Cluster"
-            R[Kubiya Runner<br/>K8s Operator]
-            W1[Workflow Pod 1]
-            W2[Workflow Pod 2]
-            W3[Workflow Pod N]
-        end
-    end
-    
-    subgraph "Kubiya Platform"
-        API[Kubiya API]
-        WS[Workflow Service]
-        AS[Agent Service]
-    end
-    
-    subgraph "AI Providers"
-        ADK[Google ADK]
-        CLAUDE[Claude/Anthropic]
-        GPT[OpenAI GPT]
-    end
-    
-    subgraph "Developer Tools"
-        MCP[MCP Clients]
-        CLI[Kubiya CLI]
-        SDK[Python SDK]
-    end
-    
-    API --> R
-    R --> W1
-    R --> W2
-    R --> W3
-    
-    AS --> ADK
-    AS --> CLAUDE
-    AS --> GPT
-    
-    MCP --> API
-    CLI --> API
-    SDK --> API
-    WS --> API
-    
-    style R fill:#0088ff,stroke:#0066cc,stroke-width:3px
-    style API fill:#00d4ff,stroke:#0066cc,stroke-width:2px
-```
-
-## Key Features
-
-### Workflow Definition
-Define workflows using intuitive Python DSL:
-
-```python
-from kubiya import workflow, step
-
-@workflow
-def data_processing_pipeline():
-    # Extract data from source
-    raw_data = step.extract_data(
-        image="myorg/data-extractor:latest",
-        source="s3://bucket/data"
-    )
-    
-    # Transform using Spark
-    transformed = step.transform(
-        image="apache/spark:3.4",
-        input=raw_data,
-        script="transform.py"
-    )
-    
-    # Load to warehouse
-    step.load_to_warehouse(
-        image="myorg/loader:latest",
-        data=transformed,
-        target="snowflake"
-    )
-```
-
-### AI-Powered Automation
-Let AI agents build and execute workflows:
-
-```python
-# AI agents can generate workflows like this automatically
-@workflow
-def automated_deployment():
-    # AI understands context and generates appropriate steps
-    step.run_tests(image="node:18")
-    step.build_image(dockerfile="./Dockerfile")
-    step.deploy_to_k8s(manifest="./k8s/deployment.yaml")
-    step.notify_team(channel="deployments")
-```
-
-### MCP Integration
-Connect to any MCP-compatible client:
-
-- **Claude Desktop**: Execute workflows directly from Claude
-- **Cursor**: Build and run workflows from your IDE
-- **Custom Agents**: Integrate your own AI agents via MCP protocol
-
-## Getting Started
+## 📚 Quick Start
 
 <Steps>
   <Step title="Install the SDK">
-    Install Kubiya SDK to start building workflows
     ```bash
     pip install kubiya-workflow-sdk
     ```
   </Step>
   
-  <Step title="Deploy a Runner">
-    Deploy a Kubiya runner to your Kubernetes cluster
+  <Step title="Set your API key">
     ```bash
-    kubectl apply -f https://get.kubiya.ai/runner.yaml
+    export KUBIYA_API_KEY="your-api-key"
     ```
   </Step>
   
-  <Step title="Create Your First Workflow">
-    Build and execute your first workflow
+  <Step title="Create your first workflow">
     ```python
-    from kubiya import workflow, step
+    from kubiya_workflow_sdk import workflow, step, run
     
     @workflow
     def hello_kubiya():
-        step.echo("Hello from Kubiya!", image="alpine:latest")
+        step("greet").shell("echo 'Hello from Kubiya! 🚀'")
+    
+    # Run it!
+    run(hello_kubiya)
     ```
   </Step>
 </Steps>
 
-## What's Next?
+## 🔗 Integration Ecosystem
 
-<CardGroup cols={3}>
-  <Card title="Installation Guide" icon="download" href="/getting-started/installation">
-    Set up Kubiya SDK and runners
+<div className="grid grid-cols-2 md:grid-cols-4 gap-4 my-8">
+  <div className="text-center p-4 border rounded-lg">
+    <i className="fab fa-docker text-3xl text-blue-500 mb-2"></i>
+    <p className="font-semibold">Docker</p>
+  </div>
+  <div className="text-center p-4 border rounded-lg">
+    <i className="fab fa-kubernetes text-3xl text-blue-600 mb-2"></i>
+    <p className="font-semibold">Kubernetes</p>
+  </div>
+  <div className="text-center p-4 border rounded-lg">
+    <i className="fab fa-aws text-3xl text-orange-500 mb-2"></i>
+    <p className="font-semibold">AWS</p>
+  </div>
+  <div className="text-center p-4 border rounded-lg">
+    <i className="fab fa-google text-3xl text-blue-500 mb-2"></i>
+    <p className="font-semibold">Google Cloud</p>
+  </div>
+  <div className="text-center p-4 border rounded-lg">
+    <i className="fab fa-microsoft text-3xl text-blue-500 mb-2"></i>
+    <p className="font-semibold">Azure</p>
+  </div>
+  <div className="text-center p-4 border rounded-lg">
+    <i className="fab fa-github text-3xl text-gray-800 mb-2"></i>
+    <p className="font-semibold">GitHub</p>
+  </div>
+  <div className="text-center p-4 border rounded-lg">
+    <i className="fas fa-robot text-3xl text-green-500 mb-2"></i>
+    <p className="font-semibold">OpenAI</p>
+  </div>
+  <div className="text-center p-4 border rounded-lg">
+    <i className="fas fa-database text-3xl text-purple-500 mb-2"></i>
+    <p className="font-semibold">Any Database</p>
+  </div>
+</div>
+
+## 🛠️ How It Works
+
+```mermaid
+graph LR
+    A[Define Task] --> B[AI Generates Workflow]
+    B --> C[Review & Customize]
+    C --> D[Execute in Containers]
+    D --> E[Monitor & Stream Results]
+    
+    style A fill:#0EA5E9,stroke:#0284C7,stroke-width:2px,color:#fff
+    style B fill:#6366F1,stroke:#4F46E5,stroke-width:2px,color:#fff
+    style D fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
+```
+
+## 📖 Learn More
+
+<CardGroup cols={2}>
+  <Card title="Quick Start Guide" icon="play" href="/getting-started/quickstart">
+    Get up and running in 5 minutes
   </Card>
-  <Card title="Quick Start" icon="rocket" href="/getting-started/quickstart">
-    Build your first workflow
+  
+  <Card title="Core Concepts" icon="book" href="/concepts/platform-overview">
+    Understand Kubiya's architecture
   </Card>
-  <Card title="Workflow Architecture" icon="sitemap" href="/workflows/architecture">
-    Deep dive into how workflows run
+  
+  <Card title="Workflow Examples" icon="code" href="/workflows/examples">
+    Explore real-world use cases
+  </Card>
+  
+  <Card title="API Reference" icon="terminal" href="/api-reference/compose">
+    Complete API documentation
   </Card>
 </CardGroup>
 
-## Join the Community
+## 🤝 Join the Community
 
-- 💬 [Discord](https://discord.gg/kubiya) - Chat with the team and community
-- 🐛 [GitHub Issues](https://github.com/kubiya-sandbox/workflows/issues) - Report bugs and request features
-- 🐦 [Twitter](https://x.com/kubiya_ai) - Stay updated with latest news
-- 📧 [Email](mailto:support@kubiya.ai) - Contact our support team 
+<div className="flex gap-4 justify-center my-8">
+  <a href="https://discord.gg/kubiya" className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50">
+    <i className="fab fa-discord text-xl text-indigo-500"></i>
+    <span>Discord</span>
+  </a>
+  <a href="https://github.com/kubiya-sandbox/workflows" className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50">
+    <i className="fab fa-github text-xl"></i>
+    <span>GitHub</span>
+  </a>
+  <a href="https://twitter.com/kubiya_ai" className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50">
+    <i className="fab fa-twitter text-xl text-blue-400"></i>
+    <span>Twitter</span>
+  </a>
+</div>
+
+---
+
+<Note>
+  **Ready to revolutionize your automation?** [Get your API key](https://app.kubiya.ai) and start building intelligent workflows today!
+</Note> 

@@ -1,20 +1,72 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "willow",
   "name": "Kubiya",
-  "colors": {
-    "primary": "#0088ff",
-    "light": "#0066cc",
-    "dark": "#00d4ff"
-  },
-  "favicon": "/assets/favicon.ico",
   "logo": {
     "dark": "/assets/logo-dark.png",
     "light": "/assets/logo-light.png"
   },
+  "favicon": "/assets/favicon.ico",
+  "colors": {
+    "primary": "#0EA5E9",
+    "light": "#38BDF8",
+    "dark": "#0284C7",
+    "anchors": {
+      "from": "#0EA5E9",
+      "to": "#6366F1"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "Platform",
+      "url": "https://app.kubiya.ai"
+    },
+    {
+      "name": "GitHub",
+      "url": "https://github.com/kubiya-sandbox/workflows"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Get Started",
+    "url": "https://app.kubiya.ai",
+    "style": "roundedRectangle"
+  },
+  "tabs": [
+    {
+      "name": "Documentation",
+      "url": "/"
+    },
+    {
+      "name": "API Reference",
+      "url": "/api-reference"
+    },
+    {
+      "name": "SDK",
+      "url": "/sdk"
+    }
+  ],
+  "primaryTab": {
+    "name": "Documentation"
+  },
+  "anchors": [
+    {
+      "name": "Community",
+      "icon": "discord",
+      "url": "https://discord.gg/kubiya"
+    },
+    {
+      "name": "Blog",
+      "icon": "newspaper",
+      "url": "https://kubiya.ai/blog"
+    },
+    {
+      "name": "Changelog",
+      "icon": "clock",
+      "url": "/changelog"
+    }
+  ],
   "navigation": [
     {
-      "group": "Getting Started",
+      "group": "Introduction",
       "pages": [
         "getting-started/welcome",
         "getting-started/installation", 
@@ -44,7 +96,7 @@
       ]
     },
     {
-      "group": "AI & Providers",
+      "group": "AI & Automation",
       "pages": [
         "providers/overview",
         "providers/adk/getting-started",
@@ -53,14 +105,14 @@
       ]
     },
     {
-      "group": "Integration",
+      "group": "Integrations",
       "pages": [
         "mcp/overview",
         "servers/overview"
       ]
     },
     {
-      "group": "SDK",
+      "group": "SDK Reference",
       "pages": [
         "sdk/overview",
         "sdk/api-reference",
@@ -96,30 +148,39 @@
       ]
     }
   ],
-  "topbarLinks": [
-    {
-      "name": "GitHub",
-      "url": "https://github.com/kubiya-sandbox/workflows"
-    },
-    {
-      "name": "Kubiya Platform", 
-      "url": "https://app.kubiya.ai"
-    }
-  ],
-  "topbarCtaButton": {
-    "name": "Get Started",
-    "url": "https://app.kubiya.ai"
+  "footerSocials": {
+    "github": "https://github.com/kubiyabot",
+    "linkedin": "https://www.linkedin.com/company/kubiya-ai",
+    "twitter": "https://twitter.com/kubiya_ai"
   },
+  "backgroundImage": "/assets/background.png",
   "search": {
-    "prompt": "Search Kubiya docs..."
+    "prompt": "Search documentation..."
   },
-  "footer": {
-    "socials": {
-      "github": "https://github.com/kubiyabot",
-      "linkedin": "https://www.linkedin.com/company/kubiya-ai"
+  "metadata": {
+    "og:title": "Kubiya Documentation",
+    "og:description": "Build intelligent automation workflows with Kubiya's powerful SDK",
+    "og:image": "/assets/og-image.png",
+    "twitter:card": "summary_large_image"
+  },
+  "analytics": {
+    "gtm": {
+      "tagId": "GTM-XXXXXXX"
     }
   },
-  "integrations": {},
+  "feedback": {
+    "thumbsRating": true,
+    "suggestEdit": true,
+    "raiseIssue": true
+  },
+  "modeToggle": {
+    "default": "light",
+    "isHidden": false
+  },
+  "custom": {
+    "css": ["/style.css"]
+  },
+  "theme": "quill",
   "redirects": [
     {
       "source": "/providers/adk",

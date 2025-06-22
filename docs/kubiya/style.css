@@ -1,0 +1,332 @@
+/* Custom Kubiya Documentation Styles */
+
+/* Modern Typography */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --gradient-primary: linear-gradient(135deg, #0EA5E9 0%, #6366F1 100%);
+  --gradient-hover: linear-gradient(135deg, #38BDF8 0%, #818CF8 100%);
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+/* Global Styles */
+body {
+  font-family: var(--font-sans) !important;
+  letter-spacing: -0.01em;
+}
+
+/* Enhanced Headers */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600 !important;
+  letter-spacing: -0.02em;
+}
+
+h1 {
+  font-size: 2.5rem !important;
+  line-height: 1.2 !important;
+  margin-bottom: 1.5rem !important;
+}
+
+h2 {
+  font-size: 1.875rem !important;
+  line-height: 1.3 !important;
+  margin-top: 2.5rem !important;
+  margin-bottom: 1rem !important;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+h3 {
+  font-size: 1.5rem !important;
+  line-height: 1.4 !important;
+  margin-top: 2rem !important;
+  margin-bottom: 0.75rem !important;
+}
+
+/* Code Blocks Enhancement */
+pre {
+  border-radius: 8px !important;
+  box-shadow: var(--shadow-md) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  margin: 1.5rem 0 !important;
+}
+
+code {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+}
+
+/* Inline code styling */
+:not(pre) > code {
+  background: linear-gradient(to right, #f0f9ff, #e0f2fe) !important;
+  color: #0369a1 !important;
+  padding: 0.125rem 0.375rem !important;
+  border-radius: 4px !important;
+  font-weight: 500 !important;
+  border: 1px solid #bae6fd !important;
+}
+
+/* Cards and Containers */
+.card {
+  border-radius: 12px !important;
+  box-shadow: var(--shadow-sm) !important;
+  transition: all 0.3s ease !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-lg) !important;
+  transform: translateY(-2px) !important;
+  border-color: #0EA5E9 !important;
+}
+
+/* Navigation Enhancement */
+nav {
+  backdrop-filter: blur(10px) !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Sidebar Styling */
+aside {
+  border-right: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+aside a {
+  transition: all 0.2s ease !important;
+  border-radius: 6px !important;
+  margin: 2px 0 !important;
+}
+
+aside a:hover {
+  background: rgba(14, 165, 233, 0.1) !important;
+  color: #0EA5E9 !important;
+  padding-left: 20px !important;
+}
+
+/* Active sidebar item */
+aside a[aria-current="page"] {
+  background: var(--gradient-primary) !important;
+  color: white !important;
+  font-weight: 500 !important;
+}
+
+/* Buttons */
+button, .button, [role="button"] {
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+  border-radius: 8px !important;
+}
+
+/* Primary buttons */
+.primary-button, [data-variant="primary"] {
+  background: var(--gradient-primary) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+.primary-button:hover, [data-variant="primary"]:hover {
+  background: var(--gradient-hover) !important;
+  box-shadow: var(--shadow-lg) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Tables */
+table {
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  box-shadow: var(--shadow-sm) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+th {
+  background: linear-gradient(to bottom, #f8fafc, #f1f5f9) !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  font-size: 0.75rem !important;
+  letter-spacing: 0.05em !important;
+}
+
+/* Callout Boxes */
+.callout, .note, .warning, .info, .tip {
+  border-radius: 8px !important;
+  border-width: 1px !important;
+  box-shadow: var(--shadow-sm) !important;
+  margin: 1.5rem 0 !important;
+}
+
+.callout-icon {
+  font-size: 1.25rem !important;
+}
+
+/* Search Bar */
+input[type="search"], .search-input {
+  border-radius: 8px !important;
+  border: 2px solid transparent !important;
+  background: #f1f5f9 !important;
+  transition: all 0.2s ease !important;
+}
+
+input[type="search"]:focus, .search-input:focus {
+  border-color: #0EA5E9 !important;
+  background: white !important;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1) !important;
+}
+
+/* Hero Section */
+.hero {
+  background: var(--gradient-primary) !important;
+  color: white !important;
+  padding: 4rem 2rem !important;
+  border-radius: 16px !important;
+  margin-bottom: 3rem !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+/* Feature Grid */
+.feature-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+  gap: 1.5rem !important;
+  margin: 2rem 0 !important;
+}
+
+/* Tabs */
+.tabs {
+  border-bottom: 2px solid #e5e7eb !important;
+  margin-bottom: 2rem !important;
+}
+
+.tab-button {
+  padding: 0.75rem 1.5rem !important;
+  font-weight: 500 !important;
+  border-bottom: 3px solid transparent !important;
+  transition: all 0.2s ease !important;
+}
+
+.tab-button:hover {
+  color: #0EA5E9 !important;
+}
+
+.tab-button.active {
+  color: #0EA5E9 !important;
+  border-bottom-color: #0EA5E9 !important;
+}
+
+/* Breadcrumbs */
+.breadcrumb {
+  font-size: 0.875rem !important;
+  color: #64748b !important;
+  margin-bottom: 1rem !important;
+}
+
+.breadcrumb a {
+  color: #0EA5E9 !important;
+  font-weight: 500 !important;
+}
+
+/* Footer */
+footer {
+  background: linear-gradient(to bottom, #f8fafc, #f1f5f9) !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.06) !important;
+  margin-top: 4rem !important;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  h1 {
+    font-size: 2rem !important;
+  }
+  
+  h2 {
+    font-size: 1.5rem !important;
+  }
+  
+  .hero {
+    padding: 2rem 1rem !important;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --gradient-primary: linear-gradient(135deg, #0891b2 0%, #6366F1 100%);
+    --gradient-hover: linear-gradient(135deg, #06b6d4 0%, #818CF8 100%);
+  }
+  
+  nav {
+    background: rgba(0, 0, 0, 0.8) !important;
+  }
+  
+  .card {
+    background: #1e293b !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+  
+  h2 {
+    border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+  }
+  
+  :not(pre) > code {
+    background: linear-gradient(to right, #1e3a8a, #1e40af) !important;
+    color: #bfdbfe !important;
+    border-color: #3b82f6 !important;
+  }
+}
+
+/* Mermaid Diagrams */
+.mermaid {
+  background: #f8fafc !important;
+  border-radius: 8px !important;
+  padding: 1rem !important;
+  margin: 1.5rem 0 !important;
+  box-shadow: var(--shadow-sm) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Copy Code Button */
+.copy-code-button {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  border-radius: 6px !important;
+  padding: 0.25rem 0.5rem !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+}
+
+.copy-code-button:hover {
+  background: white !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+/* API Endpoint Styling */
+.api-endpoint {
+  background: linear-gradient(to right, #fef3c7, #fde68a) !important;
+  color: #92400e !important;
+  padding: 0.5rem 1rem !important;
+  border-radius: 8px !important;
+  font-family: monospace !important;
+  font-weight: 600 !important;
+  margin: 1rem 0 !important;
+  border: 1px solid #fbbf24 !important;
+} 
