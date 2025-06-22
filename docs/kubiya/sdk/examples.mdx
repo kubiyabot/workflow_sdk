@@ -13,62 +13,57 @@ Learn by example with these real-world SDK usage patterns.
 ### Hello World Workflow
 
 ```python
-from kubiya_workflow_sdk import Workflow, Step, Client
+from kubiya_workflow_sdk.dsl import workflow
+from kubiya_workflow_sdk import KubiyaClient
 
 # Create a simple workflow
-workflow = Workflow(
-    name="hello-world",
-    description="My first Kubiya workflow",
-    steps=[
-        Step(
-            name="greet",
-            image="alpine:latest",
-            command="echo 'Hello from Kubiya!'"
-        )
-    ]
+wf = (
+    workflow("hello-world")
+    .description("My first Kubiya workflow")
+    .step("greet", "echo 'Hello from Kubiya!'")
 )
 
 # Execute it
-client = Client()
-result = client.execute_workflow(workflow)
-print(result.output)
+client = KubiyaClient()
+result = client.execute_workflow_yaml(wf.to_yaml())
+print(result)
 ```
 
 ### Multi-Step Pipeline
 
 ```python
-from kubiya_workflow_sdk.dsl import workflow, step
+from kubiya_workflow_sdk.dsl import workflow
 
-@workflow(name="data-pipeline")
-def process_data():
-    # Step 1: Download data
-    raw_data = step.shell(
-        "wget https://example.com/data.csv -O /tmp/data.csv",
-        name="download",
-        image="alpine:latest"
-    )
-    
-    # Step 2: Process with Python
-    processed = step.python(
-        """
-        import pandas as pd
-        df = pd.read_csv('/tmp/data.csv')
-        df_clean = df.dropna()
-        df_clean.to_csv('/tmp/clean.csv')
-        print(f"Processed {len(df_clean)} rows")
-        """,
-        name="process",
-        image="python:3.11-slim",
-        packages=["pandas"]
-    )
-    
-    # Step 3: Upload results
-    step.shell(
-        "aws s3 cp /tmp/clean.csv s3://mybucket/processed/",
-        name="upload",
-        image="amazon/aws-cli:latest",
-        env={"AWS_DEFAULT_REGION": "us-east-1"}
-    )
+# Create a data processing pipeline
+wf = (
+    workflow("data-pipeline")
+    .description("Process data through multiple stages")
+)
+
+# Step 1: Download data
+wf.step(
+    "download",
+    "wget https://example.com/data.csv -O /tmp/data.csv"
+)
+
+# Step 2: Process with Python
+wf.step(
+    "process",
+    command="python",
+    script="""
+import pandas as pd
+df = pd.read_csv('/tmp/data.csv')
+df_clean = df.dropna()
+df_clean.to_csv('/tmp/clean.csv')
+print(f"Processed {len(df_clean)} rows")
+"""
+)
+
+# Step 3: Upload results
+wf.step(
+    "upload",
+    "aws s3 cp /tmp/clean.csv s3://mybucket/processed/"
+).env(AWS_DEFAULT_REGION="us-east-1")
 ```
 
 ## AI-Powered Workflows
@@ -93,49 +88,64 @@ result = await adk.compose(
     mode="act"  # Execute immediately
 )
 
-print(result["workflow"].to_yaml())
+print(result.workflow_yaml)
 ```
 
 ### Inline AI Agent for Decision Making
 
 ```python
-@workflow(name="smart-deployment")
-def deploy_with_ai():
-    # Run tests
-    test_results = step.shell(
-        "pytest tests/ -v --json-report",
-        name="test",
-        image="python:3.11"
-    )
-    
-    # AI analyzes results
-    decision = step.inline_agent(
-        message=f"""
-        Analyze these test results: {test_results}
-        Should we deploy to production?
-        Consider: test coverage, failure rate, critical tests
-        """,
+from kubiya_workflow_sdk.dsl import workflow, step
+
+# Create workflow with AI decision making
+wf = workflow("smart-deployment")
+
+# Run tests
+test = (
+    step("test")
+    .shell("pytest tests/ -v --json-report")
+    .output("TEST_RESULTS")
+)
+
+# AI analyzes results
+decision = (
+    step("analyze")
+    .inline_agent(
+        message="Analyze these test results: ${TEST_RESULTS}. Should we deploy to production? Consider: test coverage, failure rate, critical tests",
+        agent_name="deployment-analyst",
+        ai_instructions="You are a deployment decision expert. Analyze test results and provide a JSON response with fields: should_deploy (boolean), confidence (0-1), reason (string)",
         runners=["kubiya-hosted"],
-        llm_model="gpt-4",
-        tools=[{
-            "name": "analyze-metrics",
-            "type": "function",
-            "description": "Analyze test metrics"
-        }]
+        llm_model="gpt-4o"
     )
-    
-    # Conditional deployment
-    if decision.output.get("should_deploy"):
-        step.shell(
-            "kubectl apply -f k8s/deployment.yaml",
-            name="deploy",
-            image="bitnami/kubectl:latest"
-        )
-    else:
-        step.shell(
-            f"echo 'Deployment blocked: {decision.output.get('reason')}'",
-            name="blocked"
-        )
+    .depends("test")
+    .output("DECISION")
+)
+
+# Conditional deployment
+deploy = (
+    step("deploy")
+    .docker(
+        image="bitnami/kubectl:latest",
+        command="kubectl apply -f k8s/deployment.yaml"
+    )
+    .depends("analyze")
+    .preconditions("${DECISION.should_deploy} == true")
+)
+
+# Deployment blocked notification
+blocked = (
+    step("blocked")
+    .shell("echo 'Deployment blocked: ${DECISION.reason}'")
+    .depends("analyze")
+    .preconditions("${DECISION.should_deploy} == false")
+)
+
+# Add all steps
+wf.data["steps"].extend([
+    test.to_dict(),
+    decision.to_dict(),
+    deploy.to_dict(),
+    blocked.to_dict()
+])
 ```
 
 ## DevOps Automation
@@ -143,95 +153,144 @@ def deploy_with_ai():
 ### CI/CD Pipeline
 
 ```python
-@workflow(name="ci-cd-pipeline")
-def cicd_pipeline(branch: str = "main"):
+from kubiya_workflow_sdk.dsl import workflow, step
+
+def create_cicd_pipeline(branch: str = "main"):
+    wf = workflow("ci-cd-pipeline")
+    
     # Checkout code
-    step.shell(
-        f"git clone -b {branch} https://github.com/myorg/myapp.git",
-        name="checkout",
-        image="alpine/git:latest"
+    checkout = (
+        step("checkout")
+        .docker(
+            image="alpine/git:latest",
+            command=f"git clone -b {branch} https://github.com/myorg/myapp.git"
+        )
     )
     
     # Run linting
-    step.shell(
-        "flake8 . --config=.flake8",
-        name="lint",
-        image="python:3.11-slim"
+    lint = (
+        step("lint")
+        .docker(
+            image="python:3.11-slim",
+            command="flake8 . --config=.flake8"
+        )
+        .depends("checkout")
     )
     
     # Run tests in parallel
-    test_suites = ["unit", "integration", "e2e"]
-    test_results = []
-    
-    for suite in test_suites:
-        result = step.shell(
-            f"pytest tests/{suite} -v",
-            name=f"test-{suite}",
-            image="python:3.11",
-            parallel=True  # Run all test suites in parallel
+    test_steps = []
+    for suite in ["unit", "integration", "e2e"]:
+        test_step = (
+            step(f"test-{suite}")
+            .docker(
+                image="python:3.11",
+                command=f"pytest tests/{suite} -v"
+            )
+            .depends("lint")
         )
-        test_results.append(result)
+        test_steps.append(test_step.to_dict())
     
     # Build Docker image
-    step.shell(
-        """
-        docker build -t myapp:${BUILD_ID} .
-        docker tag myapp:${BUILD_ID} myapp:latest
-        """,
-        name="build",
-        image="docker:dind",
-        env={"BUILD_ID": "${GITHUB_SHA}"},
-        depends=test_results  # Wait for all tests
+    build = (
+        step("build")
+        .docker(
+            image="docker:dind",
+            command="""
+docker build -t myapp:${BUILD_ID} .
+docker tag myapp:${BUILD_ID} myapp:latest
+"""
+        )
+        .env(BUILD_ID="${GITHUB_SHA}")
+        .depends([f"test-{suite}" for suite in ["unit", "integration", "e2e"]])
     )
     
     # Push to registry
-    step.shell(
-        """
-        docker push myregistry.io/myapp:${BUILD_ID}
-        docker push myregistry.io/myapp:latest
-        """,
-        name="push",
-        image="docker:dind"
+    push = (
+        step("push")
+        .docker(
+            image="docker:dind",
+            command="""
+docker push myregistry.io/myapp:${BUILD_ID}
+docker push myregistry.io/myapp:latest
+"""
+        )
+        .depends("build")
     )
+    
+    # Add all steps
+    wf.data["steps"].extend([
+        checkout.to_dict(),
+        lint.to_dict(),
+        *test_steps,
+        build.to_dict(),
+        push.to_dict()
+    ])
+    
+    return wf
 ```
 
 ### Infrastructure as Code
 
 ```python
-@workflow(name="terraform-deploy")
+from kubiya_workflow_sdk.dsl import workflow, step
+
 def deploy_infrastructure(environment: str):
+    wf = workflow("terraform-deploy")
+    
     # Initialize Terraform
-    step.shell(
-        "terraform init",
-        name="init",
-        image="hashicorp/terraform:1.5",
-        volumes={"./terraform": "/workspace"}
+    init = (
+        step("init")
+        .docker(
+            image="hashicorp/terraform:1.5",
+            command="terraform init"
+        )
+        .dir("/workspace/terraform")
     )
     
     # Plan changes
-    plan = step.shell(
-        f"terraform plan -var='env={environment}' -out=tfplan",
-        name="plan",
-        image="hashicorp/terraform:1.5"
+    plan = (
+        step("plan")
+        .docker(
+            image="hashicorp/terraform:1.5",
+            command=f"terraform plan -var='env={environment}' -out=tfplan"
+        )
+        .depends("init")
+        .output("PLAN_OUTPUT")
     )
     
     # Review plan with AI
-    review = step.inline_agent(
-        message=f"Review this Terraform plan: {plan.output}",
-        runners=["kubiya-hosted"],
-        tools=[{
-            "name": "terraform-analyzer",
-            "type": "function"
-        }]
+    review = (
+        step("review")
+        .inline_agent(
+            message="Review this Terraform plan: ${PLAN_OUTPUT}",
+            agent_name="terraform-reviewer",
+            ai_instructions="You are a Terraform expert. Review the plan and return JSON with: approved (boolean), risk_level (low/medium/high), concerns (array of strings)",
+            runners=["kubiya-hosted"]
+        )
+        .depends("plan")
+        .output("REVIEW")
     )
     
     # Apply if approved
-    if review.output.get("approved"):
-        step.shell(
-            "terraform apply -auto-approve tfplan",
-            name="apply",
-            image="hashicorp/terraform:1.5"
+    apply = (
+        step("apply")
+        .docker(
+            image="hashicorp/terraform:1.5",
+            command="terraform apply -auto-approve tfplan"
         )
+        .depends("review")
+        .preconditions("${REVIEW.approved} == true")
+    )
+    
+    # Add all steps
+    wf.data["steps"].extend([
+        init.to_dict(),
+        plan.to_dict(),
+        review.to_dict(),
+        apply.to_dict()
+    ])
+    
+    return wf
 ```
 
 ## Data Engineering
@@ -239,8 +298,11 @@ def deploy_infrastructure(environment: str):
 ### ETL Pipeline
 
 ```python
-@workflow(name="etl-pipeline")
-def etl_workflow():
+from kubiya_workflow_sdk.dsl import workflow, step
+
+def create_etl_workflow():
+    wf = workflow("etl-pipeline")
+    
     # Extract from multiple sources
     sources = {
         "postgres": "postgresql://user:pass@host/db",
@@ -248,177 +310,206 @@ def etl_workflow():
         "api": "https://api.example.com/data"
     }
     
-    extracted_data = {}
+    extract_steps = []
     for source_name, connection in sources.items():
-        data = step.python(
-            f"""
-            import pandas as pd
-            import sqlalchemy
-            
-            if "{source_name}" in ["postgres", "mysql"]:
-                engine = sqlalchemy.create_engine("{connection}")
-                df = pd.read_sql("SELECT * FROM users", engine)
-            else:
-                df = pd.read_json("{connection}")
-            
-            df.to_parquet(f"/tmp/{source_name}.parquet")
-            print(f"Extracted {{len(df)}} rows from {source_name}")
-            """,
-            name=f"extract-{source_name}",
-            image="python:3.11",
-            packages=["pandas", "sqlalchemy", "psycopg2", "pymysql"],
-            parallel=True
+        extract = (
+            step(f"extract-{source_name}")
+            .docker(
+                image="python:3.11",
+                command="python -c \"" + f"""
+import pandas as pd
+import sqlalchemy
+
+if '{source_name}' in ['postgres', 'mysql']:
+    engine = sqlalchemy.create_engine('{connection}')
+    df = pd.read_sql('SELECT * FROM users', engine)
+else:
+    df = pd.read_json('{connection}')
+
+df.to_parquet('/tmp/{source_name}.parquet')
+print(f'Extracted {{len(df)}} rows from {source_name}')
+""" + "\""
+            )
         )
-        extracted_data[source_name] = data
+        extract_steps.append(extract.to_dict())
     
     # Transform data
-    step.python(
-        """
-        import pandas as pd
-        import glob
-        
-        # Load all extracted data
-        dfs = []
-        for file in glob.glob("/tmp/*.parquet"):
-            dfs.append(pd.read_parquet(file))
-        
-        # Combine and transform
-        df_combined = pd.concat(dfs, ignore_index=True)
-        df_transformed = df_combined.drop_duplicates()
-        
-        # Add derived columns
-        df_transformed['processed_at'] = pd.Timestamp.now()
-        
-        # Save
-        df_transformed.to_parquet("/tmp/transformed.parquet")
-        print(f"Transformed {len(df_transformed)} total rows")
-        """,
-        name="transform",
-        image="python:3.11",
-        depends=list(extracted_data.values())
+    transform = (
+        step("transform")
+        .docker(
+            image="python:3.11",
+            command="python -c \"" + """
+import pandas as pd
+import glob
+
+# Load all extracted data
+dfs = []
+for file in glob.glob('/tmp/*.parquet'):
+    dfs.append(pd.read_parquet(file))
+
+# Combine and transform
+df_combined = pd.concat(dfs, ignore_index=True)
+df_transformed = df_combined.drop_duplicates()
+
+# Add derived columns
+df_transformed['processed_at'] = pd.Timestamp.now()
+
+# Save
+df_transformed.to_parquet('/tmp/transformed.parquet')
+print(f'Transformed {len(df_transformed)} total rows')
+""" + "\""
+        )
+        .depends([f"extract-{name}" for name in sources.keys()])
     )
     
     # Load to data warehouse
-    step.python(
-        """
-        import pandas as pd
-        import snowflake.connector
-        
-        df = pd.read_parquet("/tmp/transformed.parquet")
-        
-        conn = snowflake.connector.connect(
-            user='${SNOWFLAKE_USER}',
-            password='${SNOWFLAKE_PASS}',
-            account='${SNOWFLAKE_ACCOUNT}'
+    load = (
+        step("load")
+        .docker(
+            image="python:3.11",
+            command="python -c \"" + """
+import pandas as pd
+import snowflake.connector
+
+df = pd.read_parquet('/tmp/transformed.parquet')
+
+conn = snowflake.connector.connect(
+    user='${SNOWFLAKE_USER}',
+    password='${SNOWFLAKE_PASS}',
+    account='${SNOWFLAKE_ACCOUNT}'
+)
+
+df.to_sql('users_dim', conn, if_exists='append')
+print(f'Loaded {len(df)} rows to Snowflake')
+""" + "\""
         )
-        
-        df.to_sql('users_dim', conn, if_exists='append')
-        print(f"Loaded {len(df)} rows to Snowflake")
-        """,
-        name="load",
-        image="python:3.11",
-        packages=["pandas", "snowflake-connector-python"],
-        env={
-            "SNOWFLAKE_USER": "${secrets.snowflake_user}",
-            "SNOWFLAKE_PASS": "${secrets.snowflake_pass}",
-            "SNOWFLAKE_ACCOUNT": "${secrets.snowflake_account}"
-        }
+        .env(
+            SNOWFLAKE_USER="${secrets.snowflake_user}",
+            SNOWFLAKE_PASS="${secrets.snowflake_pass}",
+            SNOWFLAKE_ACCOUNT="${secrets.snowflake_account}"
+        )
+        .depends("transform")
     )
+    
+    # Add all steps
+    wf.data["steps"].extend([
+        *extract_steps,
+        transform.to_dict(),
+        load.to_dict()
+    ])
+    
+    return wf
 ```
 
 ### ML Pipeline
 
 ```python
-@workflow(name="ml-training-pipeline")
+from kubiya_workflow_sdk.dsl import workflow, step
+
 def train_model(dataset_path: str, model_type: str = "random_forest"):
+    wf = workflow("ml-training-pipeline")
+    
     # Data preparation
-    step.python(
-        f"""
-        import pandas as pd
-        from sklearn.model_selection import train_test_split
-        
-        # Load data
-        df = pd.read_csv("{dataset_path}")
-        
-        # Prepare features
-        X = df.drop('target', axis=1)
-        y = df['target']
-        
-        # Split data
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=42
+    prepare = (
+        step("prepare-data")
+        .docker(
+            image="python:3.11",
+            command="python -c \"" + f"""
+import pandas as pd
+from sklearn.model_selection import train_test_split
+
+# Load data
+df = pd.read_csv('{dataset_path}')
+
+# Prepare features
+X = df.drop('target', axis=1)
+y = df['target']
+
+# Split data
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# Save splits
+pd.concat([X_train, y_train], axis=1).to_csv('/tmp/train.csv')
+pd.concat([X_test, y_test], axis=1).to_csv('/tmp/test.csv')
+""" + "\""
         )
-        
-        # Save splits
-        pd.concat([X_train, y_train], axis=1).to_csv('/tmp/train.csv')
-        pd.concat([X_test, y_test], axis=1).to_csv('/tmp/test.csv')
-        """,
-        name="prepare-data",
-        image="python:3.11",
-        packages=["pandas", "scikit-learn"]
     )
     
     # Train model
-    step.python(
-        f"""
-        import pandas as pd
-        import joblib
-        from sklearn.ensemble import RandomForestClassifier
-        from sklearn.linear_model import LogisticRegression
-        
-        # Load training data
-        train_df = pd.read_csv('/tmp/train.csv')
-        X_train = train_df.drop('target', axis=1)
-        y_train = train_df['target']
-        
-        # Select model
-        if "{model_type}" == "random_forest":
-            model = RandomForestClassifier(n_estimators=100)
-        else:
-            model = LogisticRegression()
-        
-        # Train
-        model.fit(X_train, y_train)
-        
-        # Save model
-        joblib.dump(model, '/tmp/model.pkl')
-        print(f"Trained {model_type} model")
-        """,
-        name="train-model",
-        image="python:3.11",
-        packages=["pandas", "scikit-learn", "joblib"],
-        resources={"requests": {"cpu": "4", "memory": "8Gi"}}
+    train = (
+        step("train-model")
+        .docker(
+            image="python:3.11",
+            command="python -c \"" + f"""
+import pandas as pd
+import joblib
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+
+# Load training data
+train_df = pd.read_csv('/tmp/train.csv')
+X_train = train_df.drop('target', axis=1)
+y_train = train_df['target']
+
+# Select model
+if '{model_type}' == 'random_forest':
+    model = RandomForestClassifier(n_estimators=100)
+else:
+    model = LogisticRegression()
+
+# Train
+model.fit(X_train, y_train)
+
+# Save model
+joblib.dump(model, '/tmp/model.pkl')
+print(f'Trained {model_type} model')
+""" + "\""
+        )
+        .depends("prepare-data")
     )
     
     # Evaluate model
-    metrics = step.python(
-        """
-        import pandas as pd
-        import joblib
-        from sklearn.metrics import accuracy_score, precision_score, recall_score
-        
-        # Load model and test data
-        model = joblib.load('/tmp/model.pkl')
-        test_df = pd.read_csv('/tmp/test.csv')
-        X_test = test_df.drop('target', axis=1)
-        y_test = test_df['target']
-        
-        # Predict
-        y_pred = model.predict(X_test)
-        
-        # Calculate metrics
-        metrics = {
-            'accuracy': accuracy_score(y_test, y_pred),
-            'precision': precision_score(y_test, y_pred, average='weighted'),
-            'recall': recall_score(y_test, y_pred, average='weighted')
-        }
-        
-        print(f"Model metrics: {metrics}")
-        """,
-        name="evaluate",
-        image="python:3.11",
-        packages=["pandas", "scikit-learn", "joblib"]
+    evaluate = (
+        step("evaluate")
+        .docker(
+            image="python:3.11",
+            command="python -c \"" + """
+import pandas as pd
+import joblib
+from sklearn.metrics import accuracy_score, precision_score, recall_score
+
+# Load model and test data
+model = joblib.load('/tmp/model.pkl')
+test_df = pd.read_csv('/tmp/test.csv')
+X_test = test_df.drop('target', axis=1)
+y_test = test_df['target']
+
+# Predict
+y_pred = model.predict(X_test)
+
+# Calculate metrics
+metrics = {
+    'accuracy': accuracy_score(y_test, y_pred),
+    'precision': precision_score(y_test, y_pred, average='weighted'),
+    'recall': recall_score(y_test, y_pred, average='weighted')
+}
+
+print(f'Model metrics: {metrics}')
+""" + "\""
+        )
+        .depends("train-model")
     )
+    
+    # Add all steps
+    wf.data["steps"].extend([
+        prepare.to_dict(),
+        train.to_dict(),
+        evaluate.to_dict()
+    ])
+    
+    return wf
 ```
 
 ## Advanced Patterns
@@ -426,53 +517,77 @@ def train_model(dataset_path: str, model_type: str = "random_forest"):
 ### Dynamic DAG Generation
 
 ```python
-@workflow(name="dynamic-pipeline")
+from kubiya_workflow_sdk.dsl import workflow, step
+
 def process_regions(regions: list, parallel: bool = True):
     """Process data for multiple regions dynamically"""
     
-    results = {}
+    wf = workflow("dynamic-pipeline")
     
     # Generate steps dynamically
+    region_steps = []
     for region in regions:
         # Each region gets its own processing step
-        result = step.python(
-            f"""
-            import requests
-            import pandas as pd
-            
-            # Fetch region data
-            data = requests.get(f"https://api.example.com/data/{region}").json()
-            df = pd.DataFrame(data)
-            
-            # Process
-            summary = {{
-                'region': '{region}',
-                'count': len(df),
-                'avg_value': df['value'].mean()
-            }}
-            
-            print(summary)
-            """,
-            name=f"process-{region}",
-            image="python:3.11",
-            packages=["requests", "pandas"],
-            parallel=parallel  # Run all regions in parallel if True
+        region_step = (
+            step(f"process-{region}")
+            .docker(
+                image="python:3.11",
+                command="python -c \"" + f"""
+import requests
+import pandas as pd
+
+# Fetch region data
+data = requests.get(f'https://api.example.com/data/{region}').json()
+df = pd.DataFrame(data)
+
+# Process
+summary = {{
+    'region': '{region}',
+    'count': len(df),
+    'avg_value': df['value'].mean()
+}}
+
+print(summary)
+""" + "\""
+            )
         )
-        results[region] = result
+        region_steps.append(region_step.to_dict())
+    
+    # If parallel processing requested, use parallel_steps
+    if parallel and len(regions) > 1:
+        wf.parallel_steps(
+            "process-regions",
+            items=regions,
+            command="python process_region.py ${ITEM}",
+            max_concurrent=3
+        )
+    else:
+        # Add individual steps
+        wf.data["steps"].extend(region_steps)
     
     # Aggregate results
-    step.python(
-        f"""
-        results = {results}
-        total_count = sum(r['count'] for r in results.values())
-        avg_value = sum(r['avg_value'] * r['count'] for r in results.values()) / total_count
-        
-        print(f"Total records: {{total_count}}")
-        print(f"Global average: {{avg_value}}")
-        """,
-        name="aggregate",
-        depends=list(results.values())  # Wait for all regions
+    aggregate = (
+        step("aggregate")
+        .docker(
+            image="python:3.11",
+            command="python -c \"" + f"""
+# In real scenario, would read results from previous steps
+regions = {regions}
+print(f'Processed {{len(regions)}} regions')
+print('Aggregation complete')
+""" + "\""
+        )
     )
+    
+    # Add aggregate step with dependencies
+    if not parallel:
+        aggregate.depends([f"process-{region}" for region in regions])
+    else:
+        aggregate.depends("process-regions")
+    
+    wf.data["steps"].append(aggregate.to_dict())
+    
+    return wf
 ```
 
 ## Next Steps

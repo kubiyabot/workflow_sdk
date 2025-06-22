@@ -29,7 +29,7 @@ graph LR
 ```
 
 ```python
-from kubiya_workflow_sdk import workflow, step
+from kubiya_workflow_sdk.dsl import workflow
 
 # Basic sequential workflow
 wf = (
@@ -64,7 +64,7 @@ graph TD
 ```
 
 ```python
-from kubiya_workflow_sdk import workflow
+from kubiya_workflow_sdk.dsl import workflow
 
 # Process multiple files in parallel
 wf = (
@@ -103,31 +103,43 @@ graph TD
 ```
 
 ```python
-from kubiya_workflow_sdk import workflow, step
+from kubiya_workflow_sdk.dsl import workflow, step
 
-@workflow
-def build_and_deploy():
-    """Build, test, and deploy application using different containers"""
-    
-    # Build with Node.js
-    build = step("build").docker(
+# Build, test, and deploy application using different containers
+wf = workflow("ci-cd-pipeline")
+
+# Build with Node.js
+build = (
+    step("build")
+    .docker(
         image="node:18-alpine",
         command="npm run build"
-    ).env(NODE_ENV="production")
-    
-    # Test with specialized test container
-    test = step("test").docker(
+    )
+    .env(NODE_ENV="production")
+)
+
+# Test with specialized test container
+test = (
+    step("test")
+    .docker(
         image="cypress/included:latest",
         command="cypress run"
-    ).depends("build")
-    
-    # Deploy with kubectl
-    deploy = step("deploy").docker(
+    )
+    .depends("build")
+)
+
+# Deploy with kubectl
+deploy = (
+    step("deploy")
+    .docker(
         image="bitnami/kubectl:latest",
         command="kubectl apply -f k8s/"
-    ).depends("test")
-    
-    return workflow("ci-cd-pipeline").add_steps([build, test, deploy])
+    )
+    .depends("test")
+)
+
+# Add steps to workflow
+wf.data["steps"].extend([build.to_dict(), test.to_dict(), deploy.to_dict()])
 ```
 
 ### Database Migration with Services
@@ -153,7 +165,7 @@ graph LR
 ```
 
 ```python
-from kubiya_workflow_sdk import step
+from kubiya_workflow_sdk.dsl import step
 
 # Database migration with temporary PostgreSQL
 migration_step = (
@@ -220,77 +232,82 @@ graph TD
 ```
 
 ```python
-from kubiya_workflow_sdk import workflow, step
+from kubiya_workflow_sdk.dsl import workflow, step
 
-@workflow
-def intelligent_log_analysis():
-    """Analyze logs using serverless AI agent with function calling"""
-    
-    # Fetch logs
-    fetch = step("fetch-logs").docker(
-        image="awscli/aws-cli:latest",
+# Analyze logs using serverless AI agent with function calling
+wf = workflow("intelligent-log-analysis")
+
+# Fetch logs
+fetch = (
+    step("fetch-logs")
+    .docker(
+        image="amazon/aws-cli:latest",
         command="aws logs tail /aws/lambda/my-function --since 1h --output text"
-    ).output("LOG_CONTENT")
-    
-    # Serverless AI agent analyzes logs
-    analyze = (
-        step("analyze-logs")
-        .inline_agent(
-            message="Analyze these logs and identify errors, patterns, and anomalies: ${LOG_CONTENT}",
-            agent_name="log-analyzer",
-            ai_instructions="""You are a log analysis expert. 
-            Identify:
-            1. Error patterns and their frequency
-            2. Performance bottlenecks  
-            3. Security concerns
-            4. Recommendations for improvement
-            
-            Use the provided tools to gather additional context.
-            Format your response as structured JSON with keys:
-            error_summary, performance_issues, security_risks, recommendations""",
-            runners=["kubiya-hosted"],  # Serverless execution
-            llm_model="gpt-4o",
-            is_debug_mode=True,
-            
-            # Agent uses function calling to execute tools
-            tools=[
-                {
-                    "name": "parse-json-logs",
-                    "type": "docker",
-                    "image": "stedolan/jq:latest",
-                    "content": """#!/bin/sh
+    )
+    .output("LOG_CONTENT")
+)
+
+# Serverless AI agent analyzes logs
+analyze = (
+    step("analyze-logs")
+    .inline_agent(
+        message="Analyze these logs and identify errors, patterns, and anomalies: ${LOG_CONTENT}",
+        agent_name="log-analyzer",
+        ai_instructions="""You are a log analysis expert. 
+        Identify:
+        1. Error patterns and their frequency
+        2. Performance bottlenecks  
+        3. Security concerns
+        4. Recommendations for improvement
+        
+        Use the provided tools to gather additional context.
+        Format your response as structured JSON with keys:
+        error_summary, performance_issues, security_risks, recommendations""",
+        runners=["kubiya-hosted"],  # Serverless execution
+        llm_model="gpt-4o",
+        is_debug_mode=True,
+        
+        # Agent uses function calling to execute tools
+        tools=[
+            {
+                "name": "parse-json-logs",
+                "type": "docker",
+                "image": "stedolan/jq:latest",
+                "content": """#!/bin/sh
 # Parse JSON formatted log entries
 cat /tmp/logs.txt | jq -r 'select(.level=="ERROR") | .message' | sort | uniq -c
 """,
-                    "args": []
-                },
-                {
-                    "name": "extract-timestamps",
-                    "type": "docker",
-                    "image": "alpine:latest",
-                    "content": """#!/bin/sh
+                "args": []
+            },
+            {
+                "name": "extract-timestamps",
+                "type": "docker",
+                "image": "alpine:latest",
+                "content": """#!/bin/sh
 # Extract and analyze timestamps
 grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}' /tmp/logs.txt | sort | uniq -c
 """,
-                    "args": []
-                }
-            ]
-        )
-        .depends("fetch-logs")
-        .output("ANALYSIS_RESULT")
+                "args": []
+            }
+        ]
     )
-    
-    # Generate report
-    report = step("generate-report").docker(
+    .depends("fetch-logs")
+    .output("ANALYSIS_RESULT")
+)
+
+# Generate report
+report = (
+    step("generate-report")
+    .docker(
         image="python:3.11-slim",
-        script="""
+        command="python -c \"" + """
 import json
 import os
 
 analysis = json.loads(os.environ['ANALYSIS_RESULT'])
 
 # Generate markdown report
-report = f"""# Log Analysis Report
+report = f'''# Log Analysis Report
 
 ## Error Summary
 {analysis.get('error_summary', 'No errors found')}
@@ -302,17 +319,24 @@ report = f"""# Log Analysis Report
 {', '.join(analysis.get('security_risks', [])) or 'None detected'}
 
 ## Recommendations
-{chr(10).join('- ' + r for r in analysis.get('recommendations', []))}
-"""
+''' + '\\n'.join('- ' + r for r in analysis.get('recommendations', [])) + '''
+'''
 
 with open('/tmp/report.md', 'w') as f:
     f.write(report)
     
-print("Report generated at /tmp/report.md")
-"""
-    ).depends("analyze-logs")
-    
-    return workflow("log-analysis").add_steps([fetch, analyze, report])
+print('Report generated at /tmp/report.md')
+""" + "\""
+    )
+    .depends("analyze-logs")
+)
+
+# Add all steps to workflow
+wf.data["steps"].extend([
+    fetch.to_dict(),
+    analyze.to_dict(),
+    report.to_dict()
+])
 ```
 
 ### AI-Powered Code Review with Function Calling
@@ -345,17 +369,21 @@ graph TD
 ```
 
 ```python
-from kubiya_workflow_sdk import workflow, step
+from kubiya_workflow_sdk.dsl import workflow, step
 
-@workflow  
-def ai_code_review(pr_number: int):
-    """AI-powered pull request review using serverless agents"""
+# AI-powered pull request review using serverless agents
+def create_ai_code_review_workflow(pr_number: int):
+    wf = workflow("ai-code-review")
     
     # Fetch PR diff
-    fetch_pr = step("fetch-pr").docker(
-        image="alpine/git:latest",
-        command=f"git diff origin/main...origin/pr-{pr_number} > /tmp/pr.diff && cat /tmp/pr.diff"
-    ).output("PR_DIFF")
+    fetch_pr = (
+        step("fetch-pr")
+        .docker(
+            image="alpine/git:latest",
+            command=f"git diff origin/main...origin/pr-{pr_number} > /tmp/pr.diff && cat /tmp/pr.diff"
+        )
+        .output("PR_DIFF")
+    )
     
     # Serverless AI agent reviews the code
     review = (
@@ -419,18 +447,29 @@ grep -n "console\\.log\\|print(" /tmp/pr.diff || echo "No debug statements found
     )
     
     # Post review comment
-    post = step("post-review").docker(
-        image="alpine:latest",
-        command=f"""
+    post = (
+        step("post-review")
+        .docker(
+            image="alpine:latest",
+            command=f"""
 echo "Review for PR #{pr_number}:"
 echo ""
 cat << 'EOF'
 ${{REVIEW_COMMENTS}}
 EOF
 """
-    ).depends("ai-review")
+        )
+        .depends("ai-review")
+    )
     
-    return workflow("pr-review").add_steps([fetch_pr, review, post])
+    # Add steps to workflow
+    wf.data["steps"].extend([
+        fetch_pr.to_dict(),
+        review.to_dict(),
+        post.to_dict()
+    ])
+    
+    return wf
 ```
 
 ### Intelligent Incident Response
@@ -471,12 +510,15 @@ graph TD
 ```
 
 ```python
-@workflow
-def incident_response():
-    """Automated incident response with AI decision making"""
-    
-    # Detect incident (simulate with metrics check)
-    detect = step("detect-incident").docker(
+from kubiya_workflow_sdk.dsl import workflow, step
+
+# Automated incident response with AI decision making
+wf = workflow("incident-response")
+
+# Detect incident (simulate with metrics check)
+detect = (
+    step("detect-incident")
+    .docker(
         image="alpine:latest",
         command="""
 # Simulate incident detection
@@ -488,70 +530,72 @@ echo '{
   "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
 }'
 """
-    ).output("INCIDENTS")
-    
-    # AI agent analyzes and responds
-    respond = (
-        step("ai-responder")
-        .inline_agent(
-            message="Analyze this incident and determine response: ${INCIDENTS}",
-            agent_name="incident-commander", 
-            ai_instructions="""You are an incident response expert.
-            For the incident:
-            1. Assess severity (P1/P2/P3/P4)
-            2. Determine likely root cause
-            3. Recommend immediate actions
-            4. Create runbook steps for resolution
-            
-            Use tools to gather system state before making recommendations.
-            
-            Output JSON with structure:
+    )
+    .output("INCIDENTS")
+)
+
+# AI agent analyzes and responds
+respond = (
+    step("ai-responder")
+    .inline_agent(
+        message="Analyze this incident and determine response: ${INCIDENTS}",
+        agent_name="incident-commander", 
+        ai_instructions="""You are an incident response expert.
+        For the incident:
+        1. Assess severity (P1/P2/P3/P4)
+        2. Determine likely root cause
+        3. Recommend immediate actions
+        4. Create runbook steps for resolution
+        
+        Use tools to gather system state before making recommendations.
+        
+        Output JSON with structure:
+        {
+          "severity": "P1-P4",
+          "impact": "description",
+          "root_cause": "likely cause",
+          "immediate_actions": ["action1", "action2"],
+          "runbook_steps": ["step1", "step2"],
+          "escalation_needed": true|false
+        }""",
+        
+        # Serverless execution with powerful tools
+        runners=["kubiya-hosted"],
+        llm_model="gpt-4o", 
+        is_debug_mode=True,
+        
+        tools=[
             {
-              "severity": "P1-P4",
-              "impact": "description",
-              "root_cause": "likely cause",
-              "immediate_actions": ["action1", "action2"],
-              "runbook_steps": ["step1", "step2"],
-              "escalation_needed": true|false
-            }""",
-            
-            # Serverless execution with powerful tools
-            runners=["kubiya-hosted"],
-            llm_model="gpt-4o", 
-            is_debug_mode=True,
-            
-            tools=[
-                {
-                    "name": "check-service-health",
-                    "type": "docker",
-                    "image": "curlimages/curl:latest",
-                    "content": """#!/bin/sh
+                "name": "check-service-health",
+                "type": "docker",
+                "image": "curlimages/curl:latest",
+                "content": """#!/bin/sh
 # Check service health endpoint
 SERVICE_NAME=$(echo $1 | jq -r '.service')
 echo "Checking health for $SERVICE_NAME..."
 # Simulate health check
 echo '{"status": "degraded", "healthy_instances": 2, "total_instances": 5}'
 """,
-                    "args": [{"name": "incident_data", "type": "string"}]
-                },
-                {
-                    "name": "get-recent-deployments",
-                    "type": "docker",
-                    "image": "alpine:latest",
-                    "content": """#!/bin/sh
+                "args": [{"name": "incident_data", "type": "string"}]
+            },
+            {
+                "name": "get-recent-deployments",
+                "type": "docker",
+                "image": "alpine:latest",
+                "content": """#!/bin/sh
 # Check recent deployments
 echo "Recent deployments:"
 echo "- 2h ago: v2.3.1 (api-gateway)"
 echo "- 4h ago: v1.8.0 (auth-service)"
 echo "- 24h ago: v3.2.0 (database)"
 """,
-                    "args": []
-                },
-                {
-                    "name": "check-resource-usage",
-                    "type": "docker",
-                    "image": "alpine:latest",
-                    "content": """#!/bin/sh
+                "args": []
+            },
+            {
+                "name": "check-resource-usage",
+                "type": "docker",
+                "image": "alpine:latest",
+                "content": """#!/bin/sh
 # Simulate resource check
 echo '{
   "cpu_usage": "78%",
@@ -561,16 +605,18 @@ echo '{
   "network_out": "95MB/s"
 }'
 """,
-                    "args": []
-                }
-            ]
-        )
-        .output("RESPONSE_PLAN")
-        .depends("detect-incident")
+                "args": []
+            }
+        ]
     )
-    
-    # Execute response plan
-    execute = step("execute-response").shell("""
+    .output("RESPONSE_PLAN")
+    .depends("detect-incident")
+)
+
+# Execute response plan
+execute = (
+    step("execute-response")
+    .shell("""
 echo "=== Executing Incident Response Plan ==="
 echo ""
 echo "Response Plan:"
@@ -584,10 +630,14 @@ if [ "$SEVERITY" = "P1" ] || [ "$SEVERITY" = "P2" ]; then
     echo "⚠️  HIGH PRIORITY INCIDENT - Executing immediate actions..."
     # In real scenario, execute actual remediation
 fi
-""").depends("ai-responder")
-    
-    # Send notification
-    notify = step("notify-team").docker(
+""")
+    .depends("ai-responder")
+)
+
+# Send notification
+notify = (
+    step("notify-team")
+    .docker(
         image="alpine:latest",
         command="""
 SEVERITY=$(echo "${RESPONSE_PLAN}" | jq -r '.severity')
@@ -598,9 +648,17 @@ echo "Severity: $SEVERITY"
 echo "Impact: $IMPACT"
 echo "See full response plan above"
 """
-    ).depends("execute-response")
-    
-    return workflow("incident-response").add_steps([detect, respond, execute, notify])
+    )
+    .depends("execute-response")
+)
+
+# Add all steps to workflow
+wf.data["steps"].extend([
+    detect.to_dict(),
+    respond.to_dict(),
+    execute.to_dict(),
+    notify.to_dict()
+])
 ```
 
 ## Tool Definitions
@@ -622,7 +680,7 @@ graph LR
 ```
 
 ```python
-from kubiya_workflow_sdk import step
+from kubiya_workflow_sdk.dsl import step
 
 # Slack notification tool
 notify = (
@@ -656,6 +714,8 @@ curl -X POST "$SLACK_WEBHOOK" \
 Tool with configuration files:
 
 ```python
+from kubiya_workflow_sdk.dsl import step
+
 transform_step = (
     step("transform-data")
     .tool_def(
@@ -695,64 +755,88 @@ df = df[df['processed'] > 100]
 Complex DAG with conditional execution:
 
 ```python
-from kubiya_workflow_sdk import workflow, step
+from kubiya_workflow_sdk.dsl import workflow, step
 
-@workflow
-def etl_pipeline(source: str, target: str):
-    """Complex ETL pipeline with validation and error handling"""
+# Complex ETL pipeline with validation and error handling
+def create_etl_pipeline(source: str, target: str):
+    wf = workflow("etl-pipeline")
     
     # Extract from multiple sources
-    extract_db = step("extract-db").docker(
-        image="postgres:15",
-        command="pg_dump -h ${DB_HOST} -U ${DB_USER} -d ${DB_NAME}"
-    ).output("DB_DATA")
+    extract_db = (
+        step("extract-db")
+        .docker(
+            image="postgres:15",
+            command="pg_dump -h ${DB_HOST} -U ${DB_USER} -d ${DB_NAME}"
+        )
+        .output("DB_DATA")
+    )
     
-    extract_api = step("extract-api").docker(
-        image="python:3.11",
-        script="""
+    extract_api = (
+        step("extract-api")
+        .docker(
+            image="python:3.11",
+            command="python -c \"" + """
 import requests
+import json
+import os
 data = requests.get(os.environ['API_URL']).json()
 print(json.dumps(data))
-"""
-    ).output("API_DATA")
+""" + "\""
+        )
+        .output("API_DATA")
+    )
     
     # Validate data quality
-    validate = step("validate").docker(
-        image="python:3.11",
-        script="""
+    validate = (
+        step("validate")
+        .docker(
+            image="python:3.11",
+            command="python -c \"" + """
 import json
+import sys
+import os
 db_data = json.loads(os.environ['DB_DATA'])
 api_data = json.loads(os.environ['API_DATA'])
 
 # Validation logic
 errors = []
 if len(db_data) == 0:
-    errors.append("No DB data")
+    errors.append('No DB data')
 if 'required_field' not in api_data:
-    errors.append("Missing required field")
+    errors.append('Missing required field')
 
 if errors:
-    print(json.dumps({"valid": False, "errors": errors}))
+    print(json.dumps({'valid': False, 'errors': errors}))
     sys.exit(1)
 else:
-    print(json.dumps({"valid": True}))
-"""
-    ).depends(["extract-db", "extract-api"])
-    .output("VALIDATION_RESULT")
+    print(json.dumps({'valid': True}))
+""" + "\""
+        )
+        .depends(["extract-db", "extract-api"])
+        .output("VALIDATION_RESULT")
+    )
     
     # Transform data
-    transform = step("transform").docker(
-        image="apache/spark:3.4",
-        command="spark-submit transform.py"
-    ).depends("validate")
-    .preconditions("${VALIDATION_RESULT.valid} == true")
+    transform = (
+        step("transform")
+        .docker(
+            image="apache/spark:3.4",
+            command="spark-submit transform.py"
+        )
+        .depends("validate")
+        .preconditions("${VALIDATION_RESULT.valid} == true")
+    )
     
     # Load to warehouse
-    load = step("load").docker(
-        image="snowflake/snowcli:latest",
-        command="snow stage copy @mystage ${TRANSFORMED_DATA}"
-    ).depends("transform")
-    .retry(limit=3, interval_sec=60)
+    load = (
+        step("load")
+        .docker(
+            image="snowflake/snowcli:latest",
+            command="snow stage copy @mystage ${TRANSFORMED_DATA}"
+        )
+        .depends("transform")
+        .retry(limit=3, interval_sec=60)
+    )
     
     # Error handling path
     error_notify = (
@@ -767,9 +851,17 @@ else:
         .preconditions("${VALIDATION_RESULT.valid} == false")
     )
     
-    return workflow("etl-pipeline").add_steps([
-        extract_db, extract_api, validate, transform, load, error_notify
+    # Add all steps to workflow
+    wf.data["steps"].extend([
+        extract_db.to_dict(),
+        extract_api.to_dict(),
+        validate.to_dict(),
+        transform.to_dict(),
+        load.to_dict(),
+        error_notify.to_dict()
     ])
+    
+    return wf
 ```
 
 ## Control Flow Examples
@@ -779,7 +871,7 @@ else:
 Robust error handling patterns:
 
 ```python
-from kubiya_workflow_sdk import step
+from kubiya_workflow_sdk.dsl import step
 
 # Step with comprehensive retry policy
 resilient_step = (
@@ -815,11 +907,13 @@ cleanup = (
 Execute steps based on conditions:
 
 ```python
+from kubiya_workflow_sdk.dsl import step
+
 # Production deployment with safety checks
 deploy_prod = (
     step("deploy-production")
     .docker(
-        image="kubectl:latest",
+        image="bitnami/kubectl:latest",
         command="kubectl apply -f production.yaml"
     )
     .preconditions(
@@ -833,7 +927,7 @@ deploy_prod = (
 deploy_staging = (
     step("deploy-staging")
     .docker(
-        image="kubectl:latest", 
+        image="bitnami/kubectl:latest", 
         command="kubectl apply -f staging.yaml"
     )
     .preconditions("${TEST_RESULT.passed} == true")
@@ -874,6 +968,8 @@ async def generate_workflow():
 
 ### 1. Use Appropriate Executors
 ```python
+from kubiya_workflow_sdk.dsl import step
+
 # Shell for simple commands
 step("list-files").shell("ls -la")
 
@@ -884,7 +980,8 @@ step("build").docker("node:18", "npm run build")
 step("analyze").inline_agent(
     message="Analyze this data",
     agent_name="analyzer",
-    ai_instructions="You are a data analyst..."
+    ai_instructions="You are a data analyst...",
+    runners=["kubiya-hosted"]
 )
 ```
 

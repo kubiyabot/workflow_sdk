@@ -28,28 +28,35 @@ A workflow in Kubiya is:
 Unlike traditional workflow engines that run scripts in a shared Python environment, Kubiya executes every step as a serverless container:
 
 ```python
+from kubiya_workflow_sdk.dsl import workflow, step
+
 # This workflow uses multiple languages and tools
-workflow("multi-language-pipeline")
-.step("extract")
-.docker(
-    image="python:3.11",
-    code="import pandas as pd; df = pd.read_csv('data.csv')"
-)
-.step("transform")
-.docker(
-    image="node:20",
-    code="const data = require('./data.json'); /* Node.js processing */"
-)
-.step("analyze")
-.docker(
-    image="r-base:latest",
-    code="library(ggplot2); # R statistical analysis"
-)
-.step("deploy")
-.docker(
-    image="hashicorp/terraform:latest",
-    command="terraform apply -auto-approve"
-)
+wf = workflow("multi-language-pipeline")
+
+# Extract with Python
+wf.step("extract", command="python", script="""
+import pandas as pd
+df = pd.read_csv('data.csv')
+df.to_json('data.json')
+""")
+
+# Transform with Node.js
+wf.step("transform", command="node", script="""
+const data = require('./data.json');
+// Node.js processing
+console.log('Processed', data.length, 'records');
+""")
+
+# Analyze with R
+wf.step("analyze", command="Rscript", script="""
+library(ggplot2)
+# R statistical analysis
+data <- read.csv('data.csv')
+summary(data)
+""")
+
+# Deploy with Terraform
+wf.step("deploy", "terraform apply -auto-approve")
 ```
 
 ## Workflow Architecture
@@ -92,16 +99,28 @@ graph TB
 The atomic unit of work in a workflow:
 
 ```python
-from kubiya import step
+from kubiya_workflow_sdk.dsl import step
 
 # Simple command step
-step.run("echo 'Hello World'", image="alpine:latest")
+simple = step("hello", "echo 'Hello World'")
 
-# Step with custom name and resources
-step.process_data(
-    image="python:3.11",
-    command=["python", "process.py"],
-    resources={"cpu": "2", "memory": "4Gi"}
+# Step with custom Docker image
+process = (
+    step("process-data")
+    .docker(
+        image="python:3.11",
+        command="python process.py"
+    )
+)
+
+# Step with resource limits
+heavy = (
+    step("heavy-compute")
+    .docker(
+        image="compute:latest",
+        command="./run-analysis.sh"
+    )
+    # Note: Resources are typically configured at the runner level
 )
 ```
 
@@ -110,22 +129,32 @@ step.process_data(
 Steps can depend on other steps, creating the DAG:
 
 ```python
-@workflow
-def data_pipeline():
-    # Step 1: Extract
-    raw = step.extract(image="extractor:latest")
-    
-    # Step 2: Transform (depends on extract)
-    clean = step.transform(
-        image="transformer:latest",
-        depends_on=[raw]
-    )
-    
-    # Step 3: Load (depends on transform)
-    step.load(
-        image="loader:latest",
-        depends_on=[clean]
-    )
+from kubiya_workflow_sdk.dsl import workflow, step
+
+# Create workflow
+wf = workflow("data-pipeline")
+
+# Step 1: Extract
+extract = step("extract", "python extract.py")
+
+# Step 2: Transform (depends on extract)
+transform = (
+    step("transform", "python transform.py")
+    .depends("extract")
+)
+
+# Step 3: Load (depends on transform)
+load = (
+    step("load", "python load.py")
+    .depends("transform")
+)
+
+# Add steps to workflow
+wf.data["steps"].extend([
+    extract.to_dict(),
+    transform.to_dict(),
+    load.to_dict()
+])
 ```
 
 ### Parallel Execution
@@ -133,18 +162,29 @@ def data_pipeline():
 Steps without dependencies run in parallel:
 
 ```python
-@workflow
-def parallel_processing():
-    # These run simultaneously
-    data1 = step.fetch_source1(image="fetcher:latest")
-    data2 = step.fetch_source2(image="fetcher:latest")
-    data3 = step.fetch_source3(image="fetcher:latest")
-    
-    # This waits for all three
-    step.merge_data(
-        image="merger:latest",
-        depends_on=[data1, data2, data3]
-    )
+from kubiya_workflow_sdk.dsl import workflow, step
+
+# Create workflow
+wf = workflow("parallel-processing")
+
+# These run simultaneously
+data1 = step("fetch-source1", "wget https://api1.example.com/data")
+data2 = step("fetch-source2", "wget https://api2.example.com/data")
+data3 = step("fetch-source3", "wget https://api3.example.com/data")
+
+# This waits for all three
+merge = (
+    step("merge-data", "python merge.py")
+    .depends(["fetch-source1", "fetch-source2", "fetch-source3"])
+)
+
+# Add all steps
+wf.data["steps"].extend([
+    data1.to_dict(),
+    data2.to_dict(),
+    data3.to_dict(),
+    merge.to_dict()
+])
 ```
 
 ## Workflow Formats
@@ -154,46 +194,74 @@ def parallel_processing():
 The recommended way to define workflows:
 
 ```python
-from kubiya import workflow, step, params
+from kubiya_workflow_sdk.dsl import workflow, step
 
-@workflow
-def deploy_application():
+def create_deployment_workflow(environment="staging", version=None):
     """Deploy application with health checks"""
     
-    # Parameters
-    env = params.get("environment", default="staging")
-    version = params.get("version", required=True)
+    # Create workflow
+    wf = (
+        workflow("deploy-application")
+        .description("Deploy application with health checks")
+        .params(
+            ENVIRONMENT="${ENVIRONMENT:-staging}",
+            VERSION="${VERSION}"  # Required at runtime
+        )
+    )
     
     # Build step
-    build = step.build(
-        image="docker:latest",
-        command=f"docker build -t app:{version} .",
-        retry={"limit": 3}
+    build = (
+        step("build")
+        .docker(
+            image="docker:latest",
+            command=f"docker build -t app:${{VERSION}} ."
+        )
+        .retry(limit=3)
     )
     
     # Test step
-    test = step.test(
-        image="app:{version}",
-        command="pytest tests/",
-        depends_on=[build],
-        timeout="10m"
+    test = (
+        step("test")
+        .docker(
+            image="app:${VERSION}",
+            command="pytest tests/"
+        )
+        .depends("build")
+        .timeout(600)  # 10 minutes
     )
     
     # Deploy step
-    deploy = step.deploy(
-        image="kubectl:latest",
-        command=f"kubectl apply -f deploy/{env}.yaml",
-        depends_on=[test],
-        approval_required=True if env == "production" else False
+    deploy = (
+        step("deploy")
+        .docker(
+            image="bitnami/kubectl:latest",
+            command="kubectl apply -f deploy/${ENVIRONMENT}.yaml"
+        )
+        .depends("test")
+        # Use preconditions for conditional execution
+        .preconditions("${ENVIRONMENT} != 'production' || ${APPROVED} == 'true'")
     )
     
     # Health check
-    step.health_check(
-        image="curl:latest",
-        command="curl -f http://app/health",
-        depends_on=[deploy],
-        retry={"limit": 5, "interval": "30s"}
+    health = (
+        step("health-check")
+        .docker(
+            image="curlimages/curl:latest",
+            command="curl -f http://app/health"
+        )
+        .depends("deploy")
+        .retry(limit=5, interval_sec=30)
     )
+    
+    # Add all steps
+    wf.data["steps"].extend([
+        build.to_dict(),
+        test.to_dict(),
+        deploy.to_dict(),
+        health.to_dict()
+    ])
+    
+    return wf
 ```
 
 ### JSON Format
@@ -269,23 +337,42 @@ Throughout execution:
 Execute steps based on conditions:
 
 ```python
-@workflow
-def conditional_deployment():
-    test_result = step.run_tests(image="tester:latest")
-    
-    # Only deploy if tests pass
-    step.deploy(
-        image="deployer:latest",
-        when=f"{test_result.exit_code} == 0"
-    )
-    
-    # Send notification either way
-    step.notify(
-        image="notifier:latest",
-        env={
-            "STATUS": "success" if test_result.success else "failed"
-        }
-    )
+from kubiya_workflow_sdk.dsl import workflow, step
+
+# Create conditional deployment workflow
+wf = workflow("conditional-deployment")
+
+# Run tests
+test = (
+    step("run-tests")
+    .docker(image="python:3.11", command="pytest")
+    .output("TEST_RESULT")
+)
+
+# Deploy only if tests pass
+deploy = (
+    step("deploy")
+    .docker(image="bitnami/kubectl:latest", command="kubectl apply -f app.yaml")
+    .depends("run-tests")
+    .preconditions("${TEST_RESULT.exit_code} == 0")
+)
+
+# Notify regardless
+notify = (
+    step("notify")
+    .docker(image="curlimages/curl:latest", command="""
+curl -X POST https://api.slack.com/webhook \
+  -d '{"text": "Deployment status: ${TEST_RESULT.exit_code}"}'
+""")
+    .depends("run-tests")
+)
+
+# Add steps
+wf.data["steps"].extend([
+    test.to_dict(),
+    deploy.to_dict(),
+    notify.to_dict()
+])
 ```
 
 ### Loops and Iteration
@@ -293,22 +380,26 @@ def conditional_deployment():
 Process lists of items:
 
 ```python
-@workflow
-def batch_processing():
-    # Get list of files
-    files = step.list_files(
-        image="aws-cli:latest",
-        command="aws s3 ls s3://bucket/",
-        output_format="lines"
+from kubiya_workflow_sdk.dsl import workflow
+
+# Create batch processing workflow
+wf = workflow("batch-processing")
+
+# Use parallel_steps for processing multiple items
+wf.parallel_steps(
+    "process-files",
+    items=["file1.csv", "file2.csv", "file3.csv"],
+    command="python process.py ${ITEM}",
+    max_concurrent=2
+)
+
+# Or create individual steps dynamically
+files = ["report1.pdf", "report2.pdf", "report3.pdf"]
+for file in files:
+    wf.step(
+        f"process-{file.replace('.', '-')}",
+        f"python analyze.py {file}"
     )
-    
-    # Process each file
-    for file in files:
-        step.process_file(
-            name=f"process-{file}",
-            image="processor:latest",
-            env={"FILE": file}
-        )
 ```
 
 ### Error Handling
@@ -316,35 +407,53 @@ def batch_processing():
 Robust error handling and recovery:
 
 ```python
-@workflow
-def fault_tolerant_pipeline():
-    # Step with retries
-    data = step.fetch_data(
-        image="fetcher:latest",
-        retry={
-            "limit": 3,
-            "interval": "30s",
-            "backoff": "exponential"
-        }
+from kubiya_workflow_sdk.dsl import workflow, step
+
+# Create fault-tolerant pipeline
+wf = workflow("fault-tolerant-pipeline")
+
+# Step with retries
+fetch = (
+    step("fetch-data")
+    .docker(image="alpine:latest", command="wget https://api.example.com/data")
+    .retry(
+        limit=3,
+        interval_sec=30,
+        exponential_base=2.0  # Exponential backoff
     )
-    
-    # Step with fallback
-    try:
-        result = step.primary_processor(
-            image="processor:v2",
-            depends_on=[data]
-        )
-    except StepFailure:
-        result = step.fallback_processor(
-            image="processor:v1",
-            depends_on=[data]
-        )
-    
-    # Cleanup runs regardless
-    step.cleanup(
-        image="cleaner:latest",
-        always_run=True
-    )
+)
+
+# Primary processor
+process = (
+    step("primary-processor")
+    .docker(image="processor:v2", command="python process.py")
+    .depends("fetch-data")
+    .continue_on(exit_code=[1])  # Continue even if exit code is 1
+)
+
+# Fallback processor
+fallback = (
+    step("fallback-processor")
+    .docker(image="processor:v1", command="python process_legacy.py")
+    .depends("primary-processor")
+    .preconditions("${primary-processor.exit_code} != 0")
+)
+
+# Cleanup always runs
+cleanup = (
+    step("cleanup")
+    .docker(image="alpine:latest", command="rm -rf /tmp/workspace/*")
+    .depends(["primary-processor", "fallback-processor"])
+    .continue_on(failure=True)  # Always run
+)
+
+# Add steps
+wf.data["steps"].extend([
+    fetch.to_dict(),
+    process.to_dict(),
+    fallback.to_dict(),
+    cleanup.to_dict()
+])
 ```
 
 ### Resource Management
@@ -352,33 +461,48 @@ def fault_tolerant_pipeline():
 Fine-grained resource control:
 
 ```python
-@workflow
-def resource_aware_pipeline():
-    # CPU-intensive step
-    step.cpu_task(
+from kubiya_workflow_sdk.dsl import workflow, step
+
+# Create resource-aware pipeline
+wf = workflow("resource-aware-pipeline")
+
+# CPU-intensive step
+cpu_task = (
+    step("cpu-task")
+    .docker(
         image="cpu-heavy:latest",
-        resources={
-            "cpu": "4",
-            "memory": "2Gi"
-        }
+        command="./run-analysis.sh"
     )
-    
-    # GPU-accelerated step
-    step.ml_training(
-        image="tensorflow:gpu",
-        resources={
-            "nvidia.com/gpu": "1",
-            "memory": "16Gi"
-        }
+    # Note: Resource requests are typically configured at the runner level
+    # or through workflow metadata, not directly on steps
+)
+
+# GPU-accelerated step
+ml_training = (
+    step("ml-training")
+    .docker(
+        image="tensorflow/tensorflow:latest-gpu",
+        command="python train_model.py"
     )
-    
-    # Spot/preemptible instances
-    step.batch_job(
+    # GPU allocation is handled by the runner configuration
+)
+
+# Batch job
+batch = (
+    step("batch-job")
+    .docker(
         image="batch:latest",
-        node_selector={
-            "node.kubernetes.io/instance-type": "spot"
-        }
+        command="./process-batch.sh"
     )
+    # Node selection is configured at the runner/platform level
+)
+
+# Add steps
+wf.data["steps"].extend([
+    cpu_task.to_dict(),
+    ml_training.to_dict(),
+    batch.to_dict()
+])
 ```
 
 ## Workflow Patterns
@@ -439,49 +563,99 @@ Distributed tracing support:
 ### 1. Keep Steps Atomic
 Each step should do one thing well:
 ```python
-# Good: Atomic steps
-step.download_data(...)
-step.validate_data(...)
-step.process_data(...)
+from kubiya_workflow_sdk.dsl import workflow
 
-# Bad: Monolithic step
-step.download_validate_and_process(...)
+wf = workflow("good-practice")
+
+# Good: Atomic steps
+wf.step("download-data", "wget https://example.com/data.csv")
+wf.step("validate-data", "python validate.py data.csv")
+wf.step("process-data", "python process.py data.csv")
+
+# Bad: Don't create monolithic steps
+# wf.step("do-everything", "python download_validate_and_process.py")
 ```
 
 ### 2. Use Appropriate Images
 Choose minimal, purpose-built images:
 ```python
-# Good: Specific images
-step.run_python(image="python:3.11-slim")
-step.run_kubectl(image="bitnami/kubectl:latest")
+from kubiya_workflow_sdk.dsl import step
 
-# Bad: Heavy, general images
-step.run_python(image="ubuntu:latest")  # Too heavy
+# Good: Specific, minimal images
+python_step = step("run-python").docker(
+    image="python:3.11-slim",
+    command="python script.py"
+)
+
+kubectl_step = step("run-kubectl").docker(
+    image="bitnami/kubectl:latest",
+    command="kubectl get pods"
+)
+
+# Bad: Avoid heavy, general images
+# bad_step = step("run-python").docker(
+#     image="ubuntu:latest",  # Too heavy for just Python
+#     command="python script.py"
+# )
 ```
 
 ### 3. Handle Failures Gracefully
 Always plan for failure:
 ```python
+from kubiya_workflow_sdk.dsl import step
+
 # Add retries for network operations
-step.api_call(retry={"limit": 3})
+api_call = (
+    step("api-call")
+    .docker(image="curlimages/curl", command="curl https://api.example.com")
+    .retry(limit=3, interval_sec=10)
+)
 
 # Add timeouts for long-running operations
-step.process(timeout="30m")
+process = (
+    step("process")
+    .docker(image="processor:latest", command="./long-process.sh")
+    .timeout(1800)  # 30 minutes
+)
 
 # Add cleanup steps
-step.cleanup(always_run=True)
+cleanup = (
+    step("cleanup")
+    .shell("rm -rf /tmp/workspace/*")
+    .continue_on(failure=True)  # Always run
+)
 ```
 
 ### 4. Parameterize Workflows
 Make workflows reusable:
 ```python
-@workflow
-def deploy(env: str, version: str, replicas: int = 3):
-    # Parameterized workflow
-    step.deploy(
-        env={"ENV": env, "VERSION": version},
-        command=f"kubectl scale --replicas={replicas}"
+from kubiya_workflow_sdk.dsl import workflow
+
+def create_deployment(env: str, version: str, replicas: int = 3):
+    """Create a parameterized deployment workflow"""
+    
+    wf = (
+        workflow(f"deploy-{env}")
+        .description(f"Deploy to {env} environment")
+        .params(
+            ENV=env,
+            VERSION=version,
+            REPLICAS=str(replicas)
+        )
     )
+    
+    # Deploy step uses parameters
+    wf.step(
+        "deploy",
+        f"kubectl set image deployment/app app={version} && " +
+        f"kubectl scale deployment/app --replicas={replicas}"
+    )
+    
+    return wf
+
+# Create workflows for different environments
+dev_workflow = create_deployment("dev", "v1.2.3", replicas=1)
+prod_workflow = create_deployment("prod", "v1.2.3", replicas=5)
 ```
 
 ## Next Steps

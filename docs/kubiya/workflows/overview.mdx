@@ -77,12 +77,11 @@ A workflow in Kubiya is:
 ### 1. **Workflow Definition**
 
 ```python
-from kubiya import workflow, step
+from kubiya_workflow_sdk.dsl import workflow, step
 
-@workflow
-def my_data_pipeline():
-    # Your workflow logic here
-    pass
+# Create a workflow
+wf = workflow("my-data-pipeline")
+wf.description("Process data through multiple stages")
 ```
 
 ### 2. **Steps**
@@ -90,11 +89,16 @@ def my_data_pipeline():
 Each step is an atomic unit of work:
 
 ```python
-data = step.extract(
-    name="extract-data",
-    image="python:3.11",
-    script="extract.py",
-    inputs={"source": "database"}
+from kubiya_workflow_sdk.dsl import step
+
+# Create a step
+data = (
+    step("extract-data")
+    .docker(
+        image="python:3.11",
+        command="python extract.py"
+    )
+    .env(SOURCE="database")
 )
 ```
 
@@ -189,10 +193,18 @@ graph TD
 Dynamic paths based on results:
 
 ```python
-if data.quality_score > 0.8:
-    step.proceed_to_production()
-else:
-    step.alert_data_team()
+# Use preconditions for conditional execution
+deploy_step = (
+    step("deploy-production")
+    .docker(image="kubectl:latest", command="kubectl apply -f prod.yaml")
+    .preconditions("${QUALITY_SCORE} > 0.8")
+)
+
+alert_step = (
+    step("alert-team")
+    .shell("send-alert.sh 'Data quality issues detected'")
+    .preconditions("${QUALITY_SCORE} <= 0.8")
+)
 ```
 
 ### Error Handling
@@ -200,10 +212,11 @@ else:
 Built-in retry mechanisms:
 
 ```python
-step.critical_operation(
-    retry=3,
-    backoff="exponential",
-    on_failure="alert"
+critical = (
+    step("critical-operation")
+    .docker(image="processor:latest", command="./critical.sh")
+    .retry(limit=3, exponential_base=2.0)
+    .continue_on(failure=False)
 )
 ```
 
@@ -212,10 +225,23 @@ step.critical_operation(
 Embed intelligent decision-making:
 
 ```python
-analysis = step.inline_agent(
-    message="Analyze these logs for anomalies",
-    runners=["kubiya-hosted"],
-    tools=[log_parser_tool]
+analysis = (
+    step("analyze-logs")
+    .inline_agent(
+        message="Analyze these logs for anomalies",
+        agent_name="log-analyzer",
+        ai_instructions="You are a log analysis expert...",
+        runners=["kubiya-hosted"],
+        tools=[
+            {
+                "name": "parse-logs",
+                "type": "docker",
+                "image": "alpine:latest",
+                "content": "#!/bin/sh\ngrep ERROR /logs/*.log",
+                "args": []
+            }
+        ]
+    )
 )
 ```
 
@@ -271,57 +297,100 @@ analysis = step.inline_agent(
 Let's see a complete workflow that showcases Kubiya's power:
 
 ```python
-from kubiya import workflow, step
+from kubiya_workflow_sdk.dsl import workflow, step
 
-@workflow(
-    name="intelligent-deployment",
-    description="AI-assisted deployment with safety checks"
-)
-def deploy_with_intelligence():
+def create_intelligent_deployment():
+    """AI-assisted deployment with safety checks"""
+    
+    # Create workflow
+    wf = (
+        workflow("intelligent-deployment")
+        .description("AI-assisted deployment with safety checks")
+    )
+    
     # Run tests in Node.js container
-    test_results = step.run_tests(
-        image="node:18",
-        script="npm test",
-        timeout="5m"
+    test = (
+        step("run-tests")
+        .docker(
+            image="node:18",
+            command="npm test"
+        )
+        .timeout(300)  # 5 minutes
+        .output("TEST_RESULTS")
     )
     
     # Analyze results with AI
-    analysis = step.inline_agent(
-        message=f"Analyze these test results: {test_results}",
-        runners=["kubiya-hosted"],
-        tools=[{
-            "name": "decide-deployment",
-            "type": "function",
-            "description": "Decide if safe to deploy"
-        }]
+    analysis = (
+        step("analyze")
+        .inline_agent(
+            message="Analyze these test results: ${TEST_RESULTS}",
+            agent_name="deployment-analyzer",
+            ai_instructions="""You are a deployment safety expert.
+            Analyze the test results and return JSON with:
+            - should_deploy: boolean
+            - confidence: 0-1
+            - concerns: array of strings""",
+            runners=["kubiya-hosted"],
+            llm_model="gpt-4o"
+        )
+        .depends("run-tests")
+        .output("ANALYSIS")
     )
     
-    # Conditional deployment
-    if analysis.should_deploy:
-        # Build in parallel
-        image = step.build_docker_image(
-            dockerfile="./Dockerfile",
-            tag="myapp:latest"
+    # Build Docker image (conditional)
+    build = (
+        step("build-docker-image")
+        .docker(
+            image="docker:dind",
+            command="docker build -t myapp:latest ."
         )
-        
-        # Deploy to Kubernetes
-        step.deploy_to_k8s(
-            manifest="k8s/deployment.yaml",
-            image=image.tag,
-            namespace="production"
+        .depends("analyze")
+        .preconditions("${ANALYSIS.should_deploy} == true")
+        .output("IMAGE_TAG")
+    )
+    
+    # Deploy to Kubernetes (conditional)
+    deploy = (
+        step("deploy-to-k8s")
+        .docker(
+            image="bitnami/kubectl:latest",
+            command="kubectl set image deployment/app app=myapp:latest -n production"
         )
-        
-        # Notify team
-        step.send_notification(
-            channel="deployments",
-            message="🚀 Deployed successfully!"
+        .depends("build-docker-image")
+    )
+    
+    # Notify team (conditional success)
+    notify_success = (
+        step("send-notification")
+        .docker(
+            image="curlimages/curl:latest",
+            command="curl -X POST https://slack.com/webhook -d '{\"text\":\"🚀 Deployed successfully!\"}'"
         )
-    else:
-        # Alert on issues
-        step.create_incident(
-            severity="high",
-            details=analysis.concerns
+        .depends("deploy-to-k8s")
+    )
+    
+    # Create incident (conditional failure)
+    alert = (
+        step("create-incident")
+        .docker(
+            image="alpine:latest",
+            command="echo 'Creating incident with details: ${ANALYSIS.concerns}'"
         )
+        .depends("analyze")
+        .preconditions("${ANALYSIS.should_deploy} == false")
+    )
+    
+    # Add all steps
+    wf.data["steps"].extend([
+        test.to_dict(),
+        analysis.to_dict(),
+        build.to_dict(),
+        deploy.to_dict(),
+        notify_success.to_dict(),
+        alert.to_dict()
+    ])
+    
+    return wf
 ```
 
 ## Visual Workflow Builder

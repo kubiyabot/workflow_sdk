@@ -57,23 +57,25 @@ graph TB
 The heart of the SDK - manages workflow lifecycle:
 
 ```python
-from kubiya_workflow_sdk.core import WorkflowEngine
+from kubiya_workflow_sdk import KubiyaClient
+from kubiya_workflow_sdk.dsl import workflow
 
-engine = WorkflowEngine(
-    executor="kubernetes",  # or "docker", "local"
-    max_parallel=10,
-    retry_policy="exponential"
+# Create a workflow using the DSL
+wf = (
+    workflow("data-pipeline")
+    .description("Process data through pipeline")
+    .runner("kubernetes")  # Specify runner
+    .params(VERSION="1.0.0")
 )
 
-# Internal workflow representation
-workflow_spec = {
-    "name": "data-pipeline",
-    "version": "1.0.0",
-    "steps": [...],
-    "dependencies": {...}
-}
+# Add steps
+wf.step("fetch", "python fetch_data.py")
+wf.step("process", "python process_data.py")
+wf.step("store", "python store_data.py")
 
-result = await engine.execute(workflow_spec)
+# Execute using client
+client = KubiyaClient()
+result = client.execute_workflow_yaml(wf.to_yaml())
 ```
 
 ### 2. **Step Management**
@@ -81,52 +83,48 @@ result = await engine.execute(workflow_spec)
 Advanced step configuration and execution:
 
 ```python
-from kubiya_workflow_sdk.core.steps import StepBuilder, StepType
-
-# Create custom step types
-builder = StepBuilder()
+from kubiya_workflow_sdk.dsl import step
 
 # Shell step with advanced options
-shell_step = builder.create(
-    type=StepType.SHELL,
-    name="process-data",
-    config={
-        "image": "python:3.11",
-        "command": "python process.py",
-        "resources": {"cpu": "2", "memory": "4Gi"},
-        "timeout": "30m",
-        "retry": {
-            "max_attempts": 3,
-            "backoff": "exponential",
-            "initial_delay": "10s"
-        },
-        "env_from": [
-            {"secret_ref": {"name": "api-keys"}},
-            {"config_map_ref": {"name": "app-config"}}
-        ]
-    }
+shell_step = (
+    step("process-data")
+    .docker(
+        image="python:3.11",
+        command="python process.py"
+    )
+    .timeout(1800)  # 30 minutes
+    .retry(
+        limit=3,
+        exponential_base=2.0,
+        interval_sec=10
+    )
+    .env(
+        API_KEY="${secrets.API_KEY}",
+        CONFIG="${CONFIG_VALUE}"
+    )
 )
 
-# Container step with health checks
-container_step = builder.create(
-    type=StepType.CONTAINER,
-    name="web-server",
-    config={
-        "image": "nginx:alpine",
-        "ports": {"80/tcp": 8080},
-        "health_check": {
-            "test": ["CMD", "curl", "-f", "http://localhost/"],
-            "interval": "30s",
-            "timeout": "10s",
-            "retries": 3,
-            "start_period": "40s"
-        },
-        "lifecycle": {
-            "pre_stop": {
-                "exec": {"command": ["/bin/sh", "-c", "nginx -s quit"]}
-            }
-        }
-    }
+# Container step with specific configuration
+container_step = (
+    step("web-server")
+    .docker(
+        image="nginx:alpine",
+        command="nginx -g 'daemon off;'"
+    )
+    # Note: Health checks, ports, and lifecycle hooks
+    # are configured at the runner/platform level
+)
+
+# Inline agent step
+agent_step = (
+    step("analyze")
+    .inline_agent(
+        message="Analyze the deployment metrics",
+        agent_name="metrics-analyzer",
+        ai_instructions="You are a metrics expert. Return JSON analysis.",
+        runners=["kubiya-hosted"],
+        llm_model="gpt-4o"
+    )
 )
 ```
 
@@ -135,19 +133,25 @@ container_step = builder.create(
 Transform Python DSL to internal representation:
 
 ```python
-from kubiya_workflow_sdk.dsl.parser import DSLParser
+from kubiya_workflow_sdk.dsl import workflow, step
 
-parser = DSLParser()
+# Create workflow using fluent API
+wf = workflow("my-pipeline")
 
-# Parse Python function to workflow
-@workflow
-def my_pipeline():
-    data = step.fetch("source.csv")
-    processed = step.transform(data, parallel=True)
-    step.store(processed)
+# Add steps
+fetch_step = step("fetch", "wget source.csv")
+transform_step = step("transform", "python transform.py").depends("fetch")
+store_step = step("store", "aws s3 cp output.csv s3://bucket/").depends("transform")
 
-workflow_spec = parser.parse(my_pipeline)
-print(workflow_spec.to_yaml())
+# Add steps to workflow
+wf.data["steps"].extend([
+    fetch_step.to_dict(),
+    transform_step.to_dict(),
+    store_step.to_dict()
+])
+
+# Convert to YAML
+print(wf.to_yaml())
 ```
 
 ### 4. **Provider System**
@@ -155,34 +159,43 @@ print(workflow_spec.to_yaml())
 Extensible provider architecture:
 
 ```python
-from kubiya_workflow_sdk.providers import BaseProvider, ProviderRegistry
+from kubiya_workflow_sdk.providers import BaseProvider, register_provider
 
 class CustomProvider(BaseProvider):
     """Custom AI provider implementation"""
     
-    def __init__(self, config):
-        self.config = config
-        self.client = self._init_client()
+    def __init__(self, client=None, config=None):
+        super().__init__(client, config)
+        self.api_key = config.get("api_key") if config else None
     
     async def compose(self, task, mode="plan", **kwargs):
         """Generate workflow from natural language"""
-        # Your implementation
-        pass
-    
-    async def execute_workflow(self, workflow, **kwargs):
-        """Execute with provider-specific logic"""
-        # Your implementation
-        pass
-    
-    def get_capabilities(self):
+        # Generate workflow code
+        workflow_code = await self._generate_workflow(task)
+        
         return {
-            "streaming": True,
-            "ai_generation": True,
-            "custom_models": ["model1", "model2"]
+            "success": True,
+            "workflow_code": workflow_code,
+            "workflow_yaml": self._code_to_yaml(workflow_code)
         }
+    
+    async def _generate_workflow(self, task):
+        # Your LLM implementation
+        return f'''
+from kubiya_workflow_sdk.dsl import workflow
+
+wf = workflow("generated")
+wf.step("task", "echo '{task}'")
+'''
 
 # Register provider
-ProviderRegistry.register("custom", CustomProvider)
+register_provider("custom", CustomProvider)
+
+# Use provider
+from kubiya_workflow_sdk.providers import get_provider
+
+provider = get_provider("custom", config={"api_key": "..."})
+result = await provider.compose("Deploy my application")
 ```
 
 ## Advanced SDK Features
@@ -190,162 +203,186 @@ ProviderRegistry.register("custom", CustomProvider)
 ### Workflow Composition
 
 ```python
-from kubiya_workflow_sdk import Workflow, compose
+from kubiya_workflow_sdk.dsl import workflow
 
-# Compose multiple workflows
-etl_workflow = Workflow("etl", steps=[...])
-ml_workflow = Workflow("ml", steps=[...])
+# Create multiple workflows
+def create_etl_workflow():
+    wf = workflow("etl")
+    wf.step("extract", "python extract.py")
+    wf.step("transform", "python transform.py")
+    wf.step("load", "python load.py")
+    return wf
+
+def create_ml_workflow():
+    wf = workflow("ml")
+    wf.step("train", "python train.py")
+    wf.step("evaluate", "python evaluate.py")
+    return wf
 
 # Create composite workflow
-pipeline = compose(
-    name="data-science-pipeline",
-    workflows=[
-        etl_workflow,
-        ml_workflow.depends_on(etl_workflow)
-    ],
-    parallel=False
-)
+def create_pipeline():
+    wf = workflow("data-science-pipeline")
+    
+    # Run ETL first
+    wf.sub_workflow("etl-phase", "etl-workflow.yaml")
+    
+    # Then run ML (depends on ETL)
+    wf.sub_workflow("ml-phase", "ml-workflow.yaml").depends("etl-phase")
+    
+    return wf
 
 # Dynamic composition
 def create_regional_pipeline(regions):
-    workflows = []
-    for region in regions:
-        wf = Workflow(f"process-{region}", steps=[...])
-        workflows.append(wf)
+    wf = workflow("multi-region")
     
-    return compose("multi-region", workflows, parallel=True)
+    # Process each region in parallel
+    wf.parallel_steps(
+        "process-regions",
+        items=regions,
+        command="python process_region.py ${ITEM}"
+    )
+    
+    return wf
 ```
 
-### Custom Step Types
+### Custom Step Patterns
 
 ```python
-from kubiya_workflow_sdk.core.steps import register_step_type
+from kubiya_workflow_sdk.dsl import step
 
-@register_step_type("ml-training")
-class MLTrainingStep:
-    """Custom step for ML model training"""
+# Create reusable step patterns
+def create_ml_training_step(name, model_type, dataset, gpus=1):
+    """Create a step for ML model training"""
     
-    def __init__(self, name, model_type, dataset, **kwargs):
-        self.name = name
-        self.model_type = model_type
-        self.dataset = dataset
-        self.config = kwargs
-    
-    def to_container_spec(self):
-        return {
-            "image": f"ml-trainer:{self.model_type}",
-            "command": ["python", "train.py"],
-            "args": [
-                "--dataset", self.dataset,
-                "--model", self.model_type,
-                *self._build_args()
-            ],
-            "resources": {
-                "limits": {
-                    "nvidia.com/gpu": self.config.get("gpus", 1)
-                }
-            }
-        }
+    return (
+        step(name)
+        .docker(
+            image=f"ml-trainer:{model_type}",
+            command=f"""
+python train.py \
+  --dataset {dataset} \
+  --model {model_type} \
+  --epochs 100 \
+  --batch-size 32
+"""
+        )
+        # GPU allocation is handled by runner configuration
+        .env(
+            CUDA_VISIBLE_DEVICES="0",
+            MODEL_TYPE=model_type
+        )
+    )
 
-# Use custom step
-step.ml_training(
-    name="train-model",
+# Use custom step pattern
+train_step = create_ml_training_step(
+    name="train-transformer",
     model_type="transformer",
     dataset="s3://data/training.csv",
-    gpus=2,
-    epochs=100
+    gpus=2
 )
+
+# Add to workflow
+wf = workflow("ml-pipeline")
+wf.data["steps"].append(train_step.to_dict())
 ```
 
-### Streaming Architecture
+### Event Processing
 
 ```python
-from kubiya_workflow_sdk.streaming import StreamProcessor, EventType
+from kubiya_workflow_sdk import KubiyaClient
+import asyncio
 
-class CustomStreamProcessor(StreamProcessor):
-    """Process workflow execution streams"""
+class WorkflowMonitor:
+    """Monitor workflow execution"""
     
-    def __init__(self):
+    def __init__(self, client: KubiyaClient):
+        self.client = client
         self.metrics = {}
         self.alerts = []
     
-    async def process_event(self, event):
-        if event.type == EventType.STEP_STARTED:
-            self.metrics[event.step_name] = {"start": event.timestamp}
-            
-        elif event.type == EventType.STEP_COMPLETED:
-            duration = event.timestamp - self.metrics[event.step_name]["start"]
-            await self.send_metric(f"step.{event.step_name}.duration", duration)
-            
-        elif event.type == EventType.ERROR:
-            self.alerts.append(event)
-            await self.trigger_alert(event)
-    
-    async def process_stream(self, stream):
-        async for event in stream:
-            await self.process_event(event)
-            yield self.transform_event(event)
-
-# Use custom processor
-processor = CustomStreamProcessor()
-async for event in processor.process_stream(workflow.stream()):
-    print(event)
-```
-
-### Plugin System
-
-```python
-from kubiya_workflow_sdk.plugins import Plugin, hook
-
-class MetricsPlugin(Plugin):
-    """Add metrics collection to workflows"""
-    
-    @hook("before_step")
-    def before_step(self, step, context):
-        self.send_metric(f"step.{step.name}.started", 1)
-        context["start_time"] = time.time()
-    
-    @hook("after_step")
-    def after_step(self, step, result, context):
-        duration = time.time() - context["start_time"]
-        self.send_metric(f"step.{step.name}.duration", duration)
+    async def monitor_execution(self, execution_id):
+        """Monitor a workflow execution"""
         
-        if result.exit_code != 0:
-            self.send_metric(f"step.{step.name}.failed", 1)
-    
-    @hook("workflow_completed")
-    def workflow_completed(self, workflow, result):
-        self.send_metric(f"workflow.{workflow.name}.completed", 1)
+        while True:
+            # Get current status
+            status = self.client.get_execution_status(execution_id)
+            
+            # Process status
+            if status['state'] == 'running':
+                for step in status.get('steps', []):
+                    if step['state'] == 'completed':
+                        self.metrics[step['name']] = {
+                            'duration': step.get('duration'),
+                            'exit_code': step.get('exit_code')
+                        }
+            
+            # Check for completion
+            if status['state'] in ['completed', 'failed']:
+                if status['state'] == 'failed':
+                    self.alerts.append({
+                        'execution_id': execution_id,
+                        'error': status.get('error')
+                    })
+                break
+            
+            await asyncio.sleep(5)  # Poll interval
+        
+        return status
 
-# Register plugin
-workflow.register_plugin(MetricsPlugin())
+# Use monitor
+client = KubiyaClient()
+monitor = WorkflowMonitor(client)
+
+# Execute and monitor
+execution_id = client.execute_workflow_yaml(workflow_yaml)
+final_status = await monitor.monitor_execution(execution_id)
 ```
 
-### Context Management
+### Workflow Context
 
 ```python
-from kubiya_workflow_sdk.context import WorkflowContext, ContextVar
+from kubiya_workflow_sdk.dsl import workflow, step
 
-# Define context variables
-api_key = ContextVar("api_key", secret=True)
-environment = ContextVar("environment", default="development")
-
-# Use in workflows
-@workflow
-def deployment_pipeline():
-    ctx = WorkflowContext.current()
+# Create workflows with context
+def create_deployment_pipeline(environment="staging"):
+    """Create environment-specific pipeline"""
     
-    if ctx[environment] == "production":
-        step.validate_permissions()
-    
-    step.deploy(
-        api_key=ctx[api_key],
-        env=ctx[environment]
+    wf = (
+        workflow(f"deploy-{environment}")
+        .description(f"Deploy to {environment}")
+        .params(
+            ENVIRONMENT=environment,
+            API_KEY="${API_KEY}",  # From environment
+            VERSION="${VERSION}"   # From parameters
+        )
     )
+    
+    # Environment-specific steps
+    if environment == "production":
+        # Add approval step for production
+        wf.step(
+            "get-approval",
+            "echo 'Waiting for approval...'"
+        )
+    
+    # Common deployment steps
+    wf.step(
+        "deploy",
+        f"kubectl apply -f {environment}/deployment.yaml"
+    )
+    
+    if environment == "production":
+        # Add monitoring for production
+        wf.step(
+            "monitor",
+            "python monitor_deployment.py"
+        ).depends("deploy")
+    
+    return wf
 
-# Set context for execution
-with WorkflowContext(api_key="...", environment="production"):
-    result = deployment_pipeline.execute()
+# Create different pipelines
+staging_pipeline = create_deployment_pipeline("staging")
+prod_pipeline = create_deployment_pipeline("production")
 ```
 
 ## SDK Internals
@@ -356,67 +393,95 @@ with WorkflowContext(api_key="...", environment="production"):
 sequenceDiagram
     participant User
     participant DSL
-    participant Parser
-    participant Validator
-    participant Optimizer
-    participant Executor
+    participant Workflow
+    participant Client
+    participant API
     participant Runner
     
     User->>DSL: Define Workflow
-    DSL->>Parser: Parse to Spec
-    Parser->>Validator: Validate Spec
-    Validator->>Optimizer: Optimize DAG
-    Optimizer->>Executor: Execute Plan
-    Executor->>Runner: Schedule Steps
-    Runner-->>User: Stream Results
+    DSL->>Workflow: Create Workflow Object
+    Workflow->>Workflow: Validate Structure
+    User->>Client: Execute Workflow
+    Client->>API: Submit YAML/JSON
+    API->>Runner: Schedule Execution
+    Runner-->>Client: Execution ID
+    Client-->>User: Return Result
 ```
 
 ### Error Handling
 
 ```python
-from kubiya_workflow_sdk.errors import (
-    WorkflowError,
-    StepError,
-    ValidationError,
-    ExecutionError
+from kubiya_workflow_sdk.dsl import workflow, step
+
+# Create workflow with robust error handling
+wf = workflow("error-handling-example")
+
+# Step with retry on specific errors
+api_call = (
+    step("api-call")
+    .docker(
+        image="curlimages/curl",
+        command="curl https://api.example.com/data"
+    )
+    .retry(
+        limit=3,
+        exit_codes=[1, 2, 124],  # Retry on specific exit codes
+        interval_sec=30
+    )
 )
 
-# Custom error handlers
-class RetryableError(WorkflowError):
-    """Errors that can be retried"""
-    pass
+# Step that continues on failure
+optional_step = (
+    step("optional-notification")
+    .shell("send-notification.sh")
+    .continue_on(failure=True)  # Don't fail workflow
+)
 
-@workflow.error_handler(RetryableError)
-def handle_retryable(error, context):
-    if context.retry_count < 3:
-        return "retry"
-    else:
-        return "fail"
+# Conditional error handling
+error_handler = (
+    step("handle-error")
+    .shell("python handle_error.py")
+    .depends("api-call")
+    .preconditions("${api-call.exit_code} != 0")
+)
 
-@workflow.error_handler(ValidationError)
-def handle_validation(error, context):
-    # Log and skip
-    logger.error(f"Validation failed: {error}")
-    return "skip"
+wf.data["steps"].extend([
+    api_call.to_dict(),
+    optional_step.to_dict(),
+    error_handler.to_dict()
+])
 ```
 
-### Performance Optimization
+### Performance Patterns
 
 ```python
-from kubiya_workflow_sdk.optimization import WorkflowOptimizer
+from kubiya_workflow_sdk.dsl import workflow
 
-optimizer = WorkflowOptimizer(
-    strategies=[
-        "parallel_detection",  # Auto-detect parallelizable steps
-        "resource_pooling",    # Reuse containers
-        "cache_optimization",  # Smart caching
-        "dead_code_elimination"  # Remove unreachable steps
-    ]
+# Optimize workflow performance
+wf = workflow("optimized-pipeline")
+
+# Parallel processing for better performance
+wf.parallel_steps(
+    "process-batch",
+    items=list(range(100)),  # Process 100 items
+    command="python process_item.py ${ITEM}",
+    max_concurrent=10  # Limit concurrency
 )
 
-# Optimize workflow
-optimized = optimizer.optimize(workflow)
-print(f"Optimization report: {optimizer.get_report()}")
+# Use lightweight images
+wf.step(
+    "quick-check",
+    "echo 'Checking...'"
+    # Uses default alpine image - very lightweight
+)
+
+# Cache dependencies in custom images
+wf.step(
+    "analyze"
+).docker(
+    image="myapp:latest",  # Pre-built with all dependencies
+    command="python analyze.py"
+)
 ```
 
 ## Best Practices
@@ -424,47 +489,72 @@ print(f"Optimization report: {optimizer.get_report()}")
 ### 1. **Workflow Design**
 
 ```python
+from kubiya_workflow_sdk.dsl import workflow, step
+
 # Good: Modular, reusable steps
-@workflow
-def process_data(source, destination):
-    data = step.fetch(source)
-    validated = step.validate(data)
-    transformed = step.transform(validated)
-    step.store(transformed, destination)
+def create_data_pipeline(source, destination):
+    wf = workflow("data-pipeline")
+    
+    # Clear, atomic steps
+    wf.step("fetch", f"wget {source} -O /tmp/data.csv")
+    wf.step("validate", "python validate.py /tmp/data.csv")
+    wf.step("transform", "python transform.py /tmp/data.csv /tmp/output.csv")
+    wf.step("store", f"aws s3 cp /tmp/output.csv {destination}")
+    
+    return wf
 
 # Bad: Monolithic step
-@workflow
-def process_all():
-    step.do_everything()  # Too much in one step
+# wf.step("process", "fetch_validate_transform_and_store.sh")  # Too much
 ```
 
 ### 2. **Resource Management**
 
 ```python
-# Good: Explicit resource limits
-step.process(
-    resources={
-        "requests": {"cpu": "1", "memory": "2Gi"},
-        "limits": {"cpu": "2", "memory": "4Gi"}
-    }
+# Good: Use appropriate images and commands
+step("process").docker(
+    image="python:3.11-slim",  # Minimal image
+    command="python process.py"
 )
 
-# Bad: No resource constraints
-step.process()  # May consume unlimited resources
+# Note: Resource limits (CPU, memory) are configured
+# at the runner/platform level, not in workflow definition
 ```
 
 ### 3. **Error Handling**
 
 ```python
 # Good: Graceful degradation
-try:
-    result = step.primary_service()
-except ServiceError:
-    result = step.fallback_service()
-    step.alert_team("Using fallback service")
+wf = workflow("resilient-pipeline")
 
-# Bad: Let it crash
-result = step.primary_service()  # No error handling
+# Primary service with retry
+primary = (
+    step("primary-service")
+    .docker(image="service:latest", command="./run.sh")
+    .retry(limit=3)
+    .output("RESULT")
+)
+
+# Fallback service
+fallback = (
+    step("fallback-service")
+    .docker(image="service:stable", command="./run-stable.sh")
+    .depends("primary-service")
+    .preconditions("${primary-service.exit_code} != 0")
+    .output("RESULT")
+)
+
+# Alert on fallback
+alert = (
+    step("alert-team")
+    .shell("send-alert.sh 'Using fallback service'")
+    .depends("fallback-service")
+)
+
+wf.data["steps"].extend([
+    primary.to_dict(),
+    fallback.to_dict(),
+    alert.to_dict()
+])
 ```
 
 ## SDK Ecosystem

@@ -67,6 +67,34 @@ result = client.execute_workflow(
   Runners must be created through the Kubiya platform (web interface or API). The platform will provide a Kubernetes manifest or Helm chart to deploy the runner in your infrastructure.
 </Note>
 
+##### `execute_workflow_yaml(workflow_yaml, runner=None)`
+
+Execute a workflow from YAML.
+
+```python
+from kubiya_workflow_sdk.dsl import workflow
+
+# Create workflow
+wf = workflow("my-workflow")
+wf.step("hello", "echo 'Hello World'")
+
+# Execute
+result = client.execute_workflow_yaml(
+    workflow_yaml=wf.to_yaml(),
+    runner="my-custom-runner"  # Optional: specify a runner created via Kubiya platform
+)
+```
+
+**Parameters:**
+- `workflow_yaml`: YAML string of the workflow
+- `runner`: String name of the runner (created via Kubiya platform). Defaults to "kubiya-hosted"
+
+**Returns:** Dict with execution results
+
+<Note>
+  Runners must be created through the Kubiya platform (web interface or API). The platform will provide a Kubernetes manifest or Helm chart to deploy the runner in your infrastructure.
+</Note>
+
 ##### `list_workflows()`
 
 List all workflows in the organization.
@@ -74,7 +102,7 @@ List all workflows in the organization.
 ```python
 workflows = client.list_workflows()
 for wf in workflows:
-    print(f"{wf.name}: {wf.description}")
+    print(f"{wf['name']}: {wf.get('description', '')}")
 ```
 
 ##### `get_workflow(name)`
@@ -96,33 +124,58 @@ if client.test_connection():
 
 ## Workflow
 
-### Class: `Workflow`
+### DSL Workflow Functions
 
 ```python
-from kubiya_workflow_sdk import Workflow
+from kubiya_workflow_sdk.dsl import workflow
 
-workflow = Workflow(
-    name: str,
-    description: str = None,
-    version: str = "1.0.0",
-    steps: List[Step] = None,
-    parameters: Dict[str, Parameter] = None,
-    runner: str = "kubiya-hosted",
-    tags: List[str] = None,
-    metadata: Dict[str, Any] = None
+# Create a workflow
+wf = workflow(
+    name="my-workflow",
+    description="Process data pipeline",
+    runner="kubiya-hosted"  # Optional
+)
+
+# Add steps
+wf.step("fetch", "wget data.csv")
+wf.step("process", "python process.py data.csv")
+
+# Set parameters
+wf.params(
+    ENV="${ENV:-production}",
+    VERSION="${VERSION}"
 )
 ```
 
 #### Methods
 
-##### `add_step(step)`
+##### `step(name, command)`
 
 Add a step to the workflow.
 
 ```python
-workflow.add_step(
-    Step(name="process", image="python:3.11", command="process.py")
+wf.step("process", "python process.py")
+```
+
+##### `parallel_steps(name, items, command, max_concurrent=None)`
+
+Add parallel steps for processing multiple items.
+
+```python
+wf.parallel_steps(
+    "process-files",
+    items=["file1.csv", "file2.csv", "file3.csv"],
+    command="python process.py ${ITEM}",
+    max_concurrent=2
 )
+```
+
+##### `sub_workflow(name, workflow_path)`
+
+Add a sub-workflow.
+
+```python
+wf.sub_workflow("etl-phase", "workflows/etl.yaml")
 ```
 
 ##### `to_dict()`
@@ -130,7 +183,7 @@ workflow.add_step(
 Convert workflow to dictionary representation.
 
 ```python
-workflow_dict = workflow.to_dict()
+workflow_dict = wf.to_dict()
 ```
 
 ##### `to_yaml()`
@@ -138,150 +191,158 @@ workflow_dict = workflow.to_dict()
 Convert workflow to YAML string.
 
 ```python
-yaml_string = workflow.to_yaml()
+yaml_string = wf.to_yaml()
 print(yaml_string)
-```
-
-##### `validate()`
-
-Validate workflow structure and dependencies.
-
-```python
-errors = workflow.validate()
-if errors:
-    print(f"Validation errors: {errors}")
-```
-
-##### `execute(client=None, **kwargs)`
-
-Execute the workflow.
-
-```python
-result = workflow.execute(
-    client=client,
-    params={"env": "staging"}
-)
 ```
 
 ## Step
 
-### Class: `Step`
+### DSL Step Functions
 
 ```python
-from kubiya_workflow_sdk import Step
+from kubiya_workflow_sdk.dsl import step
 
-step = Step(
-    name: str,
-    image: str = None,
-    command: str = None,
-    script: str = None,
-    env: Dict[str, str] = None,
-    volumes: Dict[str, str] = None,
-    resources: Dict[str, Any] = None,
-    depends: List[str] = None,
-    retry: RetryPolicy = None,
-    timeout: str = "5m",
-    when: str = None,
-    outputs: Dict[str, str] = None
+# Create a step
+s = step("process-data", "python process.py")
+
+# Chain methods
+s.docker(
+    image="python:3.11",
+    command="python process.py"
+).depends("fetch-data").retry(limit=3)
+```
+
+#### Methods
+
+##### `docker(image, command=None, content=None)`
+
+Configure Docker execution.
+
+```python
+s = step("build").docker(
+    image="docker:dind",
+    command="docker build -t myapp:latest ."
 )
 ```
 
-#### Properties
+##### `shell(command)`
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `name` | `str` | Unique step identifier |
-| `image` | `str` | Docker image to use |
-| `command` | `str` | Command to execute |
-| `script` | `str` | Script content to run |
-| `env` | `Dict[str, str]` | Environment variables |
-| `volumes` | `Dict[str, str]` | Volume mounts |
-| `resources` | `Dict[str, Any]` | Resource limits/requests |
-| `depends` | `List[str]` | Step dependencies |
-| `retry` | `RetryPolicy` | Retry configuration |
-| `timeout` | `str` | Execution timeout |
-| `when` | `str` | Conditional execution |
-| `outputs` | `Dict[str, str]` | Output mappings |
-
-## DSL Functions
-
-### `workflow` Decorator
+Execute shell command.
 
 ```python
-from kubiya_workflow_sdk.dsl import workflow
-
-@workflow(
-    name: str = None,
-    description: str = None,
-    runner: str = "kubiya-hosted",
-    version: str = "1.0.0"
-)
-def my_workflow():
-    # Workflow logic
-    pass
+s = step("list-files").shell("ls -la")
 ```
 
-### `step` Functions
+##### `depends(step_names)`
 
-#### `step.shell(command, **kwargs)`
-
-Execute a shell command.
+Set step dependencies.
 
 ```python
-result = step.shell(
-    "echo 'Hello World'",
-    name="greeting",
-    image="alpine:latest"
+s = step("deploy").depends("test")
+# or multiple dependencies
+s = step("report").depends(["analyze", "validate"])
+```
+
+##### `retry(limit, interval_sec=30, exponential_base=None, exit_codes=None)`
+
+Configure retry policy.
+
+```python
+s = step("api-call").retry(
+    limit=3,
+    interval_sec=60,
+    exponential_base=2.0,
+    exit_codes=[1, 124]  # Retry only on specific exit codes
 )
 ```
 
-#### `step.python(script, **kwargs)`
+##### `timeout(seconds)`
 
-Execute Python code.
+Set execution timeout.
 
 ```python
-output = step.python(
-    """
-    import pandas as pd
-    df = pd.read_csv('data.csv')
-    print(df.describe())
-    """,
-    name="analyze",
-    packages=["pandas", "numpy"]
+s = step("long-task").timeout(1800)  # 30 minutes
+```
+
+##### `env(**kwargs)`
+
+Set environment variables.
+
+```python
+s = step("deploy").env(
+    API_KEY="${API_KEY}",
+    ENVIRONMENT="production"
 )
 ```
 
-#### `step.container(image, **kwargs)`
+##### `output(name)`
 
-Run a container with advanced options.
+Capture step output.
 
 ```python
-step.container(
-    image="nginx:alpine",
-    name="webserver",
-    ports={"80": "8080"},
-    health_check={
-        "test": ["CMD", "curl", "-f", "http://localhost/"],
-        "interval": "30s"
-    }
+s = step("get-version").output("VERSION")
+```
+
+##### `preconditions(*conditions)`
+
+Set execution preconditions.
+
+```python
+s = step("deploy-prod").preconditions(
+    "${TEST_RESULT.exit_code} == 0",
+    "${TEST_RESULT.coverage} > 80"
 )
 ```
 
-#### `step.inline_agent(message, **kwargs)`
+##### `continue_on(failure=False, exit_code=None)`
 
-Execute an inline AI agent.
+Configure error handling.
 
 ```python
-analysis = step.inline_agent(
-    message="Analyze these logs: ${logs}",
+# Continue on any failure
+s = step("optional").continue_on(failure=True)
+
+# Continue on specific exit codes
+s = step("check").continue_on(exit_code=[404])
+```
+
+##### `inline_agent(message, agent_name, **kwargs)`
+
+Create an inline AI agent step.
+
+```python
+s = step("analyze").inline_agent(
+    message="Analyze these logs: ${LOGS}",
+    agent_name="log-analyzer",
+    ai_instructions="You are a log analysis expert...",
     runners=["kubiya-hosted"],
-    llm_model="gpt-4",
+    llm_model="gpt-4o",
     tools=[{
         "name": "parse-logs",
         "type": "docker",
-        "image": "log-parser:latest"
+        "image": "alpine:latest",
+        "content": "#!/bin/sh\ngrep ERROR /logs/*.log",
+        "args": []
     }]
 )
+```
+
+##### `tool_def(name, type, **kwargs)`
+
+Define a tool inline.
+
+```python
+s = step("notify").tool_def(
+    name="slack-notifier",
+    type="docker",
+    image="curlimages/curl:latest",
+    content="""#!/bin/sh
+curl -X POST $SLACK_WEBHOOK -d '{"text": "'$1'"}'
+""",
+    args=[
+        {"name": "message", "type": "string", "required": True}
+    ]
+).args(message="Deployment complete!")
 ```
 
 ## Providers
@@ -477,46 +538,80 @@ param = Parameter(
 ### Basic Workflow
 
 ```python
-from kubiya_workflow_sdk import Client, Workflow, Step
+from kubiya_workflow_sdk import KubiyaClient
+from kubiya_workflow_sdk.dsl import workflow
 
 # Create workflow
-workflow = Workflow(
-    name="hello-world",
-    steps=[
-        Step(name="greet", image="alpine", command="echo 'Hello!'")
-    ]
-)
+wf = workflow("hello-world")
+wf.step("greet", "echo 'Hello, World!'")
 
 # Execute
-client = Client()
-result = client.execute_workflow(workflow)
-print(result.output)
+client = KubiyaClient()
+result = client.execute_workflow_yaml(wf.to_yaml())
+print(result)
 ```
 
-### Streaming Execution
+### Advanced Workflow with Dependencies
 
 ```python
-# Stream execution events
-for event in client.execute_workflow(workflow, stream=True):
-    if event.type == "log":
-        print(event.data["message"])
-    elif event.type == "step.completed":
-        print(f"Step {event.step_name} completed")
+from kubiya_workflow_sdk.dsl import workflow, step
+
+# Create workflow
+wf = workflow("data-pipeline")
+
+# Define steps with dependencies
+fetch = step("fetch", "wget https://example.com/data.csv")
+validate = step("validate", "python validate.py data.csv").depends("fetch")
+process = step("process", "python process.py data.csv").depends("validate")
+upload = step("upload", "aws s3 cp output.csv s3://bucket/").depends("process")
+
+# Add steps to workflow
+wf.data["steps"].extend([
+    fetch.to_dict(),
+    validate.to_dict(),
+    process.to_dict(),
+    upload.to_dict()
+])
+
+# Execute
+client = KubiyaClient()
+result = client.execute_workflow_yaml(wf.to_yaml())
 ```
 
 ### Error Handling
 
 ```python
-from kubiya_workflow_sdk.errors import ExecutionError, StepError
+from kubiya_workflow_sdk.dsl import workflow, step
 
-try:
-    result = workflow.execute()
-except StepError as e:
-    print(f"Step {e.step_name} failed: {e.message}")
-    # Handle step failure
-except ExecutionError as e:
-    print(f"Workflow failed: {e}")
-    # Handle workflow failure
+wf = workflow("resilient-pipeline")
+
+# Step with retry
+api_call = (
+    step("fetch-data")
+    .docker(image="curlimages/curl", command="curl https://api.example.com")
+    .retry(limit=3, exponential_base=2.0)
+)
+
+# Step that continues on failure
+optional = (
+    step("optional-step")
+    .shell("might-fail.sh")
+    .continue_on(failure=True)
+)
+
+# Conditional error handler
+error_handler = (
+    step("handle-error")
+    .shell("python handle_error.py")
+    .depends("fetch-data")
+    .preconditions("${fetch-data.exit_code} != 0")
+)
+
+wf.data["steps"].extend([
+    api_call.to_dict(),
+    optional.to_dict(),
+    error_handler.to_dict()
+])
 ```
 
 ## Version Compatibility
