@@ -1,0 +1,65 @@
+---
+title: "Changelog"
+sidebarTitle: "Changelog"
+description: Detailed changelog of all Kubiya Workflow SDK releases
+icon: clock-rotate-left
+---
+
+# Changelog
+
+All notable changes to the Kubiya Workflow SDK will be documented here.
+
+## [2.0.0] - 2024-01-20
+
+### Added
+- 🤖 **ADK Provider** - AI-powered workflow generation using Google's Agent Development Kit
+- 🚀 **SDK Server** - Production-ready FastAPI server with REST endpoints
+- 📡 **SSE Streaming** - Real-time workflow execution updates
+- 🔌 **Provider System** - Pluggable architecture for AI providers
+- 📚 **Comprehensive Docs** - New documentation site with MDX support
+- 🧪 **Jupyter Notebooks** - Interactive examples for learning
+- 🐳 **Docker Support** - Complete Docker and Docker Compose configurations
+- 🛠️ **Makefile** - Development automation commands
+
+### Changed
+- Enhanced `Client` class with new platform methods
+- Fixed API endpoint format to use `operation=execute_workflow`
+- Added `native_sse=true` parameter for standard SSE streaming
+- Improved error handling and Python 3.9 compatibility
+- Updated default runner to "auto" for automatic selection
+
+### Fixed
+- SSE streaming parsing for Kubiya's custom event format
+- Byte/string handling in stream parser
+- Response parsing for runners/integrations API
+
+## [1.5.0] - 2023-12-15
+
+### Added
+- Workflow DSL with fluent interface
+- Basic Kubernetes integration
+- Testing framework with mocking support
+
+### Changed
+- Improved workflow validation
+- Better error messages
+- Performance optimizations
+
+### Fixed
+- Memory leaks in long-running workflows
+- Race conditions in parallel execution
+
+## [1.0.0] - 2023-10-01
+
+### Added
+- Initial release
+- Core workflow engine
+- Basic step execution
+- Simple retry logic
+
+---
+
+<Note>
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+</Note> 

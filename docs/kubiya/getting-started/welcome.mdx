@@ -1,0 +1,242 @@
+---
+title: "Welcome to Kubiya Workflow SDK"
+sidebarTitle: "Welcome!"
+description: Build Deterministic AI Workflows That Actually Work™
+icon: hand-wave
+---
+
+<Frame>
+  <img 
+    src="/assets/images/kubiya-hero.png" 
+    alt="Kubiya Workflow SDK Hero" 
+    className="rounded-lg shadow-xl"
+  />
+</Frame>
+
+## 🚀 The Future of AI is Deterministic
+
+**Kubiya Workflow SDK** is a composable workflow stack that transforms unpredictable AI agents into reliable, production-grade automation. By combining the structure of DAGs with the intelligence of AI, we deliver deterministic workflows that actually work.
+
+<CardGroup cols={3}>
+  <Card title="Deterministic Execution" icon="bullseye" color="#0088ff">
+    Same inputs → Same workflow → Same outputs, every time
+  </Card>
+  <Card title="AI-Powered Generation" icon="robot" color="#00d4ff">
+    Natural language to production workflows in seconds
+  </Card>
+  <Card title="Production Ready" icon="shield-check" color="#0066cc">
+    Built for Kubernetes, runs on your infrastructure
+  </Card>
+</CardGroup>
+
+## Why We Built This
+
+After watching teams struggle with free-wheeling agent frameworks that promise magic but deliver chaos, we took a different approach. Instead of hoping an AI will figure out the right sequence of actions, we provide the tools to **define** the right sequence – with AI filling in the intelligent parts.
+
+<Tabs>
+  <Tab title="Multi-Agent Chaos">
+    ```text
+    ❌ Unpredictable execution paths
+    ❌ "Garbage accumulates" in long chains
+    ❌ Hard to debug AI decisions
+    ❌ Complex programming with LangGraph
+    ❌ Vendor lock-in to agent frameworks
+    ❌ Limited to Python/LLM tools
+    ```
+  </Tab>
+  <Tab title="Kubiya DAG Workflows">
+    ```text
+    ✅ Deterministic, same path every time
+    ✅ Clean execution with isolated steps
+    ✅ Clear DAG shows exact execution flow
+    ✅ Simple DSL, compose in hours not months
+    ✅ Runs on YOUR infrastructure
+    ✅ Run ANY Docker container
+    ```
+  </Tab>
+</Tabs>
+
+## Quick Example
+
+<CodeGroup>
+  ```python Basic Workflow
+  from kubiya_workflow_sdk import Workflow, Step, Client
+
+  # Define a deterministic workflow
+  workflow = Workflow(
+      name="deploy-app",
+      description="Deploy application with rollback",
+      steps=[
+          Step(
+              name="validate",
+              command="kubectl apply --dry-run=client -f deploy.yaml"
+          ),
+          Step(
+              name="deploy",
+              command="kubectl apply -f deploy.yaml",
+              depends=["validate"]
+          ),
+          Step(
+              name="health_check",
+              command="kubectl wait --for=condition=ready pod -l app=myapp",
+              depends=["deploy"],
+              retry={"limit": 5, "interval_sec": 30}
+          )
+      ]
+  )
+
+  # Execute with real-time streaming
+  client = Client()
+  for event in client.execute_workflow(workflow, stream=True):
+      print(f"{event.type}: {event.data}")
+  ```
+
+  ```python AI-Powered Generation
+  from kubiya_workflow_sdk.providers import get_provider
+
+  # Use ADK provider to generate workflows from natural language
+  adk = get_provider("adk")
+
+  # Generate and execute in one go
+  result = await adk.compose(
+      task="Deploy my app to production with health checks and rollback capability",
+      mode="act",  # Generate AND execute
+      stream=True
+  )
+
+  # The AI generates a complete workflow using the SDK
+  # with proper error handling, retries, and monitoring
+  ```
+</CodeGroup>
+
+## 🎯 Key Features
+
+### 🏗️ Composable Building Blocks
+
+<AccordionGroup>
+  <Accordion title="Workflow DSL" icon="code">
+    Pythonic interface for defining workflows with a fluent API
+    ```python
+    workflow = (
+        workflow("my-automation")
+        .description("Automate all the things")
+        .params(ENV="${ENV}", VERSION="${VERSION}")
+        .step("build", "docker build -t app:${VERSION} .")
+        .step("test", "pytest tests/", depends=["build"])
+        .step("deploy", "kubectl apply -f k8s/", depends=["test"])
+    )
+    ```
+  </Accordion>
+
+  <Accordion title="AI Agent Integration" icon="brain">
+    Embed AI intelligence where it matters
+    ```python
+    .step("analyze")
+    .inline_agent(
+        message="Analyze deployment risk for ${VERSION}",
+        agent_name="risk-analyzer",
+        ai_instructions="Evaluate changes and provide risk assessment",
+        runners=["production-runner"]
+    )
+    .output("RISK_LEVEL")
+    ```
+  </Accordion>
+
+  <Accordion title="Tool Ecosystem" icon="toolbox">
+    Define and use containerized tools inline
+    ```python
+    .step("notify")
+    .tool_def(
+        name="slack-notifier",
+        type="docker",
+        image="kubiya/slack:latest",
+        content="#!/bin/sh\ncurl -X POST $WEBHOOK -d '{\"text\":\"$1\"}'",
+        args=[{"name": "message", "type": "string"}]
+    )
+    .args(message="Deployment complete!")
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### 🚀 Production Infrastructure
+
+- **Kubernetes Native**: Built for K8s from day zero
+- **Any Docker Container**: Run Python, Go, Rust, bash – anything
+- **Multi-Cluster Support**: Span workflows across environments
+- **Zero Lock-in**: Open source, runs on your infrastructure
+
+### 🤖 AI Provider System
+
+The SDK includes a pluggable provider system for AI-powered workflow generation:
+
+<CardGroup cols={2}>
+  <Card title="ADK Provider" icon="google" href="/providers/adk/getting-started">
+    Google's Agent Development Kit integration with DeepSeek V3 models via Together AI
+  </Card>
+  <Card title="Custom Providers" icon="puzzle" href="/providers/custom-providers">
+    Build your own provider for any AI framework or LLM
+  </Card>
+</CardGroup>
+
+## Getting Started
+
+<Steps>
+  <Step title="Install the SDK">
+    ```bash
+    pip install kubiya-workflow-sdk[all]
+    ```
+  </Step>
+  
+  <Step title="Get your API key">
+    Sign up at [app.kubiya.ai](https://app.kubiya.ai) to get your API key
+  </Step>
+  
+  <Step title="Create your first workflow">
+    Follow our [quickstart guide](/getting-started/quickstart) to build your first workflow
+  </Step>
+  
+  <Step title="Deploy to production">
+    Check out our [deployment guide](/deployment/production) for production best practices
+  </Step>
+</Steps>
+
+## Documentation Overview
+
+<CardGroup cols={2}>
+  <Card title="Concepts" icon="lightbulb" href="/getting-started/concepts">
+    Understand the core concepts behind Kubiya workflows
+  </Card>
+  <Card title="Workflow DSL" icon="code" href="/workflows/dsl">
+    Learn the Pythonic DSL for building workflows
+  </Card>
+  <Card title="AI Providers" icon="robot" href="/providers/overview">
+    Generate workflows from natural language with AI
+  </Card>
+  <Card title="API Reference" icon="book" href="/api-reference/client">
+    Complete SDK API documentation
+  </Card>
+</CardGroup>
+
+## Community & Support
+
+<CardGroup cols={3}>
+  <Card title="GitHub" icon="github" href="https://github.com/kubiya-ai/workflow-sdk">
+    Star us on GitHub and contribute
+  </Card>
+  <Card title="Discord" icon="discord" href="https://discord.gg/kubiya">
+    Join our community for help and discussions
+  </Card>
+  <Card title="Enterprise" icon="building" href="/enterprise/overview">
+    Get enterprise support and features
+  </Card>
+</CardGroup>
+
+---
+
+<Note>
+  **Ready to transform your automation?** 
+  
+  Stop hoping AI agents will work. Start shipping workflows that do.
+  
+  [Get Started →](/getting-started/installation)
+</Note> 

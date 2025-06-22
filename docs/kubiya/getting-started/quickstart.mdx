@@ -1,0 +1,350 @@
+---
+title: "Quickstart"
+sidebarTitle: "Quickstart"
+description: Build your first workflow in 5 minutes
+icon: rocket
+---
+
+<Note>
+  **Prerequisites**: Make sure you have [installed the SDK](/getting-started/installation) and have your Kubiya API key ready.
+</Note>
+
+## Your First Workflow
+
+Let's build a simple deployment workflow that showcases the power of Kubiya SDK.
+
+<Steps>
+  <Step title="Import the SDK">
+    ```python
+    from kubiya_workflow_sdk import Workflow, Step, Client
+    from kubiya_workflow_sdk.dsl import workflow
+    ```
+  </Step>
+  
+  <Step title="Create a Basic Workflow">
+    <CodeGroup>
+      ```python Object-Oriented Style
+      # Define workflow using objects
+      my_workflow = Workflow(
+          name="hello-deployment",
+          description="My first deployment workflow",
+          steps=[
+              Step(
+                  name="prepare",
+                  command="echo 'Preparing deployment...'"
+              ),
+              Step(
+                  name="deploy",
+                  command="echo 'Deploying application v1.0'",
+                  depends=["prepare"]
+              ),
+              Step(
+                  name="verify",
+                  command="echo 'Deployment successful!'",
+                  depends=["deploy"]
+              )
+          ]
+      )
+      ```
+      
+      ```python DSL Style
+      # Define workflow using fluent DSL
+      my_workflow = (
+          workflow("hello-deployment")
+          .description("My first deployment workflow")
+          .step("prepare", "echo 'Preparing deployment...'")
+          .step("deploy", "echo 'Deploying application v1.0'", depends=["prepare"])
+          .step("verify", "echo 'Deployment successful!'", depends=["deploy"])
+          .build()
+      )
+      ```
+    </CodeGroup>
+  </Step>
+  
+  <Step title="Execute the Workflow">
+    ```python
+    # Initialize client
+    client = Client()  # Uses KUBIYA_API_KEY from environment
+    
+    # Execute workflow
+    execution = client.execute_workflow(my_workflow)
+    print(f"🚀 Workflow started! Execution ID: {execution.id}")
+    ```
+  </Step>
+  
+  <Step title="Stream Real-time Updates">
+    ```python
+    # Execute with streaming for real-time updates
+    for event in client.execute_workflow(my_workflow, stream=True):
+        if event.type == "step_started":
+            print(f"▶️  Starting: {event.step_name}")
+        elif event.type == "step_completed":
+            print(f"✅ Completed: {event.step_name}")
+            if event.output:
+                print(f"   Output: {event.output}")
+        elif event.type == "workflow_completed":
+            print(f"🎉 Workflow completed with status: {event.status}")
+    ```
+  </Step>
+</Steps>
+
+## Advanced Example: Real Deployment
+
+Now let's create a more realistic deployment workflow with error handling, retries, and AI assistance:
+
+```python
+from kubiya_workflow_sdk.dsl import workflow
+
+# Create a production-ready deployment workflow
+deployment_workflow = (
+    workflow("production-deployment")
+    .description("Deploy application with health checks and rollback")
+    .params(
+        APP_NAME="${APP_NAME}",
+        VERSION="${VERSION}",
+        ENVIRONMENT="staging",
+        HEALTH_CHECK_URL="${HEALTH_CHECK_URL}"
+    )
+    
+    # Step 1: Validate deployment parameters
+    .step("validate")
+    .shell("""
+        if [ -z "$APP_NAME" ] || [ -z "$VERSION" ]; then
+            echo "Error: APP_NAME and VERSION are required"
+            exit 1
+        fi
+        echo "Deploying $APP_NAME version $VERSION to $ENVIRONMENT"
+    """)
+    
+    # Step 2: AI-powered risk assessment
+    .step("assess_risk")
+    .inline_agent(
+        message="Analyze the risk of deploying ${APP_NAME} v${VERSION} to ${ENVIRONMENT}",
+        agent_name="deployment-risk-analyzer",
+        ai_instructions="""You are a deployment risk analyst. Analyze the deployment and provide:
+        1. Risk level: low, medium, or high
+        2. Key concerns if any
+        3. Recommendations
+        Output as JSON with keys: risk_level, concerns, recommendations""",
+        runners=["default"]
+    )
+    .output("RISK_ASSESSMENT")
+    .depends(["validate"])
+    
+    # Step 3: Deploy application
+    .step("deploy")
+    .shell("""
+        echo "Deploying ${APP_NAME}:${VERSION}..."
+        # In real scenario, this would be: kubectl set image deployment/${APP_NAME} app=${APP_NAME}:${VERSION}
+        sleep 2
+        echo "Deployment initiated"
+    """)
+    .preconditions(
+        {"condition": "${RISK_ASSESSMENT.risk_level}", "expected": "re:(low|medium)"}
+    )
+    .depends(["assess_risk"])
+    
+    # Step 4: Health check with retries
+    .step("health_check")
+    .shell("""
+        echo "Checking health at ${HEALTH_CHECK_URL:-http://localhost:8080/health}..."
+        # In real scenario: curl -f ${HEALTH_CHECK_URL}
+        echo "Health check passed"
+    """)
+    .retry(limit=5, interval_sec=30)
+    .depends(["deploy"])
+    
+    # Step 5: Notify success
+    .step("notify")
+    .tool_def(
+        name="notifier",
+        type="inline",
+        content="""
+echo "🎉 Deployment Complete!"
+echo "Application: ${APP_NAME}"
+echo "Version: ${VERSION}"
+echo "Environment: ${ENVIRONMENT}"
+echo "Status: Healthy"
+        """
+    )
+    .depends(["health_check"])
+)
+
+# Execute the workflow
+client = Client()
+
+# Set parameters
+params = {
+    "APP_NAME": "my-awesome-app",
+    "VERSION": "2.1.0",
+    "HEALTH_CHECK_URL": "http://my-app.staging.com/health"
+}
+
+# Execute with streaming
+print("🚀 Starting production deployment workflow...\n")
+for event in client.execute_workflow(deployment_workflow, parameters=params, stream=True):
+    if event.type == "step_started":
+        print(f"▶️  {event.step_name}: Starting...")
+    elif event.type == "step_completed":
+        print(f"✅ {event.step_name}: {event.status}")
+        if event.output and event.step_name == "assess_risk":
+            print(f"   Risk Assessment: {event.output}")
+    elif event.type == "workflow_completed":
+        print(f"\n🎉 Deployment completed successfully!")
+```
+
+## AI-Powered Workflow Generation
+
+Use the ADK provider to generate workflows from natural language:
+
+```python
+from kubiya_workflow_sdk.providers import get_provider
+
+# Initialize ADK provider
+adk = get_provider("adk")
+
+# Generate a workflow from description
+task = """
+Create a workflow that:
+1. Backs up a PostgreSQL database
+2. Uploads the backup to S3
+3. Verifies the backup integrity
+4. Cleans up old backups (keep last 7 days)
+5. Sends a Slack notification with results
+"""
+
+# Generate and execute
+result = await adk.compose(
+    task=task,
+    mode="plan",  # Just generate, don't execute
+    stream=True
+)
+
+# The AI will generate a complete workflow with all steps,
+# error handling, and proper dependencies
+print(f"Generated workflow: {result['workflow'].name}")
+```
+
+## Working with Integrations
+
+Kubiya supports various integrations out of the box:
+
+```python
+# List available integrations
+integrations = client.get_integrations()
+print("Available integrations:")
+for integration in integrations:
+    print(f"  - {integration.name}: {integration.description}")
+
+# Create a workflow using Slack integration
+notification_workflow = (
+    workflow("deployment-notification")
+    .description("Send deployment notifications")
+    .integration("slack")
+    
+    .step("notify_start")
+    .tool("send_message")
+    .args(
+        channel="#deployments",
+        text="🚀 Deployment started for v${VERSION}"
+    )
+    
+    .step("notify_complete")
+    .tool("send_message")
+    .args(
+        channel="#deployments",
+        text="✅ Deployment completed successfully!",
+        thread_ts="${notify_start.thread_ts}"  # Reply in thread
+    )
+    .depends(["notify_start"])
+)
+```
+
+## Testing Your Workflows
+
+Test workflows locally before deploying:
+
+```python
+from kubiya_workflow_sdk.testing import WorkflowTest
+
+# Create a test instance
+test = WorkflowTest(deployment_workflow)
+
+# Mock external dependencies
+test.mock_step("deploy", output={"status": "success"})
+test.mock_step("health_check", output={"status": "healthy"})
+
+# Run with test parameters
+result = test.run(params={
+    "APP_NAME": "test-app",
+    "VERSION": "1.0.0"
+})
+
+# Assert expectations
+test.assert_success()
+test.assert_step_executed("deploy")
+test.assert_step_output("health_check", contains="healthy")
+
+print("✅ All tests passed!")
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Workflow DSL" icon="code" href="/workflows/dsl">
+    Master the workflow DSL for complex automations
+  </Card>
+  <Card title="AI Providers" icon="robot" href="/providers/adk/getting-started">
+    Generate workflows with AI using ADK provider
+  </Card>
+  <Card title="Testing" icon="flask" href="/workflows/testing">
+    Learn advanced testing techniques
+  </Card>
+  <Card title="Production" icon="rocket" href="/deployment/production">
+    Deploy workflows to production
+  </Card>
+</CardGroup>
+
+## Common Patterns
+
+<AccordionGroup>
+  <Accordion title="Error Handling" icon="shield">
+    ```python
+    .step("risky_operation")
+    .shell("./deploy.sh")
+    .retry(limit=3, interval_sec=60)
+    .continue_on(failure=True)
+    .on_failure("rollback", "Handle failed deployment")
+    ```
+  </Accordion>
+  
+  <Accordion title="Parallel Execution" icon="arrows-split">
+    ```python
+    .parallel_steps(
+        "deploy_regions",
+        items=["us-east-1", "eu-west-1", "ap-south-1"],
+        command="deploy-to-region.sh ${ITEM}",
+        max_concurrent=2
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="Conditional Logic" icon="code-branch">
+    ```python
+    .step("conditional_deploy")
+    .shell("./deploy-prod.sh")
+    .preconditions(
+        {"condition": "${ENVIRONMENT}", "expected": "production"},
+        {"condition": "${APPROVAL_STATUS}", "expected": "approved"}
+    )
+    ```
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+  **Pro tip**: Use the `--dry-run` flag when testing workflows to see what would be executed without actually running it:
+  
+  ```bash
+  kubiya run my-workflow.py --dry-run
+  ```
+</Tip> 

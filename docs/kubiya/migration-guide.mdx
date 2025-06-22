@@ -1,0 +1,163 @@
+---
+title: "Migration Guide"
+sidebarTitle: "Migration Guide"
+description: Guide for upgrading between Kubiya Workflow SDK versions
+icon: arrows-up-to-line
+---
+
+# Migration Guide
+
+This guide helps you upgrade between major versions of the Kubiya Workflow SDK.
+
+## Migrating from 1.x to 2.0
+
+### Breaking Changes
+
+<Warning>
+Version 2.0 includes some breaking changes. Please review carefully before upgrading.
+</Warning>
+
+#### 1. Default Runner Changed
+
+The default runner has changed from `core-testing-2` to `auto`:
+
+```python
+# Old (1.x)
+workflow = Workflow(name="test", runner="core-testing-2")
+
+# New (2.0)
+workflow = Workflow(name="test")  # Uses "auto" by default
+```
+
+#### 2. Client API Updates
+
+New methods added to the Client class:
+
+```python
+# New in 2.0
+client = Client()
+runners = client.get_runners()
+integrations = client.get_integrations()
+secrets = client.get_secrets_metadata()
+org_info = client.get_organization_info()
+```
+
+#### 3. Streaming Format
+
+SSE streaming now requires the `native_sse` parameter:
+
+```python
+# Old (1.x)
+for event in client.execute_workflow(workflow, stream=True):
+    pass
+
+# New (2.0) - Better SSE support
+for event in client.execute_workflow(workflow, stream=True):
+    # Events now properly parsed with native SSE format
+    pass
+```
+
+### New Features
+
+#### AI-Powered Workflow Generation
+
+```python
+from kubiya_workflow_sdk.providers import get_provider
+
+# New ADK provider
+adk = get_provider("adk")
+
+# Generate workflows from natural language
+result = await adk.compose(
+    task="Create a backup workflow",
+    mode="plan"
+)
+```
+
+#### SDK Server
+
+```bash
+# New server command
+kubiya-server --host 0.0.0.0 --port 8000
+```
+
+### Migration Steps
+
+<Steps>
+  <Step title="Update Dependencies">
+    ```bash
+    pip install --upgrade kubiya-workflow-sdk[all]
+    ```
+  </Step>
+  
+  <Step title="Update Runner References">
+    Search for `runner="core-testing-2"` and replace with `runner="auto"` or remove the parameter.
+  </Step>
+  
+  <Step title="Test Streaming">
+    Test your streaming code to ensure it handles the new SSE format correctly.
+  </Step>
+  
+  <Step title="Add API Keys">
+    If using ADK provider, add the required API keys:
+    ```bash
+    export TOGETHER_API_KEY="your-key"
+    ```
+  </Step>
+</Steps>
+
+## Migrating from 0.x to 1.0
+
+### Breaking Changes
+
+1. **Workflow Definition**: Changed from dict to object-based
+2. **Step Dependencies**: Now use explicit `depends` parameter
+3. **Execution API**: New streaming interface
+
+### Example Migration
+
+```python
+# Old (0.x)
+workflow = {
+    "name": "test",
+    "steps": [
+        {"name": "step1", "cmd": "echo hello"}
+    ]
+}
+
+# New (1.0+)
+from kubiya_workflow_sdk import Workflow, Step
+
+workflow = Workflow(
+    name="test",
+    steps=[
+        Step(name="step1", command="echo hello")
+    ]
+)
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Test Thoroughly" icon="flask">
+    Always test workflows in a staging environment before upgrading production
+  </Card>
+  <Card title="Backup Workflows" icon="database">
+    Export your workflow definitions before upgrading
+  </Card>
+  <Card title="Update Gradually" icon="stairs">
+    Migrate workflows one at a time rather than all at once
+  </Card>
+  <Card title="Monitor Execution" icon="chart-line">
+    Watch for any changes in execution behavior after upgrade
+  </Card>
+</CardGroup>
+
+## Getting Help
+
+If you encounter issues during migration:
+
+1. Check the [Changelog](/changelog) for detailed changes
+2. Review the [API Reference](/api-reference/client)
+3. Join our [Discord community](https://discord.gg/kubiya)
+4. Contact support at support@kubiya.ai 

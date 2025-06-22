@@ -1,0 +1,172 @@
+---
+title: "Workflows Overview"
+sidebarTitle: "Overview"
+description: Understanding Kubiya workflows and their components
+icon: diagram-project
+---
+
+# Workflows Overview
+
+Kubiya workflows are the core building blocks for automating tasks. They provide a declarative way to define sequences of operations with dependencies, error handling, and complex control flow.
+
+## What is a Workflow?
+
+A workflow is a collection of steps that execute in a defined order to accomplish a specific task. Each workflow has:
+
+- **Name**: Unique identifier for the workflow
+- **Description**: Human-readable description of what it does
+- **Steps**: Individual operations to perform
+- **Parameters**: Input variables for dynamic behavior
+- **Runner**: Execution environment
+
+## Core Concepts
+
+<CardGroup cols={2}>
+  <Card title="Steps" icon="shoe-prints" href="/workflows/steps">
+    Individual operations that make up a workflow
+  </Card>
+  <Card title="Dependencies" icon="link" href="/workflows/dependencies">
+    Define execution order between steps
+  </Card>
+  <Card title="Parameters" icon="sliders" href="/workflows/parameters">
+    Dynamic inputs for workflow customization
+  </Card>
+  <Card title="Outputs" icon="arrow-right-from-bracket" href="/workflows/outputs">
+    Capture and use step results
+  </Card>
+</CardGroup>
+
+## Creating Workflows
+
+There are three ways to create workflows in Kubiya:
+
+### 1. Object-Oriented Approach
+
+```python
+from kubiya_workflow_sdk import Workflow, Step
+
+workflow = Workflow(
+    name="data-backup",
+    description="Backup database to S3",
+    steps=[
+        Step(name="dump_db", command="pg_dump mydb > backup.sql"),
+        Step(name="compress", command="gzip backup.sql", depends=["dump_db"]),
+        Step(name="upload", command="aws s3 cp backup.sql.gz s3://backups/", depends=["compress"])
+    ]
+)
+```
+
+### 2. DSL (Domain Specific Language)
+
+```python
+from kubiya_workflow_sdk.dsl import workflow
+
+wf = (
+    workflow("data-backup")
+    .description("Backup database to S3")
+    .step("dump_db", "pg_dump mydb > backup.sql")
+    .step("compress", "gzip backup.sql", depends=["dump_db"])
+    .step("upload", "aws s3 cp backup.sql.gz s3://backups/", depends=["compress"])
+    .build()
+)
+```
+
+### 3. AI-Generated (New in v2.0)
+
+```python
+from kubiya_workflow_sdk.providers import get_provider
+
+adk = get_provider("adk")
+result = await adk.compose(
+    task="Create a workflow to backup PostgreSQL database to S3 with compression",
+    mode="plan"
+)
+workflow = result["workflow"]
+```
+
+## Workflow Execution
+
+Workflows can be executed in multiple ways:
+
+### Direct Execution
+
+```python
+from kubiya_workflow_sdk import Client
+
+client = Client()
+execution = client.execute_workflow(workflow)
+```
+
+### Streaming Execution
+
+```python
+for event in client.execute_workflow(workflow, stream=True):
+    print(f"{event.type}: {event.data}")
+```
+
+### Via REST API
+
+```bash
+curl -X POST http://localhost:8000/api/v1/workflows/execute \
+  -H "Authorization: Bearer $API_KEY" \
+  -d '{"workflow": {...}}'
+```
+
+## Advanced Features
+
+<AccordionGroup>
+  <Accordion title="Error Handling" icon="shield">
+    Built-in retry logic and error recovery
+    ```python
+    .step("risky_op", "command")
+    .retry(limit=3, interval_sec=60)
+    .continue_on(failure=True)
+    ```
+  </Accordion>
+  
+  <Accordion title="Parallel Execution" icon="arrows-split">
+    Run multiple steps concurrently
+    ```python
+    .parallel_steps(
+        "process_regions",
+        items=["us-east-1", "eu-west-1"],
+        command="process.sh ${ITEM}"
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="Conditional Logic" icon="code-branch">
+    Execute steps based on conditions
+    ```python
+    .step("deploy", "deploy.sh")
+    .preconditions(
+        {"condition": "${ENV}", "expected": "production"}
+    )
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+1. **Keep Steps Atomic**: Each step should do one thing well
+2. **Use Dependencies**: Explicitly define step order
+3. **Handle Errors**: Add retry logic for unreliable operations
+4. **Parameterize**: Make workflows reusable with parameters
+5. **Document**: Add clear descriptions to workflows and steps
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="DSL Guide" icon="code" href="/workflows/dsl">
+    Learn the workflow DSL syntax
+  </Card>
+  <Card title="Testing" icon="flask" href="/workflows/testing">
+    Test workflows before deployment
+  </Card>
+  <Card title="Examples" icon="lightbulb" href="/tutorials/first-workflow">
+    See real-world workflow examples
+  </Card>
+  <Card title="AI Generation" icon="robot" href="/providers/adk/getting-started">
+    Generate workflows with AI
+  </Card>
+</CardGroup> 

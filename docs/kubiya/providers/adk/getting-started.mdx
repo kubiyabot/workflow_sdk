@@ -1,0 +1,370 @@
+---
+title: "Getting Started with ADK Provider"
+sidebarTitle: "Getting Started"
+description: Generate workflows from natural language using Google's Agent Development Kit
+icon: play
+---
+
+<Note>
+  The ADK (Agent Development Kit) provider enables AI-powered workflow generation using advanced language models. It's the first official provider for the Kubiya Workflow SDK.
+</Note>
+
+## What is ADK Provider?
+
+The ADK provider integrates Google's Agent Development Kit with the Kubiya Workflow SDK to enable:
+
+- **Natural Language to Workflow**: Describe what you want in plain English
+- **Intelligent Code Generation**: AI writes the workflow code for you
+- **Automatic Validation**: Ensures generated workflows are syntactically correct
+- **Smart Refinement**: Automatically fixes errors through iterative improvement
+- **Production Ready**: Generated workflows are optimized for production use
+
+<CardGroup cols={2}>
+  <Card title="Plan Mode" icon="pencil">
+    Generate workflows without executing them
+  </Card>
+  <Card title="Act Mode" icon="play">
+    Generate and immediately execute workflows
+  </Card>
+</CardGroup>
+
+## Prerequisites
+
+<Steps>
+  <Step title="Install SDK with ADK">
+    ```bash
+    pip install kubiya-workflow-sdk[adk]
+    ```
+  </Step>
+  
+  <Step title="Get API Keys">
+    You'll need:
+    - **Kubiya API Key**: From [app.kubiya.ai](https://app.kubiya.ai)
+    - **Together AI Key**: From [together.ai](https://together.ai) (default)
+    - **Google AI Key** (optional): For Google models
+  </Step>
+  
+  <Step title="Set Environment Variables">
+    ```bash
+    export KUBIYA_API_KEY="your-kubiya-key"
+    export TOGETHER_API_KEY="your-together-key"
+    
+    # Optional for Google models
+    export GOOGLE_API_KEY="your-google-key"
+    ```
+  </Step>
+</Steps>
+
+## Quick Example
+
+### Generate a Simple Workflow
+
+```python
+from kubiya_workflow_sdk.providers import get_provider
+
+# Initialize ADK provider
+adk = get_provider("adk")
+
+# Generate a workflow from natural language
+result = await adk.compose(
+    task="Create a workflow that checks disk space and sends an alert if usage is above 80%",
+    mode="plan"  # Just generate, don't execute
+)
+
+# View the generated workflow
+workflow = result["workflow"]
+print(f"Generated workflow: {workflow.name}")
+print(f"Steps: {len(workflow.steps)}")
+
+# Print the workflow as YAML
+print(workflow.to_yaml())
+```
+
+### Generate and Execute
+
+```python
+# Generate AND execute in one go
+async for event in adk.compose(
+    task="List all Python files in /tmp and count lines of code",
+    mode="act",  # Generate and execute
+    stream=True  # Stream execution events
+):
+    if event.get("type") == "text":
+        # Generation progress
+        print(f"AI: {event.get('content')}")
+    elif event.get("type") == "execution":
+        # Execution events
+        print(f"Execution: {event.get('data')}")
+```
+
+## How It Works
+
+<Steps>
+  <Step title="Context Loading">
+    The ADK provider first loads context about your Kubiya environment:
+    - Available runners and their capabilities
+    - Installed integrations (Slack, AWS, etc.)
+    - Accessible secrets and resources
+  </Step>
+  
+  <Step title="Workflow Generation">
+    Using advanced AI models (DeepSeek V3 by default), it generates:
+    - Complete workflow structure
+    - Appropriate steps with dependencies
+    - Error handling and retries
+    - Integration with platform features
+  </Step>
+  
+  <Step title="Validation & Refinement">
+    The generated code is:
+    - Compiled to check syntax
+    - Validated against SDK requirements
+    - Refined if errors are found
+    - Optimized for production use
+  </Step>
+  
+  <Step title="Execution (Act Mode)">
+    If requested, the workflow is:
+    - Submitted to Kubiya platform
+    - Executed with real-time streaming
+    - Monitored for completion
+  </Step>
+</Steps>
+
+## Advanced Examples
+
+### Complex Multi-Step Workflow
+
+```python
+task = """
+Create a comprehensive backup and disaster recovery workflow that:
+1. Backs up all PostgreSQL databases
+2. Compresses backups with timestamps
+3. Uploads to S3 with encryption
+4. Validates backup integrity
+5. Removes backups older than 30 days
+6. Sends detailed report to Slack with:
+   - Backup sizes
+   - Duration
+   - Success/failure status
+7. Triggers PagerDuty alert if backup fails
+"""
+
+result = await adk.compose(task=task, mode="plan")
+
+# The AI will generate a complete workflow with:
+# - Proper error handling
+# - Retry logic for network operations  
+# - Parallel execution where appropriate
+# - Integration with S3, Slack, and PagerDuty
+```
+
+### Infrastructure Automation
+
+```python
+task = """
+Create a Kubernetes deployment workflow that:
+1. Validates the deployment manifest
+2. Checks if the namespace exists, creates if not
+3. Applies the deployment with rolling update strategy
+4. Waits for all pods to be ready (timeout 5 minutes)
+5. Runs smoke tests against the new deployment
+6. If tests fail, automatically rollback to previous version
+7. Update deployment status in GitHub PR
+"""
+
+# Generate and execute with streaming
+async for event in adk.compose(task=task, mode="act", stream=True):
+    # Handle events as they come
+    handle_event(event)
+```
+
+### Incident Response
+
+```python
+task = """
+Create an incident response workflow that:
+1. Fetches alert details from PagerDuty
+2. Checks system health metrics for the affected service
+3. Attempts automatic remediation based on alert type:
+   - For high CPU: restart the service
+   - For high memory: clear caches and restart
+   - For disk space: clean up logs and temp files
+4. Verifies the issue is resolved
+5. Creates a JIRA ticket with incident details
+6. Posts incident summary to #incidents Slack channel
+"""
+
+# With custom context
+context = {
+    "services": ["api", "web", "worker"],
+    "monitoring_tool": "datadog",
+    "ticketing_system": "jira"
+}
+
+result = await adk.compose(
+    task=task,
+    context=context,
+    mode="plan"
+)
+```
+
+## Streaming Formats
+
+The ADK provider supports multiple streaming formats:
+
+<Tabs>
+  <Tab title="Vercel AI SDK">
+    Compatible with Vercel's AI SDK format:
+    ```python
+    result = await adk.compose(
+        task="Your task",
+        mode="act",
+        stream=True,
+        stream_format="vercel"
+    )
+    ```
+  </Tab>
+  
+  <Tab title="Server-Sent Events">
+    Standard SSE format:
+    ```python
+    result = await adk.compose(
+        task="Your task", 
+        mode="act",
+        stream=True,
+        stream_format="sse"
+    )
+    ```
+  </Tab>
+  
+  <Tab title="Raw Events">
+    Direct ADK events:
+    ```python
+    result = await adk.compose(
+        task="Your task",
+        mode="act", 
+        stream=True,
+        stream_format=None  # Raw format
+    )
+    ```
+  </Tab>
+</Tabs>
+
+## Configuration Options
+
+<AccordionGroup>
+  <Accordion title="Model Selection" icon="brain">
+    Choose different models for different tasks:
+    ```python
+    from kubiya_workflow_sdk.providers.adk import ADKProviderConfig
+    
+    config = ADKProviderConfig(
+        model_provider="together",  # or "google", "vertex"
+        models={
+            "orchestrator": "deepseek-ai/DeepSeek-V3",
+            "workflow_generator": "deepseek-ai/DeepSeek-V3",
+            "refinement": "deepseek-ai/DeepSeek-V3"
+        }
+    )
+    
+    adk = get_provider("adk", config=config)
+    ```
+  </Accordion>
+  
+  <Accordion title="Execution Settings" icon="gear">
+    Control execution behavior:
+    ```python
+    config = ADKProviderConfig(
+        execute_workflows=True,  # Enable execution
+        max_loop_iterations=3,   # Max refinement attempts
+        timeout=300,            # Generation timeout
+        stream_format="sse"     # Default stream format
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="Custom Context" icon="database">
+    Provide additional context:
+    ```python
+    result = await adk.compose(
+        task="Your task",
+        context={
+            "preferred_language": "python",
+            "environment": "production",
+            "restrictions": ["no sudo commands"],
+            "available_tools": ["kubectl", "aws-cli"]
+        }
+    )
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Be Specific" icon="bullseye">
+    The more specific your task description, the better the generated workflow
+  </Card>
+  <Card title="Include Examples" icon="lightbulb">
+    Provide example commands or expected outputs when relevant
+  </Card>
+  <Card title="Specify Requirements" icon="list-check">
+    Mention specific tools, integrations, or constraints
+  </Card>
+  <Card title="Iterate" icon="arrows-rotate">
+    Use plan mode first, review, then execute
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="API Key Errors" icon="key">
+    Ensure all required API keys are set:
+    ```bash
+    # Check if keys are set
+    echo $KUBIYA_API_KEY
+    echo $TOGETHER_API_KEY
+    
+    # Verify keys work
+    python -c "from kubiya_workflow_sdk import Client; print(Client().get_organization_info())"
+    ```
+  </Accordion>
+  
+  <Accordion title="Generation Timeouts" icon="clock">
+    For complex workflows, increase timeout:
+    ```python
+    config = ADKProviderConfig(timeout=600)  # 10 minutes
+    adk = get_provider("adk", config=config)
+    ```
+  </Accordion>
+  
+  <Accordion title="Model Errors" icon="robot">
+    If models fail, try different providers:
+    ```python
+    # Try Google AI instead of Together
+    config = ADKProviderConfig(
+        model_provider="google",
+        google_api_key="your-key"
+    )
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/providers/adk/configuration">
+    Deep dive into ADK configuration options
+  </Card>
+  <Card title="Agents" icon="users" href="/providers/adk/agents">
+    Understand the agent architecture
+  </Card>
+  <Card title="Examples" icon="code" href="/providers/adk/examples">
+    Explore more complex examples
+  </Card>
+  <Card title="Custom Providers" icon="puzzle" href="/providers/custom-providers">
+    Build your own provider
+  </Card>
+</CardGroup> 

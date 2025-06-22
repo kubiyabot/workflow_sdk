@@ -1,0 +1,315 @@
+---
+title: "Installation"
+sidebarTitle: "Installation"
+description: Install and configure the Kubiya Workflow SDK
+icon: download
+---
+
+## Prerequisites
+
+Before installing the Kubiya Workflow SDK, ensure you have:
+
+<CardGroup cols={2}>
+  <Card title="Python 3.9+" icon="python">
+    The SDK requires Python 3.9 or higher
+    ```bash
+    python --version
+    ```
+  </Card>
+  <Card title="Kubiya API Key" icon="key">
+    Sign up at [app.kubiya.ai](https://app.kubiya.ai) to get your API key
+  </Card>
+</CardGroup>
+
+## Installation Options
+
+<Tabs>
+  <Tab title="Basic Installation">
+    Install the core SDK with minimal dependencies:
+    ```bash
+    pip install kubiya-workflow-sdk
+    ```
+  </Tab>
+  
+  <Tab title="Full Installation">
+    Install with all features including AI providers and server:
+    ```bash
+    pip install kubiya-workflow-sdk[all]
+    ```
+  </Tab>
+  
+  <Tab title="Development">
+    Install with development dependencies:
+    ```bash
+    pip install kubiya-workflow-sdk[dev]
+    ```
+  </Tab>
+  
+  <Tab title="From Source">
+    Clone and install from GitHub:
+    ```bash
+    git clone https://github.com/kubiya-ai/workflow-sdk.git
+    cd workflow-sdk
+    pip install -e .
+    ```
+  </Tab>
+</Tabs>
+
+## Feature Sets
+
+The SDK supports optional feature sets that can be installed separately:
+
+<AccordionGroup>
+  <Accordion title="ADK Provider" icon="robot">
+    For AI-powered workflow generation using Google's ADK:
+    ```bash
+    pip install kubiya-workflow-sdk[adk]
+    ```
+    
+    Required environment variables:
+    - `TOGETHER_API_KEY` - Together AI API key
+    - `GOOGLE_API_KEY` - (Optional) Google AI API key
+  </Accordion>
+  
+  <Accordion title="Server" icon="server">
+    For running the REST API server:
+    ```bash
+    pip install kubiya-workflow-sdk[server]
+    ```
+    
+    Includes FastAPI, SSE streaming, and deployment tools
+  </Accordion>
+  
+  <Accordion title="Testing" icon="flask">
+    For workflow testing and mocking:
+    ```bash
+    pip install kubiya-workflow-sdk[test]
+    ```
+    
+    Includes pytest fixtures and testing utilities
+  </Accordion>
+</AccordionGroup>
+
+## Configuration
+
+### Environment Variables
+
+Create a `.env` file in your project root or export these variables:
+
+```bash
+# Required
+export KUBIYA_API_KEY="your-kubiya-api-key"
+
+# Optional - Override defaults
+export KUBIYA_API_URL="https://api.kubiya.ai/api/v1"
+export KUBIYA_ORG_NAME="your-organization"
+
+# For ADK Provider (AI workflow generation)
+export TOGETHER_API_KEY="your-together-api-key"
+
+# For custom model providers
+export GOOGLE_API_KEY="your-google-api-key"
+export VERTEX_PROJECT_ID="your-gcp-project"
+export VERTEX_LOCATION="us-central1"
+```
+
+### Configuration File
+
+You can also use a configuration file:
+
+```python
+# kubiya_config.py
+from kubiya_workflow_sdk import Config
+
+config = Config(
+    api_key="your-api-key",
+    org_name="your-organization",
+    api_url="https://api.kubiya.ai/api/v1",
+    
+    # ADK Provider settings
+    adk_config={
+        "together_api_key": "your-key",
+        "model_provider": "together",  # or "google", "vertex"
+        "max_retries": 3,
+        "timeout": 300
+    }
+)
+```
+
+## Verify Installation
+
+<Steps>
+  <Step title="Check SDK Version">
+    ```bash
+    python -c "import kubiya_workflow_sdk; print(kubiya_workflow_sdk.__version__)"
+    ```
+  </Step>
+  
+  <Step title="Test API Connection">
+    ```python
+    from kubiya_workflow_sdk import Client
+    
+    client = Client()
+    try:
+        info = client.get_organization_info()
+        print(f"✅ Connected to: {info['name']}")
+    except Exception as e:
+        print(f"❌ Connection failed: {e}")
+    ```
+  </Step>
+  
+  <Step title="Run Hello World">
+    ```python
+    from kubiya_workflow_sdk import Workflow, Step, Client
+    
+    # Create a simple workflow
+    workflow = Workflow(
+        name="hello-world",
+        steps=[
+            Step(name="greet", command="echo 'Hello from Kubiya!'")
+        ]
+    )
+    
+    # Execute it
+    client = Client()
+    result = client.execute_workflow(workflow)
+    print(f"Execution ID: {result.id}")
+    ```
+  </Step>
+</Steps>
+
+## Docker Installation
+
+For containerized deployments:
+
+<CodeGroup>
+  ```dockerfile Dockerfile
+  FROM python:3.9-slim
+  
+  WORKDIR /app
+  
+  # Install SDK
+  RUN pip install kubiya-workflow-sdk[all]
+  
+  # Copy your workflows
+  COPY workflows/ ./workflows/
+  
+  # Set environment variables
+  ENV KUBIYA_API_KEY=${KUBIYA_API_KEY}
+  
+  CMD ["python", "-m", "kubiya_workflow_sdk.server"]
+  ```
+  
+  ```yaml docker-compose.yml
+  version: '3.8'
+  
+  services:
+    kubiya-sdk:
+      build: .
+      ports:
+        - "8000:8000"
+      environment:
+        - KUBIYA_API_KEY=${KUBIYA_API_KEY}
+        - TOGETHER_API_KEY=${TOGETHER_API_KEY}
+      volumes:
+        - ./workflows:/app/workflows
+  ```
+</CodeGroup>
+
+## Platform-Specific Notes
+
+<Tabs>
+  <Tab title="macOS">
+    If you encounter SSL certificate errors:
+    ```bash
+    pip install --upgrade certifi
+    export SSL_CERT_FILE=$(python -m certifi)
+    ```
+  </Tab>
+  
+  <Tab title="Windows">
+    Use PowerShell or Command Prompt:
+    ```powershell
+    # Set environment variables
+    $env:KUBIYA_API_KEY = "your-key"
+    
+    # Install SDK
+    pip install kubiya-workflow-sdk[all]
+    ```
+  </Tab>
+  
+  <Tab title="Linux">
+    For system-wide installation:
+    ```bash
+    sudo pip install kubiya-workflow-sdk[all]
+    
+    # Or use virtual environment (recommended)
+    python -m venv venv
+    source venv/bin/activate
+    pip install kubiya-workflow-sdk[all]
+    ```
+  </Tab>
+</Tabs>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="ImportError: No module named 'kubiya_workflow_sdk'" icon="circle-exclamation">
+    Ensure the SDK is installed in your active Python environment:
+    ```bash
+    pip list | grep kubiya
+    ```
+    
+    If not listed, reinstall:
+    ```bash
+    pip install --force-reinstall kubiya-workflow-sdk
+    ```
+  </Accordion>
+  
+  <Accordion title="API Key Not Found" icon="key">
+    The SDK looks for API keys in this order:
+    1. Function parameter
+    2. Environment variable
+    3. Config file
+    4. `.env` file
+    
+    Verify your key is set:
+    ```bash
+    echo $KUBIYA_API_KEY
+    ```
+  </Accordion>
+  
+  <Accordion title="SSL/TLS Errors" icon="lock">
+    Update certificates and pip:
+    ```bash
+    pip install --upgrade pip certifi
+    ```
+    
+    For corporate proxies, set:
+    ```bash
+    export HTTP_PROXY=http://proxy.company.com:8080
+    export HTTPS_PROXY=http://proxy.company.com:8080
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/getting-started/quickstart">
+    Build your first workflow in 5 minutes
+  </Card>
+  <Card title="Concepts" icon="lightbulb" href="/getting-started/concepts">
+    Understand core workflow concepts
+  </Card>
+  <Card title="Examples" icon="code" href="/tutorials/first-workflow">
+    Explore example workflows
+  </Card>
+  <Card title="API Reference" icon="book" href="/api-reference/client">
+    Deep dive into the SDK API
+  </Card>
+</CardGroup>
+
+<Note>
+  **Need help?** Join our [Discord community](https://discord.gg/kubiya) or check out our [troubleshooting guide](/community/support).
+</Note> 

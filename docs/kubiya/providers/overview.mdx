@@ -1,0 +1,259 @@
+---
+title: "AI Providers Overview"
+sidebarTitle: "Overview"
+description: Extensible AI provider system for workflow generation
+icon: microchip
+---
+
+# AI Providers Overview
+
+The Kubiya Workflow SDK includes a pluggable provider system that enables AI-powered workflow generation from natural language descriptions. Providers bridge the gap between what you want to accomplish and the technical implementation.
+
+## What are Providers?
+
+Providers are AI frameworks that:
+- Generate workflows from natural language task descriptions
+- Validate and refine generated workflows
+- Optionally execute workflows with real-time streaming
+- Handle errors and retry logic automatically
+
+## Available Providers
+
+<CardGroup cols={2}>
+  <Card title="ADK Provider" icon="google" href="/providers/adk/getting-started">
+    Google's Agent Development Kit integration with advanced AI models
+  </Card>
+  <Card title="LangChain Provider" icon="link" color="#00a67e">
+    Coming soon - LangChain integration for workflow generation
+  </Card>
+  <Card title="Custom Providers" icon="puzzle" href="/providers/custom-providers">
+    Build your own provider for any AI framework
+  </Card>
+  <Card title="OpenAI Provider" icon="robot" color="#412991">
+    Coming soon - Direct OpenAI GPT integration
+  </Card>
+</CardGroup>
+
+## How Providers Work
+
+<Steps>
+  <Step title="Task Description">
+    You provide a natural language description of what you want to accomplish
+  </Step>
+  
+  <Step title="Context Loading">
+    The provider loads available resources, integrations, and platform capabilities
+  </Step>
+  
+  <Step title="Workflow Generation">
+    AI models generate the workflow code based on your requirements
+  </Step>
+  
+  <Step title="Validation & Refinement">
+    The generated code is validated and refined if needed
+  </Step>
+  
+  <Step title="Execution (Optional)">
+    In "act" mode, the workflow is immediately executed with streaming updates
+  </Step>
+</Steps>
+
+## Provider Interface
+
+All providers implement a common interface:
+
+```python
+from abc import ABC, abstractmethod
+from typing import Dict, Any, AsyncIterator
+
+class BaseProvider(ABC):
+    @abstractmethod
+    async def generate_workflow(
+        self, 
+        task: str, 
+        context: Dict[str, Any]
+    ) -> Workflow:
+        """Generate a workflow from task description."""
+        pass
+    
+    @abstractmethod
+    async def validate_workflow(
+        self, 
+        workflow: Workflow
+    ) -> ValidationResult:
+        """Validate workflow syntax and logic."""
+        pass
+    
+    @abstractmethod
+    async def compose(
+        self,
+        task: str,
+        mode: str = "plan",
+        stream: bool = False,
+        **kwargs
+    ) -> Union[Dict, AsyncIterator[Dict]]:
+        """Main entry point for workflow composition."""
+        pass
+```
+
+## Using Providers
+
+### Basic Usage
+
+```python
+from kubiya_workflow_sdk.providers import get_provider
+
+# Get a provider instance
+provider = get_provider("adk")
+
+# Generate a workflow
+result = await provider.compose(
+    task="Create a backup workflow for PostgreSQL database",
+    mode="plan"
+)
+
+workflow = result["workflow"]
+```
+
+### Streaming Generation
+
+```python
+# Stream the generation process
+async for event in provider.compose(
+    task="Deploy application with health checks",
+    mode="act",
+    stream=True
+):
+    if event["type"] == "text":
+        print(f"AI: {event['content']}")
+    elif event["type"] == "execution":
+        print(f"Executing: {event['data']}")
+```
+
+### With Custom Context
+
+```python
+# Provide additional context
+result = await provider.compose(
+    task="Create monitoring workflow",
+    context={
+        "monitoring_tool": "prometheus",
+        "alert_channel": "#ops-alerts",
+        "check_interval": "5m"
+    },
+    mode="plan"
+)
+```
+
+## Provider Modes
+
+<Tabs>
+  <Tab title="Plan Mode">
+    Generate workflows without executing them. Perfect for:
+    - Reviewing generated workflows before execution
+    - Saving workflows for later use
+    - Learning how the AI interprets your requirements
+    
+    ```python
+    result = await provider.compose(task="...", mode="plan")
+    ```
+  </Tab>
+  
+  <Tab title="Act Mode">
+    Generate and immediately execute workflows. Ideal for:
+    - One-time automation tasks
+    - Quick operations that don't need review
+    - Interactive workflow development
+    
+    ```python
+    result = await provider.compose(task="...", mode="act")
+    ```
+  </Tab>
+</Tabs>
+
+## Configuration
+
+Providers can be configured through environment variables or programmatically:
+
+### Environment Variables
+
+```bash
+# ADK Provider
+export TOGETHER_API_KEY="your-key"
+export GOOGLE_API_KEY="your-key"  # Optional
+
+# General settings
+export PROVIDER_TIMEOUT=300
+export PROVIDER_MAX_RETRIES=3
+```
+
+### Programmatic Configuration
+
+```python
+from kubiya_workflow_sdk.providers.adk import ADKProviderConfig
+
+config = ADKProviderConfig(
+    model_provider="together",
+    max_loop_iterations=3,
+    timeout=300,
+    stream_format="sse"
+)
+
+provider = get_provider("adk", config=config)
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Be Specific" icon="bullseye">
+    Provide detailed task descriptions with examples and constraints
+  </Card>
+  <Card title="Use Context" icon="database">
+    Include relevant context about your environment and tools
+  </Card>
+  <Card title="Start Simple" icon="seedling">
+    Begin with simple workflows and gradually increase complexity
+  </Card>
+  <Card title="Review Generated Code" icon="magnifying-glass">
+    Always review generated workflows in plan mode first
+  </Card>
+</CardGroup>
+
+## Creating Custom Providers
+
+You can create your own provider by extending the base class:
+
+```python
+from kubiya_workflow_sdk.providers import BaseProvider, register_provider
+
+@register_provider("my-provider")
+class MyCustomProvider(BaseProvider):
+    async def generate_workflow(self, task: str, context: Dict):
+        # Your implementation
+        pass
+    
+    async def validate_workflow(self, workflow: Workflow):
+        # Your validation logic
+        pass
+    
+    async def compose(self, task: str, **kwargs):
+        # Main composition logic
+        pass
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="ADK Provider" icon="rocket" href="/providers/adk/getting-started">
+    Start using the ADK provider for AI workflow generation
+  </Card>
+  <Card title="Custom Providers" icon="code" href="/providers/custom-providers">
+    Learn how to build your own provider
+  </Card>
+  <Card title="Examples" icon="lightbulb" href="/providers/adk/examples">
+    See real-world provider examples
+  </Card>
+  <Card title="API Reference" icon="book" href="/api-reference/providers">
+    Detailed provider API documentation
+  </Card>
+</CardGroup> 
