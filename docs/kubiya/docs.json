@@ -27,7 +27,9 @@
         "concepts/platform-overview",
         "concepts/workflows",
         "concepts/runners",
-        "concepts/integrations"
+        "concepts/integrations",
+        "concepts/deterministic-workflows",
+        "concepts/why-kubiya"
       ]
     },
     {
@@ -35,26 +37,20 @@
       "pages": [
         "workflows/overview",
         "workflows/architecture",
-        "workflows/python-dsl",
+        "workflows/dsl-reference",
         "workflows/examples"
-      ]
-    },
-    {
-      "group": "Runners",
-      "pages": [
-        "runners/overview",
-        "runners/kubernetes-operator",
-        "runners/local-runners",
-        "runners/security"
       ]
     },
     {
       "group": "MCP Integration",
       "pages": [
-        "mcp/overview",
-        "mcp/claude-desktop",
-        "mcp/cursor",
-        "mcp/custom-agents"
+        "mcp/overview"
+      ]
+    },
+    {
+      "group": "Servers",
+      "pages": [
+        "servers/overview"
       ]
     },
     {
@@ -69,36 +65,21 @@
     {
       "group": "API Reference",
       "pages": [
-        "api-reference/overview",
-        "api-reference/workflows",
-        "api-reference/compose",
-        "api-reference/execute"
-      ]
-    },
-    {
-      "group": "Deployment",
-      "pages": [
-        "deployment/overview",
-        "deployment/kubernetes",
-        "deployment/docker",
-        "deployment/production"
+        "api-reference/compose"
       ]
     },
     {
       "group": "Tutorials",
       "pages": [
-        "tutorials/first-workflow",
-        "tutorials/container-orchestration",
-        "tutorials/ai-powered-automation",
-        "tutorials/mcp-integration"
+        "tutorials/ai-powered-automation"
       ]
     },
     {
-      "group": "Community",
+      "group": "Resources",
       "pages": [
-        "community/contributing",
-        "community/support",
-        "community/showcase"
+        "changelog",
+        "migration-guide",
+        "updates"
       ]
     }
   ],
@@ -121,10 +102,8 @@
   },
   "footer": {
     "socials": {
-      "github": "https://github.com/kubiya-sandbox",
-      "discord": "https://discord.gg/kubiya",
+      "github": "https://github.com/kubiyabot",
       "linkedin": "https://www.linkedin.com/company/kubiya-ai",
-      "x": "https://x.com/kubiya_ai"
     }
   },
   "integrations": {},
@@ -135,7 +114,7 @@
     },
     {
       "source": "/api",
-      "destination": "/api-reference/overview"
+      "destination": "/api-reference/compose"
     }
   ]
 }
