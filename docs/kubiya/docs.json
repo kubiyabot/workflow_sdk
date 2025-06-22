@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "name": "Kubiya Workflow SDK",
+  "name": "Kubiya",
   "logo": {
     "dark": "/assets/logo-dark.png",
     "light": "/assets/logo-light.png"
@@ -9,7 +9,11 @@
   "colors": {
     "primary": "#0EA5E9",
     "light": "#38BDF8",
-    "dark": "#0284C7"
+    "dark": "#0284C7",
+    "anchors": {
+      "from": "#0EA5E9",
+      "to": "#6366F1"
+    }
   },
   "topbarLinks": [
     {
@@ -26,48 +30,73 @@
     "url": "https://app.kubiya.ai",
     "style": "roundedRectangle"
   },
+  "tabs": [
+    {
+      "name": "Documentation",
+      "url": "/"
+    },
+    {
+      "name": "API Reference",
+      "url": "/api-reference"
+    },
+    {
+      "name": "SDK",
+      "url": "/sdk"
+    }
+  ],
+  "primaryTab": {
+    "name": "Documentation"
+  },
   "anchors": [
+    {
+      "name": "Community",
+      "icon": "discord",
+      "url": "https://discord.gg/kubiya"
+    },
     {
       "name": "Blog",
       "icon": "newspaper",
       "url": "https://kubiya.ai/blog"
     },
     {
-      "name": "Discord",
-      "icon": "discord",
-      "url": "https://discord.gg/kubiya"
+      "name": "Changelog",
+      "icon": "clock",
+      "url": "/changelog"
     }
   ],
-  "navigation": {
-    "Documentation": {
-      "pages": ["index"]
-    },
-    "Getting Started": {
+  "navigation": [
+    {
+      "group": "Introduction",
       "pages": [
         "getting-started/welcome",
         "getting-started/installation", 
         "getting-started/quickstart"
       ]
     },
-    "Core Concepts": {
+    {
+      "group": "Core Concepts",
       "pages": [
         "concepts/platform-overview",
         "concepts/workflows",
         "concepts/runners",
-        "concepts/integrations"
+        "concepts/integrations",
+        "concepts/deterministic-workflows",
+        "concepts/why-kubiya",
+        "concepts/agent-frameworks-comparison"
       ]
     },
-    "Workflows": {
+    {
+      "group": "Workflows",
       "pages": [
         "workflows/overview",
+        "workflows/architecture",
         "workflows/dsl-reference",
         "workflows/examples",
-        "workflows/architecture",
-        "workflows/advanced",
-        "concepts/deterministic-workflows"
+        "workflows/advanced"
       ]
     },
-    "AI & Automation": {
+    {
+      "group": "AI & Automation",
       "pages": [
         "providers/overview",
         "providers/adk/getting-started",
@@ -75,55 +104,69 @@
         "providers/adk/streaming"
       ]
     },
-    "Platform Features": {
-      "pages": [
-        "concepts/why-kubiya",
-        "concepts/agent-frameworks-comparison",
-        "tutorials/ai-powered-automation"
-      ]
-    },
-    "SDK Reference": {
-      "pages": [
-        "sdk/overview",
-        "sdk/api-reference",
-        "sdk/examples",
-        "sdk/contributing"
-      ]
-    },
-    "API Documentation": {
-      "pages": ["api-reference/compose"]
-    },
-    "Integrations": {
+    {
+      "group": "Integrations",
       "pages": [
         "mcp/overview",
         "servers/overview"
       ]
     },
-    "Deployment & Operations": {
-      "pages": ["deployment/helm-chart"]
+    {
+      "group": "SDK Reference",
+      "pages": [
+        "sdk/overview",
+        "sdk/api-reference",
+        "sdk/examples",
+        "sdk/contributing",
+        "sdk/changelog"
+      ]
     },
-    "Resources": {
+    {
+      "group": "API Reference",
+      "pages": [
+        "api-reference/compose"
+      ]
+    },
+    {
+      "group": "Deployment",
+      "pages": [
+        "deployment/helm-chart"
+      ]
+    },
+    {
+      "group": "Tutorials",
+      "pages": [
+        "tutorials/ai-powered-automation"
+      ]
+    },
+    {
+      "group": "Resources",
       "pages": [
         "changelog",
         "migration-guide",
-        "updates",
-        "sdk/changelog"
+        "updates"
       ]
     }
-  },
+  ],
   "footerSocials": {
     "github": "https://github.com/kubiyabot",
     "linkedin": "https://www.linkedin.com/company/kubiya-ai",
     "twitter": "https://twitter.com/kubiya_ai"
   },
+  "backgroundImage": "/assets/background.png",
   "search": {
     "prompt": "Search documentation..."
   },
   "metadata": {
-    "og:title": "Kubiya Workflow SDK Documentation",
+    "og:title": "Kubiya Documentation",
     "og:description": "Build intelligent automation workflows with Kubiya's powerful SDK",
     "og:image": "/assets/og-image.png",
     "twitter:card": "summary_large_image"
+  },
+  "analytics": {
+    "gtm": {
+      "tagId": "GTM-XXXXXXX"
+    }
   },
   "feedback": {
     "thumbsRating": true,
@@ -137,7 +180,7 @@
   "custom": {
     "css": ["/style.css"]
   },
-  "theme": "mint",
+  "theme": "quill",
   "redirects": [
     {
       "source": "/providers/adk",
@@ -146,10 +189,6 @@
     {
       "source": "/api",
       "destination": "/api-reference/compose"
-    },
-    {
-      "source": "/sdk",
-      "destination": "/sdk/overview"
     }
   ]
 }
