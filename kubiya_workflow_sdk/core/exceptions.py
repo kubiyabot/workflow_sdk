@@ -73,6 +73,12 @@ class ConnectionError(ClientError):
     pass
 
 
+# Provider Errors
+class ProviderError(KubiyaSDKError):
+    """Base class for provider-related errors."""
+    pass
+
+
 # Tool Errors
 class ToolError(KubiyaSDKError):
     """Base class for tool-related errors."""

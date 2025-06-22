@@ -1,0 +1,141 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "willow",
+  "name": "Kubiya",
+  "colors": {
+    "primary": "#0088ff",
+    "light": "#0066cc",
+    "dark": "#00d4ff"
+  },
+  "favicon": "/assets/favicon.ico",
+  "logo": {
+    "dark": "/assets/logo-dark.png",
+    "light": "/assets/logo-light.png"
+  },
+  "navigation": [
+    {
+      "group": "Getting Started",
+      "pages": [
+        "getting-started/welcome",
+        "getting-started/installation",
+        "getting-started/quickstart"
+      ]
+    },
+    {
+      "group": "Core Concepts",
+      "pages": [
+        "concepts/platform-overview",
+        "concepts/workflows",
+        "concepts/runners",
+        "concepts/integrations"
+      ]
+    },
+    {
+      "group": "Workflows",
+      "pages": [
+        "workflows/overview",
+        "workflows/architecture",
+        "workflows/python-dsl",
+        "workflows/examples"
+      ]
+    },
+    {
+      "group": "Runners",
+      "pages": [
+        "runners/overview",
+        "runners/kubernetes-operator",
+        "runners/local-runners",
+        "runners/security"
+      ]
+    },
+    {
+      "group": "MCP Integration",
+      "pages": [
+        "mcp/overview",
+        "mcp/claude-desktop",
+        "mcp/cursor",
+        "mcp/custom-agents"
+      ]
+    },
+    {
+      "group": "AI Providers",
+      "pages": [
+        "providers/overview",
+        "providers/adk/getting-started",
+        "providers/adk/agents",
+        "providers/adk/streaming"
+      ]
+    },
+    {
+      "group": "API Reference",
+      "pages": [
+        "api-reference/overview",
+        "api-reference/workflows",
+        "api-reference/compose",
+        "api-reference/execute"
+      ]
+    },
+    {
+      "group": "Deployment",
+      "pages": [
+        "deployment/overview",
+        "deployment/kubernetes",
+        "deployment/docker",
+        "deployment/production"
+      ]
+    },
+    {
+      "group": "Tutorials",
+      "pages": [
+        "tutorials/first-workflow",
+        "tutorials/container-orchestration",
+        "tutorials/ai-powered-automation",
+        "tutorials/mcp-integration"
+      ]
+    },
+    {
+      "group": "Community",
+      "pages": [
+        "community/contributing",
+        "community/support",
+        "community/showcase"
+      ]
+    }
+  ],
+  "topbarLinks": [
+    {
+      "name": "GitHub",
+      "url": "https://github.com/kubiya-sandbox/workflows"
+    },
+    {
+      "name": "Kubiya Platform",
+      "url": "https://app.kubiya.ai"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Get Started",
+    "url": "https://app.kubiya.ai"
+  },
+  "search": {
+    "prompt": "Search Kubiya docs..."
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/kubiya-sandbox",
+      "discord": "https://discord.gg/kubiya",
+      "linkedin": "https://www.linkedin.com/company/kubiya-ai",
+      "x": "https://x.com/kubiya_ai"
+    }
+  },
+  "integrations": {},
+  "redirects": [
+    {
+      "source": "/providers/adk",
+      "destination": "/providers/adk/getting-started"
+    },
+    {
+      "source": "/api",
+      "destination": "/api-reference/overview"
+    }
+  ]
+}

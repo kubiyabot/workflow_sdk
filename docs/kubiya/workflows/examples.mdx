@@ -1,0 +1,557 @@
+---
+title: Workflow Examples
+description: Real-world examples showcasing container orchestration, inline AI agents, and automation
+icon: code
+---
+
+# Workflow Examples
+
+Explore real-world examples that demonstrate Kubiya's power in orchestrating containers, integrating AI agents, and creating complex automation workflows.
+
+## Basic Workflow Patterns
+
+### Sequential Workflow
+
+Simple sequential execution of steps:
+
+```python
+from kubiya_workflow_sdk import workflow, step
+
+# Basic sequential workflow
+wf = (
+    workflow("data-pipeline")
+    .description("ETL pipeline for data processing")
+    .step("extract", "python extract.py")
+    .step("transform", "python transform.py") 
+    .step("load", "python load.py")
+)
+```
+
+### Parallel Execution
+
+Run multiple tasks in parallel:
+
+```python
+from kubiya_workflow_sdk import workflow
+
+# Process multiple files in parallel
+wf = (
+    workflow("parallel-processor")
+    .description("Process multiple files concurrently")
+    .parallel_steps(
+        "process-files",
+        items=["file1.csv", "file2.csv", "file3.csv"],
+        command="python process.py ${ITEM}",
+        max_concurrent=2
+    )
+)
+```
+
+## Container Orchestration
+
+### Multi-Container Pipeline
+
+Orchestrate different containers for each step:
+
+```python
+from kubiya_workflow_sdk import workflow, step
+
+@workflow
+def build_and_deploy():
+    """Build, test, and deploy application using different containers"""
+    
+    # Build with Node.js
+    build = step("build").docker(
+        image="node:18-alpine",
+        command="npm run build"
+    ).env(NODE_ENV="production")
+    
+    # Test with specialized test container
+    test = step("test").docker(
+        image="cypress/included:latest",
+        command="cypress run"
+    ).depends("build")
+    
+    # Deploy with kubectl
+    deploy = step("deploy").docker(
+        image="bitnami/kubectl:latest",
+        command="kubectl apply -f k8s/"
+    ).depends("test")
+    
+    return workflow("ci-cd-pipeline").add_steps([build, test, deploy])
+```
+
+### Database Migration with Services
+
+Use bounded services for database operations:
+
+```python
+from kubiya_workflow_sdk import step
+
+# Database migration with temporary PostgreSQL
+migration_step = (
+    step("db-migration")
+    .tool_def(
+        name="migrator",
+        type="docker",
+        image="migrate/migrate:latest",
+        content="""#!/bin/sh
+migrate -path /migrations -database postgres://user:pass@database:5432/db up
+""",
+        args=[],
+        with_services=[{
+            "name": "database",
+            "image": "postgres:15-alpine",
+            "exposed_ports": [5432],
+            "env": {
+                "POSTGRES_USER": "user",
+                "POSTGRES_PASSWORD": "pass",
+                "POSTGRES_DB": "db"
+            }
+        }]
+    )
+)
+```
+
+## AI Agent Integration
+
+### Inline AI Agent for Log Analysis
+
+Integrate AI agents directly in workflows using inline_agent:
+
+```python
+from kubiya_workflow_sdk import workflow, step
+
+@workflow
+def intelligent_log_analysis():
+    """Analyze logs using AI agent"""
+    
+    # Fetch logs
+    fetch = step("fetch-logs").docker(
+        image="aws-cli:latest",
+        command="aws logs tail /aws/lambda/my-function --since 1h"
+    ).output("LOG_CONTENT")
+    
+    # AI agent analyzes logs
+    analyze = (
+        step("analyze-logs")
+        .inline_agent(
+            message="Analyze these logs and identify errors, patterns, and anomalies: ${LOG_CONTENT}",
+            agent_name="log-analyzer",
+            ai_instructions="""You are a log analysis expert. 
+            Identify:
+            1. Error patterns and their frequency
+            2. Performance bottlenecks
+            3. Security concerns
+            4. Recommendations for improvement
+            
+            Format your response as structured JSON.""",
+            runners=["auto"],
+            llm_model="gpt-4o",
+            tools=[{
+                "name": "parse-json",
+                "type": "docker", 
+                "image": "stedolan/jq:latest",
+                "content": "#!/bin/sh\necho '$1' | jq .",
+                "args": [{"name": "json", "type": "string"}]
+            }]
+        )
+        .depends("fetch-logs")
+        .output("ANALYSIS_RESULT")
+    )
+    
+    # Generate report
+    report = step("generate-report").docker(
+        image="python:3.11-slim",
+        script="""
+import json
+import markdown
+
+analysis = json.loads(os.environ['ANALYSIS_RESULT'])
+# Generate markdown report
+with open('report.md', 'w') as f:
+    f.write(f"# Log Analysis Report\\n\\n{analysis}")
+"""
+    ).depends("analyze-logs")
+    
+    return workflow("log-analysis").add_steps([fetch, analyze, report])
+```
+
+### AI-Powered Code Review
+
+Use inline agents for intelligent code review:
+
+```python
+from kubiya_workflow_sdk import workflow, step
+
+@workflow
+def ai_code_review(pr_number: int):
+    """AI-powered pull request review"""
+    
+    # Fetch PR diff
+    fetch_pr = step("fetch-pr").docker(
+        image="gh-cli:latest",
+        command=f"gh pr diff {pr_number}"
+    ).output("PR_DIFF")
+    
+    # AI reviews the code
+    review = (
+        step("ai-review")
+        .inline_agent(
+            message="""Review this pull request diff:
+            
+${PR_DIFF}
+
+Provide feedback on:
+1. Code quality and best practices
+2. Potential bugs or issues
+3. Performance implications
+4. Security concerns
+5. Suggestions for improvement""",
+            agent_name="code-reviewer",
+            ai_instructions="""You are a senior software engineer reviewing code.
+            Be constructive, specific, and provide actionable feedback.
+            Point out both issues and good practices.
+            Format as markdown with code examples where relevant.""",
+            runners=["auto"],
+            llm_model="gpt-4o"
+        )
+        .depends("fetch-pr")
+        .output("REVIEW_COMMENTS")
+    )
+    
+    # Post review comment
+    post = step("post-review").docker(
+        image="gh-cli:latest",
+        command=f"gh pr comment {pr_number} --body-file -",
+        content="${REVIEW_COMMENTS}"
+    ).depends("ai-review")
+    
+    return workflow("pr-review").add_steps([fetch_pr, review, post])
+```
+
+## Tool Definitions
+
+### Custom CLI Tool
+
+Define reusable tools inline:
+
+```python
+from kubiya_workflow_sdk import step
+
+# Slack notification tool
+notify = (
+    step("notify-team")
+    .tool_def(
+        name="slack-notifier",
+        type="docker",
+        image="curlimages/curl:latest",
+        content="""#!/bin/sh
+set -e
+curl -X POST "$SLACK_WEBHOOK" \
+  -H "Content-Type: application/json" \
+  -d "{\\"text\\": \\"$message\\", \\"channel\\": \\"$channel\\"}"
+""",
+        args=[
+            {"name": "message", "type": "string", "required": True},
+            {"name": "channel", "type": "string", "default": "#general"},
+            {"name": "SLACK_WEBHOOK", "type": "string", "required": True}
+        ]
+    )
+    .args(
+        message="Deployment completed successfully!",
+        channel="#deployments",
+        SLACK_WEBHOOK="${SLACK_WEBHOOK_URL}"
+    )
+)
+```
+
+### Data Processing Tool with Files
+
+Tool with configuration files:
+
+```python
+transform_step = (
+    step("transform-data")
+    .tool_def(
+        name="data-transformer",
+        type="docker",
+        image="python:3.11-slim",
+        content="""#!/usr/bin/env python
+import pandas as pd
+import sys
+
+df = pd.read_csv(sys.argv[1])
+# Apply transformations from config
+exec(open('/config/transform.py').read())
+df.to_csv(sys.argv[2], index=False)
+""",
+        args=[
+            {"name": "input_file", "type": "string"},
+            {"name": "output_file", "type": "string"}
+        ],
+        with_files=[{
+            "path": "/config/transform.py",
+            "content": """
+# Transformation logic
+df['processed'] = df['value'] * 2
+df = df[df['processed'] > 100]
+"""
+        }]
+    )
+    .args(input_file="data.csv", output_file="processed.csv")
+)
+```
+
+## Complex DAG Workflows
+
+### Multi-Stage Data Pipeline
+
+Complex DAG with conditional execution:
+
+```python
+from kubiya_workflow_sdk import workflow, step
+
+@workflow
+def etl_pipeline(source: str, target: str):
+    """Complex ETL pipeline with validation and error handling"""
+    
+    # Extract from multiple sources
+    extract_db = step("extract-db").docker(
+        image="postgres:15",
+        command="pg_dump -h ${DB_HOST} -U ${DB_USER} -d ${DB_NAME}"
+    ).output("DB_DATA")
+    
+    extract_api = step("extract-api").docker(
+        image="python:3.11",
+        script="""
+import requests
+data = requests.get(os.environ['API_URL']).json()
+print(json.dumps(data))
+"""
+    ).output("API_DATA")
+    
+    # Validate data quality
+    validate = step("validate").docker(
+        image="python:3.11",
+        script="""
+import json
+db_data = json.loads(os.environ['DB_DATA'])
+api_data = json.loads(os.environ['API_DATA'])
+
+# Validation logic
+errors = []
+if len(db_data) == 0:
+    errors.append("No DB data")
+if 'required_field' not in api_data:
+    errors.append("Missing required field")
+
+if errors:
+    print(json.dumps({"valid": False, "errors": errors}))
+    sys.exit(1)
+else:
+    print(json.dumps({"valid": True}))
+"""
+    ).depends(["extract-db", "extract-api"])
+    .output("VALIDATION_RESULT")
+    
+    # Transform data
+    transform = step("transform").docker(
+        image="apache/spark:3.4",
+        command="spark-submit transform.py"
+    ).depends("validate")
+    .preconditions("${VALIDATION_RESULT.valid} == true")
+    
+    # Load to warehouse
+    load = step("load").docker(
+        image="snowflake/snowcli:latest",
+        command="snow stage copy @mystage ${TRANSFORMED_DATA}"
+    ).depends("transform")
+    .retry(limit=3, interval_sec=60)
+    
+    # Error handling path
+    error_notify = (
+        step("notify-error")
+        .inline_agent(
+            message="Generate error report for validation failures: ${VALIDATION_RESULT}",
+            agent_name="error-reporter",
+            ai_instructions="Create a detailed error report with remediation steps",
+            runners=["auto"]
+        )
+        .depends("validate")
+        .preconditions("${VALIDATION_RESULT.valid} == false")
+    )
+    
+    return workflow("etl-pipeline").add_steps([
+        extract_db, extract_api, validate, transform, load, error_notify
+    ])
+```
+
+## Control Flow Examples
+
+### Retry and Error Handling
+
+Robust error handling patterns:
+
+```python
+from kubiya_workflow_sdk import step
+
+# Step with comprehensive retry policy
+resilient_step = (
+    step("fetch-external-data")
+    .docker(
+        image="curlimages/curl:latest",
+        command="curl -f https://api.example.com/data"
+    )
+    .retry(
+        limit=5,
+        interval_sec=30,
+        exponential_base=2.0,
+        max_interval_sec=300
+    )
+    .timeout(300)  # 5 minute timeout
+    .continue_on(
+        exit_code=[404, 503],  # Continue on specific errors
+        mark_success=True
+    )
+    .output("API_RESPONSE")
+)
+
+# Cleanup that always runs
+cleanup = (
+    step("cleanup")
+    .shell("rm -rf /tmp/workspace/*")
+    .continue_on(failure=True)  # Always run, even on failure
+)
+```
+
+### Conditional Execution
+
+Execute steps based on conditions:
+
+```python
+# Production deployment with safety checks
+deploy_prod = (
+    step("deploy-production")
+    .docker(
+        image="kubectl:latest",
+        command="kubectl apply -f production.yaml"
+    )
+    .preconditions(
+        "${TEST_RESULT.coverage} > 80",
+        "${SECURITY_SCAN.vulnerabilities} == 0"
+    )
+    .depends(["test", "security-scan"])
+)
+
+# Staging deployment (less strict)
+deploy_staging = (
+    step("deploy-staging")
+    .docker(
+        image="kubectl:latest", 
+        command="kubectl apply -f staging.yaml"
+    )
+    .preconditions("${TEST_RESULT.passed} == true")
+    .depends("test")
+)
+```
+
+## ADK Provider Integration
+
+While the workflow DSL focuses on execution, the ADK provider can generate workflows using AI:
+
+```python
+from kubiya_workflow_sdk.providers import get_provider
+
+# Use ADK provider to generate workflows from natural language
+async def generate_workflow():
+    adk = get_provider("adk")
+    
+    # Generate workflow from description
+    result = await adk.compose(
+        task="Create a CI/CD pipeline that builds a Node.js app, runs tests, and deploys to Kubernetes",
+        mode="plan"  # Just generate, don't execute
+    )
+    
+    # The provider generates a complete workflow using the SDK
+    print(result.workflow_yaml)
+    
+    # Execute if desired
+    if result.workflow:
+        execution = await adk.compose(
+            task="Execute the generated workflow",
+            mode="act",  # Generate and execute
+            workflow=result.workflow
+        )
+```
+
+## Best Practices
+
+### 1. Use Appropriate Executors
+```python
+# Shell for simple commands
+step("list-files").shell("ls -la")
+
+# Docker for isolated environments
+step("build").docker("node:18", "npm run build")
+
+# Inline agent for AI tasks
+step("analyze").inline_agent(
+    message="Analyze this data",
+    agent_name="analyzer",
+    ai_instructions="You are a data analyst..."
+)
+```
+
+### 2. Handle Dependencies Properly
+```python
+# Single dependency
+step("deploy").depends("test")
+
+# Multiple dependencies
+step("report").depends(["analyze", "validate", "transform"])
+
+# Conditional dependencies
+step("notify").depends("deploy").preconditions("${DEPLOY_STATUS} == 'success'")
+```
+
+### 3. Capture and Use Outputs
+```python
+# Capture output
+step("get-version").shell("git describe --tags").output("VERSION")
+
+# Use in next step
+step("build").docker(
+    "docker:latest",
+    "docker build -t myapp:${VERSION} ."
+).depends("get-version")
+```
+
+### 4. Error Handling
+```python
+# Retry transient failures
+step("download").retry(limit=3, interval_sec=30)
+
+# Continue on specific errors
+step("optional-check").continue_on(exit_code=[404])
+
+# Always run cleanup
+step("cleanup").continue_on(failure=True)
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Python DSL" icon="python" href="/workflows/python-dsl">
+    Deep dive into the workflow DSL
+  </Card>
+  <Card title="AI Providers" icon="robot" href="/providers/overview">
+    Learn about ADK integration
+  </Card>
+  <Card title="Tool Framework" icon="wrench" href="/tools/overview">
+    Create reusable tools
+  </Card>
+  <Card title="API Reference" icon="book" href="/api-reference/overview">
+    Complete API documentation
+  </Card>
+</CardGroup> 

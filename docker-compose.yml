@@ -1,0 +1,152 @@
+version: '3.8'
+
+services:
+  # Kubiya SDK Server with ADK Provider
+  kubiya-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kubiya-sdk-server
+    ports:
+      - "8000:8000"
+    environment:
+      # Required
+      - KUBIYA_API_KEY=${KUBIYA_API_KEY}
+      
+      # Optional - For ADK Provider (AI workflow generation)
+      - TOGETHER_API_KEY=${TOGETHER_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      
+      # Server configuration
+      - HOST=0.0.0.0
+      - PORT=8000
+      - LOG_LEVEL=INFO
+      - RELOAD=false
+      
+      # Optional overrides
+      - KUBIYA_API_URL=${KUBIYA_API_URL:-https://api.kubiya.ai/api/v1}
+      - KUBIYA_ORG_NAME=${KUBIYA_ORG_NAME}
+    
+    volumes:
+      # Mount workflows directory for hot reload in development
+      - ./workflows:/app/workflows:ro
+      
+      # Mount custom providers if you have them
+      - ./custom_providers:/app/custom_providers:ro
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    restart: unless-stopped
+    
+    networks:
+      - kubiya-network
+    
+    labels:
+      - "com.kubiya.service=workflow-sdk"
+      - "com.kubiya.version=2.0"
+
+  # Optional: Redis for caching and session management
+  redis:
+    image: redis:7-alpine
+    container_name: kubiya-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kubiya-network
+
+  # Optional: PostgreSQL for workflow history and metadata
+  postgres:
+    image: postgres:15-alpine
+    container_name: kubiya-postgres
+    environment:
+      - POSTGRES_DB=kubiya_workflows
+      - POSTGRES_USER=kubiya
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-kubiya_secret}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kubiya"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kubiya-network
+
+  # Optional: Nginx reverse proxy for production
+  nginx:
+    image: nginx:alpine
+    container_name: kubiya-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - kubiya-server
+    networks:
+      - kubiya-network
+    profiles:
+      - production
+
+  # Optional: Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: kubiya-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - kubiya-network
+    profiles:
+      - monitoring
+
+  # Optional: Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: kubiya-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana-dashboards:/etc/grafana/provisioning/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      - kubiya-network
+    profiles:
+      - monitoring
+
+networks:
+  kubiya-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+  postgres-data:
+  prometheus-data:
+  grafana-data: 

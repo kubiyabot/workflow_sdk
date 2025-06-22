@@ -15,28 +15,39 @@ from datetime import datetime
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 
+# FastMCP is optional - we provide a fallback
 try:
-    from fastmcp import FastMCP, Context
+    from fastmcp import FastMCP
     HAS_FASTMCP = True
+    
+    # Also try to import Context for type hints
+    try:
+        from fastmcp import Context
+    except ImportError:
+        # Create a dummy Context class for type hints
+        class Context:
+            async def info(self, message: str): pass
+            async def error(self, message: str): pass
+            async def report_progress(self, current: int, total: int): pass
 except ImportError:
     # Fallback to basic implementation
     HAS_FASTMCP = False
+    # Create dummy classes
+    class FastMCP:
+        def __init__(self, *args, **kwargs):
+            self.tools = {}
+            
+        def tool(self, func):
+            return func
+    
+    class Context:
+        async def info(self, message: str): pass
+        async def error(self, message: str): pass
+        async def report_progress(self, current: int, total: int): pass
     
 from ..dsl import workflow, step
 from ..client import KubiyaClient
-from ..execution import execute_workflow_with_validation, ExecutionMode, LogLevel
-
-# Try to import validation if available
-try:
-    from ..validation import validate_workflow
-except ImportError:
-    # Create a simple validation function if not available
-    def validate_workflow(workflow_def):
-        return type('ValidationResult', (), {
-            'valid': bool(workflow_def.get('steps')),
-            'errors': [] if workflow_def.get('steps') else ['No steps defined'],
-            'warnings': []
-        })()
+from ..execution import validate_workflow_definition, execute_workflow_events, ExecutionMode, LogLevel
 
 
 @dataclass
@@ -71,7 +82,7 @@ class KubiyaWorkflowServer:
         base_url: str = "https://api.kubiya.ai"
     ):
         self.name = name
-        self.api_token = api_token
+        self.api_token = api_token or os.getenv('KUBIYA_API_KEY')
         self.base_url = base_url
         
         # State management
@@ -80,16 +91,15 @@ class KubiyaWorkflowServer:
         
         # Initialize Kubiya client
         self.kubiya_client = KubiyaClient(
-            api_token=api_token,
+            api_key=self.api_token,
             base_url=base_url
-        ) if api_token else None
+        ) if self.api_token else None
         
         # Initialize FastMCP if available
-        if HAS_FASTMCP:
-            self.mcp = FastMCP(name, dependencies=["kubiya-workflow-sdk"])
+        self.mcp = FastMCP(name, dependencies=["kubiya-workflow-sdk"]) if HAS_FASTMCP else None
+        
+        if self.mcp:
             self._register_tools()
-        else:
-            self.mcp = None
     
     def _register_tools(self):
         """Register workflow tools with FastMCP."""
@@ -142,7 +152,7 @@ class KubiyaWorkflowServer:
                         'error': 'No @workflow decorated function found in code',
                         'suggestions': [
                             'Add @workflow decorator to your function',
-                            'Example: @workflow(name="my_workflow")'
+                            'Example: @workflow\ndef my_workflow():\n    return ...'
                         ]
                     }
                 
@@ -151,25 +161,25 @@ class KubiyaWorkflowServer:
                 workflow_dict = workflow_instance.to_dict()
                 
                 # Validate workflow
-                validation_result = validate_workflow(workflow_dict)
+                errors = validate_workflow_definition(workflow_dict)
                 
                 result = {
-                    'success': validation_result.valid,
+                    'success': len(errors) == 0,
                     'name': name,
-                    'description': description or workflow_instance.description,
+                    'description': description or workflow_dict.get('description', ''),
                     'validation': {
-                        'valid': validation_result.valid,
-                        'errors': validation_result.errors,
-                        'warnings': validation_result.warnings
+                        'valid': len(errors) == 0,
+                        'errors': errors,
+                        'warnings': []
                     },
                     'workflow': {
-                        'steps': len(workflow_instance.steps),
-                        'parameters': list(workflow_instance.params.keys()) if hasattr(workflow_instance, 'params') else []
+                        'steps': len(workflow_dict.get('steps', [])),
+                        'parameters': list(workflow_dict.get('params', {}).keys())
                     }
                 }
                 
                 # Store if valid and not validation-only
-                if validation_result.valid and not validate_only:
+                if len(errors) == 0 and not validate_only:
                     self.workflows[name] = workflow_dict
                     if ctx:
                         await ctx.info(f"Workflow '{name}' created successfully")
@@ -234,16 +244,16 @@ class KubiyaWorkflowServer:
                     workflow_dict['description'] = description
                 
                 # Validate workflow
-                validation_result = validate_workflow(workflow_dict)
+                errors = validate_workflow_definition(workflow_dict)
                 
                 result = {
-                    'success': validation_result.valid,
+                    'success': len(errors) == 0,
                     'name': name,
                     'description': description,
                     'validation': {
-                        'valid': validation_result.valid,
-                        'errors': validation_result.errors,
-                        'warnings': validation_result.warnings
+                        'valid': len(errors) == 0,
+                        'errors': errors,
+                        'warnings': []
                     },
                     'workflow': {
                         'steps': len(workflow_dict.get('steps', [])),
@@ -252,7 +262,7 @@ class KubiyaWorkflowServer:
                 }
                 
                 # Store if valid and not validation-only
-                if validation_result.valid and not validate_only:
+                if len(errors) == 0 and not validate_only:
                     self.workflows[name] = workflow_dict
                     if ctx:
                         await ctx.info(f"Workflow '{name}' created successfully")
@@ -301,6 +311,13 @@ class KubiyaWorkflowServer:
                     'success': False,
                     'error': f'Workflow "{name}" not found',
                     'available_workflows': list(self.workflows.keys())
+                }
+            
+            if not self.api_token:
+                return {
+                    'success': False,
+                    'error': 'API token required for workflow execution',
+                    'help': 'Set KUBIYA_API_KEY environment variable or pass api_token to server'
                 }
             
             # Create execution ID
@@ -406,11 +423,15 @@ class KubiyaWorkflowServer:
             """
             workflows = []
             for name, workflow_def in self.workflows.items():
+                # Re-validate
+                errors = validate_workflow_definition(workflow_def)
                 workflows.append({
                     'name': name,
                     'description': workflow_def.get('description', ''),
                     'steps': len(workflow_def.get('steps', [])),
-                    'parameters': list(workflow_def.get('params', {}).keys())
+                    'parameters': list(workflow_def.get('params', {}).keys()),
+                    'valid': len(errors) == 0,
+                    'validation_errors': errors if errors else None
                 })
             
             return {
@@ -504,8 +525,14 @@ class KubiyaWorkflowServer:
             
             try:
                 if format.lower() == "yaml":
-                    import yaml
-                    content = yaml.dump(workflow_def, default_flow_style=False)
+                    try:
+                        import yaml
+                        content = yaml.dump(workflow_def, default_flow_style=False)
+                    except ImportError:
+                        return {
+                            'success': False,
+                            'error': 'PyYAML not installed. Use JSON format or install: pip install pyyaml'
+                        }
                 else:
                     content = json.dumps(workflow_def, indent=2)
                 
@@ -541,29 +568,16 @@ class KubiyaWorkflowServer:
             if ctx:
                 await ctx.info(f"Executing workflow with {len(workflow_def.get('steps', []))} steps")
             
-            # Check if we have the necessary components for execution
-            if not self.api_token:
-                error_msg = "API token required for workflow execution"
-                execution.status = 'failed'
-                execution.errors.append(error_msg)
-                execution.completed_at = datetime.now()
-                
-                if ctx:
-                    await ctx.error(f"Execution failed: {error_msg}")
-                    await ctx.error("Set KUBIYA_API_TOKEN environment variable to enable real execution")
-                return
-            
-            # Execute using the enhanced execution module
-            async for event in execute_workflow_with_validation(
-                workflow_def,
-                parameters,
-                mode=mode,
-                log_level=log_level,
-                api_token=self.api_token,
-                base_url=self.base_url
+            # Execute using the SDK's execution module (convert sync to async)
+            events_processed = 0
+            for event in execute_workflow_events(
+                workflow_definition=workflow_def,
+                api_key=self.api_token,
+                parameters=parameters
             ):
                 # Store event
                 execution.events.append(event)
+                events_processed += 1
                 
                 # Update progress if context available
                 if ctx and event.get('type') == 'step_progress':
@@ -585,8 +599,18 @@ class KubiyaWorkflowServer:
                     execution.status = 'failed'
                     execution.errors.append(event.get('error', 'Execution failed'))
                     execution.completed_at = datetime.now()
-                    # Break early for execution failures
                     break
+                elif 'error' in event:
+                    execution.errors.append(event['error'])
+                
+                # Allow other async tasks to run
+                if events_processed % 10 == 0:
+                    await asyncio.sleep(0)
+            
+            # Ensure we have a final status
+            if execution.status == 'running':
+                execution.status = 'completed'
+                execution.completed_at = datetime.now()
             
             if ctx:
                 await ctx.info(f"Workflow execution completed with status: {execution.status}")
@@ -615,27 +639,30 @@ class KubiyaWorkflowServer:
             port: Port for HTTP transports
         """
         if not HAS_FASTMCP:
-            raise RuntimeError(
-                "FastMCP is required to run the server. "
-                "Install with: pip install fastmcp"
-            )
+            print("⚠️  Warning: FastMCP not available")
+            print("   Limited functionality without FastMCP")
+            print("   Install with: pip install fastmcp")
+            return
         
         # Check if API token is available for workflow execution
         if not self.api_token:
             print("⚠️  Warning: No API token configured")
             print("   Workflow creation and validation will work")
-            print("   But workflow execution will fail without KUBIYA_API_TOKEN")
-            print("   Set KUBIYA_API_TOKEN environment variable to enable execution")
+            print("   But workflow execution requires KUBIYA_API_KEY")
+            print("   Set KUBIYA_API_KEY environment variable to enable execution")
         
         # Configure and run FastMCP server
-        if transport == "stdio":
-            self.mcp.run(transport="stdio")
-        elif transport == "sse":
-            self.mcp.run(transport="sse", host=host, port=port)
-        elif transport == "streamable-http":
-            self.mcp.run(transport="streamable-http", host=host, port=port)
+        if hasattr(self.mcp, 'run'):
+            if transport == "stdio":
+                self.mcp.run(transport="stdio")
+            elif transport == "sse":
+                self.mcp.run(transport="sse", host=host, port=port)
+            elif transport == "streamable-http":
+                self.mcp.run(transport="streamable-http", host=host, port=port)
+            else:
+                raise ValueError(f"Unsupported transport: {transport}")
         else:
-            raise ValueError(f"Unsupported transport: {transport}")
+            print("MCP server not properly initialized")
 
 
 def create_workflow_server(
