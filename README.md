@@ -531,7 +531,7 @@ Transform months of fragile agent development into hours of reliable automation.
 
 ## 📄 License
 
-Apache License 2.0 - See [LICENSE](LICENSE) for details.
+MIT - See [LICENSE](LICENSE) for details.
 
 ---
 
