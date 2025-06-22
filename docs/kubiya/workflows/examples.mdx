@@ -115,24 +115,30 @@ migrate -path /migrations -database postgres://user:pass@database:5432/db up
 
 ## AI Agent Integration
 
+### Serverless AI Agents in Workflows
+
+<Note>
+  **Serverless Agents**: Kubiya's inline agents are serverless AI components that use state-of-the-art function calling to execute workflow tools. No complex agent frameworks needed - just simple workflow steps!
+</Note>
+
 ### Inline AI Agent for Log Analysis
 
-Integrate AI agents directly in workflows using inline_agent:
+Integrate AI agents directly in workflows using inline_agent with function calling:
 
 ```python
 from kubiya_workflow_sdk import workflow, step
 
 @workflow
 def intelligent_log_analysis():
-    """Analyze logs using AI agent"""
+    """Analyze logs using serverless AI agent with function calling"""
     
     # Fetch logs
     fetch = step("fetch-logs").docker(
-        image="aws-cli:latest",
-        command="aws logs tail /aws/lambda/my-function --since 1h"
+        image="awscli/aws-cli:latest",
+        command="aws logs tail /aws/lambda/my-function --since 1h --output text"
     ).output("LOG_CONTENT")
     
-    # AI agent analyzes logs
+    # Serverless AI agent analyzes logs
     analyze = (
         step("analyze-logs")
         .inline_agent(
@@ -141,20 +147,40 @@ def intelligent_log_analysis():
             ai_instructions="""You are a log analysis expert. 
             Identify:
             1. Error patterns and their frequency
-            2. Performance bottlenecks
+            2. Performance bottlenecks  
             3. Security concerns
             4. Recommendations for improvement
             
-            Format your response as structured JSON.""",
-            runners=["auto"],
+            Use the provided tools to gather additional context.
+            Format your response as structured JSON with keys:
+            error_summary, performance_issues, security_risks, recommendations""",
+            runners=["kubiya-hosted"],  # Serverless execution
             llm_model="gpt-4o",
-            tools=[{
-                "name": "parse-json",
-                "type": "docker", 
-                "image": "stedolan/jq:latest",
-                "content": "#!/bin/sh\necho '$1' | jq .",
-                "args": [{"name": "json", "type": "string"}]
-            }]
+            is_debug_mode=True,
+            
+            # Agent uses function calling to execute tools
+            tools=[
+                {
+                    "name": "parse-json-logs",
+                    "type": "docker",
+                    "image": "stedolan/jq:latest",
+                    "content": """#!/bin/sh
+# Parse JSON formatted log entries
+cat /tmp/logs.txt | jq -r 'select(.level=="ERROR") | .message' | sort | uniq -c
+""",
+                    "args": []
+                },
+                {
+                    "name": "extract-timestamps",
+                    "type": "docker",
+                    "image": "alpine:latest",
+                    "content": """#!/bin/sh
+# Extract and analyze timestamps
+grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}' /tmp/logs.txt | sort | uniq -c
+""",
+                    "args": []
+                }
+            ]
         )
         .depends("fetch-logs")
         .output("ANALYSIS_RESULT")
@@ -165,36 +191,54 @@ def intelligent_log_analysis():
         image="python:3.11-slim",
         script="""
 import json
-import markdown
+import os
 
 analysis = json.loads(os.environ['ANALYSIS_RESULT'])
+
 # Generate markdown report
-with open('report.md', 'w') as f:
-    f.write(f"# Log Analysis Report\\n\\n{analysis}")
+report = f"""# Log Analysis Report
+
+## Error Summary
+{analysis.get('error_summary', 'No errors found')}
+
+## Performance Issues
+{', '.join(analysis.get('performance_issues', [])) or 'None detected'}
+
+## Security Risks  
+{', '.join(analysis.get('security_risks', [])) or 'None detected'}
+
+## Recommendations
+{chr(10).join('- ' + r for r in analysis.get('recommendations', []))}
+"""
+
+with open('/tmp/report.md', 'w') as f:
+    f.write(report)
+    
+print("Report generated at /tmp/report.md")
 """
     ).depends("analyze-logs")
     
     return workflow("log-analysis").add_steps([fetch, analyze, report])
 ```
 
-### AI-Powered Code Review
+### AI-Powered Code Review with Function Calling
 
 Use inline agents for intelligent code review:
 
 ```python
 from kubiya_workflow_sdk import workflow, step
 
-@workflow
+@workflow  
 def ai_code_review(pr_number: int):
-    """AI-powered pull request review"""
+    """AI-powered pull request review using serverless agents"""
     
     # Fetch PR diff
     fetch_pr = step("fetch-pr").docker(
-        image="gh-cli:latest",
-        command=f"gh pr diff {pr_number}"
+        image="alpine/git:latest",
+        command=f"git diff origin/main...origin/pr-{pr_number} > /tmp/pr.diff && cat /tmp/pr.diff"
     ).output("PR_DIFF")
     
-    # AI reviews the code
+    # Serverless AI agent reviews the code
     review = (
         step("ai-review")
         .inline_agent(
@@ -211,10 +255,45 @@ Provide feedback on:
             agent_name="code-reviewer",
             ai_instructions="""You are a senior software engineer reviewing code.
             Be constructive, specific, and provide actionable feedback.
+            Use the provided tools to analyze code complexity and patterns.
             Point out both issues and good practices.
-            Format as markdown with code examples where relevant.""",
-            runners=["auto"],
-            llm_model="gpt-4o"
+            Format as markdown with code examples where relevant.
+            
+            Structure your response with sections:
+            ## Summary
+            ## Issues Found
+            ## Suggestions
+            ## Security Considerations""",
+            runners=["kubiya-hosted"],  # Serverless execution
+            llm_model="gpt-4o",
+            is_debug_mode=True,
+            
+            # Function calling for code analysis
+            tools=[
+                {
+                    "name": "count-lines-changed",
+                    "type": "docker",
+                    "image": "alpine:latest", 
+                    "content": """#!/bin/sh
+# Count added/removed lines
+echo "Added: $(grep -c '^+' /tmp/pr.diff)"
+echo "Removed: $(grep -c '^-' /tmp/pr.diff)"
+""",
+                    "args": []
+                },
+                {
+                    "name": "detect-patterns",
+                    "type": "docker",
+                    "image": "alpine:latest",
+                    "content": """#!/bin/sh  
+# Detect common problematic patterns
+echo "Checking for common issues..."
+grep -n "TODO\\|FIXME\\|HACK" /tmp/pr.diff || echo "No TODOs found"
+grep -n "console\\.log\\|print(" /tmp/pr.diff || echo "No debug statements found"
+""",
+                    "args": []
+                }
+            ]
         )
         .depends("fetch-pr")
         .output("REVIEW_COMMENTS")
@@ -222,12 +301,154 @@ Provide feedback on:
     
     # Post review comment
     post = step("post-review").docker(
-        image="gh-cli:latest",
-        command=f"gh pr comment {pr_number} --body-file -",
-        content="${REVIEW_COMMENTS}"
+        image="alpine:latest",
+        command=f"""
+echo "Review for PR #{pr_number}:"
+echo ""
+cat << 'EOF'
+${{REVIEW_COMMENTS}}
+EOF
+"""
     ).depends("ai-review")
     
     return workflow("pr-review").add_steps([fetch_pr, review, post])
+```
+
+### Intelligent Incident Response
+
+Serverless agents for automated incident response:
+
+```python
+@workflow
+def incident_response():
+    """Automated incident response with AI decision making"""
+    
+    # Detect incident (simulate with metrics check)
+    detect = step("detect-incident").docker(
+        image="alpine:latest",
+        command="""
+# Simulate incident detection
+echo '{
+  "service": "api-gateway",
+  "error_rate": 15.2,
+  "response_time": 2500,
+  "status_5xx": 127,
+  "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+}'
+"""
+    ).output("INCIDENTS")
+    
+    # AI agent analyzes and responds
+    respond = (
+        step("ai-responder")
+        .inline_agent(
+            message="Analyze this incident and determine response: ${INCIDENTS}",
+            agent_name="incident-commander", 
+            ai_instructions="""You are an incident response expert.
+            For the incident:
+            1. Assess severity (P1/P2/P3/P4)
+            2. Determine likely root cause
+            3. Recommend immediate actions
+            4. Create runbook steps for resolution
+            
+            Use tools to gather system state before making recommendations.
+            
+            Output JSON with structure:
+            {
+              "severity": "P1-P4",
+              "impact": "description",
+              "root_cause": "likely cause",
+              "immediate_actions": ["action1", "action2"],
+              "runbook_steps": ["step1", "step2"],
+              "escalation_needed": true|false
+            }""",
+            
+            # Serverless execution with powerful tools
+            runners=["kubiya-hosted"],
+            llm_model="gpt-4o", 
+            is_debug_mode=True,
+            
+            tools=[
+                {
+                    "name": "check-service-health",
+                    "type": "docker",
+                    "image": "curlimages/curl:latest",
+                    "content": """#!/bin/sh
+# Check service health endpoint
+SERVICE_NAME=$(echo $1 | jq -r '.service')
+echo "Checking health for $SERVICE_NAME..."
+# Simulate health check
+echo '{"status": "degraded", "healthy_instances": 2, "total_instances": 5}'
+""",
+                    "args": [{"name": "incident_data", "type": "string"}]
+                },
+                {
+                    "name": "get-recent-deployments",
+                    "type": "docker",
+                    "image": "alpine:latest",
+                    "content": """#!/bin/sh
+# Check recent deployments
+echo "Recent deployments:"
+echo "- 2h ago: v2.3.1 (api-gateway)"
+echo "- 4h ago: v1.8.0 (auth-service)"
+echo "- 24h ago: v3.2.0 (database)"
+""",
+                    "args": []
+                },
+                {
+                    "name": "check-resource-usage",
+                    "type": "docker",
+                    "image": "alpine:latest",
+                    "content": """#!/bin/sh
+# Simulate resource check
+echo '{
+  "cpu_usage": "78%",
+  "memory_usage": "92%", 
+  "disk_usage": "45%",
+  "network_in": "120MB/s",
+  "network_out": "95MB/s"
+}'
+""",
+                    "args": []
+                }
+            ]
+        )
+        .output("RESPONSE_PLAN")
+        .depends("detect-incident")
+    )
+    
+    # Execute response plan
+    execute = step("execute-response").shell("""
+echo "=== Executing Incident Response Plan ==="
+echo ""
+echo "Response Plan:"
+echo "${RESPONSE_PLAN}" | jq '.'
+
+SEVERITY=$(echo "${RESPONSE_PLAN}" | jq -r '.severity')
+echo ""
+echo "Severity: $SEVERITY"
+
+if [ "$SEVERITY" = "P1" ] || [ "$SEVERITY" = "P2" ]; then
+    echo "⚠️  HIGH PRIORITY INCIDENT - Executing immediate actions..."
+    # In real scenario, execute actual remediation
+fi
+""").depends("ai-responder")
+    
+    # Send notification
+    notify = step("notify-team").docker(
+        image="alpine:latest",
+        command="""
+SEVERITY=$(echo "${RESPONSE_PLAN}" | jq -r '.severity')
+IMPACT=$(echo "${RESPONSE_PLAN}" | jq -r '.impact')
+
+echo "📢 Incident Alert:"
+echo "Severity: $SEVERITY"  
+echo "Impact: $IMPACT"
+echo "See full response plan above"
+"""
+    ).depends("execute-response")
+    
+    return workflow("incident-response").add_steps([detect, respond, execute, notify])
 ```
 
 ## Tool Definitions

@@ -1,259 +1,221 @@
 ---
-title: "AI Providers Overview"
-sidebarTitle: "Overview"
-description: Extensible AI provider system for workflow generation
-icon: microchip
+title: "Providers Overview"
+description: "Understanding Kubiya's workflow orchestration architecture"
+icon: "microchip"
 ---
 
-# AI Providers Overview
+# Workflow Orchestration with ADK
 
-The Kubiya Workflow SDK includes a pluggable provider system that enables AI-powered workflow generation from natural language descriptions. Providers bridge the gap between what you want to accomplish and the technical implementation.
+Kubiya SDK currently leverages **ADK (Agent Development Kit)** as its orchestration provider for workflow execution. ADK brings powerful AI capabilities to workflow automation, enabling intelligent orchestration and decision-making.
 
-## What are Providers?
+## Serverless, Containerized Execution
 
-Providers are AI frameworks that:
-- Generate workflows from natural language task descriptions
-- Validate and refine generated workflows
-- Optionally execute workflows with real-time streaming
-- Handle errors and retry logic automatically
+<Card title="🚀 Run Any Software, Anywhere" icon="docker">
+  Every workflow and step in Kubiya runs as an independent, serverless Docker container. This means:
+  
+  - **Complete Software Freedom**: Install and run any software, library, or tool
+  - **Language Agnostic**: Python, Node.js, Go, Rust, Java - use any language
+  - **Stateless Execution**: Each execution starts fresh, ensuring consistency
+  - **Infinite Scalability**: Workflows scale automatically based on demand
+  - **Resource Isolation**: Each step runs in its own secure environment
+</Card>
 
-## Available Providers
+## Why Containerized Execution?
+
+### 1. **Universal Compatibility**
+```python
+# Your workflow can use ANY software
+workflow = Workflow(
+    name="multi-language-pipeline",
+    runner="kubiya-hosted"
+)
+
+# Run Python data processing
+workflow.add_step(
+    name="process-data",
+    image="python:3.11",
+    code="""
+    import pandas as pd
+    df = pd.read_csv('data.csv')
+    # Process with any Python library
+    """
+)
+
+# Then run Node.js API calls
+workflow.add_step(
+    name="call-apis",
+    image="node:20",
+    code="""
+    const axios = require('axios');
+    // Use any npm package
+    """
+)
+
+# Even compile and run Go code
+workflow.add_step(
+    name="high-performance",
+    image="golang:1.21",
+    code="""
+    package main
+    // Write high-performance Go code
+    """
+)
+```
+
+### 2. **True Statelessness**
+
+Each workflow execution is completely independent:
+
+- No shared state between executions
+- No side effects from previous runs
+- Predictable, reproducible results
+- Perfect for event-driven architectures
+
+### 3. **Security & Isolation**
+
+- Each step runs in its own container
+- Network isolation between steps
+- Resource limits prevent runaway processes
+- Clean environment for each execution
+
+## ADK: The AI-Powered Orchestrator
+
+ADK serves as the intelligent orchestration layer that:
+
+### **Multi-Agent Architecture**
+- Specialized agents for different tasks
+- Context-aware decision making
+- Intelligent error handling and recovery
+
+### **Natural Language Processing**
+- Generate workflows from descriptions
+- Understand complex requirements
+- Adapt execution based on context
+
+### **Streaming Capabilities**
+- Real-time execution feedback
+- Progress updates as workflows run
+- Interactive debugging support
+
+## Execution Flow
+
+```mermaid
+graph TD
+    A[Workflow Definition] --> B[ADK Orchestrator]
+    B --> C[Step 1: Docker Container]
+    C --> D[Step 2: Docker Container]
+    D --> E[Step 3: Docker Container]
+    E --> F[Results]
+    
+    B -.->|Monitors| C
+    B -.->|Monitors| D
+    B -.->|Monitors| E
+    
+    style B fill:#f9f,stroke:#333,stroke-width:4px
+    style C fill:#bbf,stroke:#333,stroke-width:2px
+    style D fill:#bbf,stroke:#333,stroke-width:2px
+    style E fill:#bbf,stroke:#333,stroke-width:2px
+```
+
+## Practical Example: Multi-Tool Pipeline
+
+Here's a real-world example leveraging the containerized architecture:
+
+```python
+from kubiya_workflow_sdk import Workflow, Step
+
+# Create a data processing pipeline that uses multiple tools
+workflow = Workflow(
+    name="etl-pipeline",
+    runner="kubiya-hosted"
+)
+
+# Extract: Use Python with specialized libraries
+workflow.add_step(Step(
+    name="extract-data",
+    image="python:3.11-slim",
+    packages=["requests", "beautifulsoup4"],
+    code="""
+    import requests
+    from bs4 import BeautifulSoup
+    
+    # Scrape data from websites
+    response = requests.get('https://example.com/data')
+    soup = BeautifulSoup(response.text, 'html.parser')
+    data = extract_tables(soup)
+    """
+))
+
+# Transform: Use R for statistical analysis
+workflow.add_step(Step(
+    name="analyze-data",
+    image="r-base:latest",
+    code="""
+    library(tidyverse)
+    library(forecast)
+    
+    # Perform time series analysis
+    data <- read.csv('input.csv')
+    model <- auto.arima(data$values)
+    forecast <- predict(model, n.ahead=30)
+    """
+))
+
+# Load: Use Go for high-performance database operations
+workflow.add_step(Step(
+    name="load-to-db",
+    image="golang:1.21",
+    code="""
+    package main
+    
+    import (
+        "database/sql"
+        _ "github.com/lib/pq"
+    )
+    
+    func main() {
+        // High-performance bulk insert
+        db, _ := sql.Open("postgres", connStr)
+        // Efficient data loading
+    }
+    """
+))
+```
+
+## Key Benefits
 
 <CardGroup cols={2}>
-  <Card title="ADK Provider" icon="google" href="/providers/adk/getting-started">
-    Google's Agent Development Kit integration with advanced AI models
+  <Card title="🔧 Use Any Tool" icon="wrench">
+    Install and use any software package, library, or tool within your workflows
   </Card>
-  <Card title="LangChain Provider" icon="link" color="#00a67e">
-    Coming soon - LangChain integration for workflow generation
+  
+  <Card title="🔒 Secure Isolation" icon="shield">
+    Each step runs in its own container with resource limits and network isolation
   </Card>
-  <Card title="Custom Providers" icon="puzzle" href="/providers/custom-providers">
-    Build your own provider for any AI framework
+  
+  <Card title="📈 Infinite Scale" icon="chart-line">
+    Serverless execution scales automatically based on demand
   </Card>
-  <Card title="OpenAI Provider" icon="robot" color="#412991">
-    Coming soon - Direct OpenAI GPT integration
+  
+  <Card title="🎯 Predictable Results" icon="bullseye">
+    Stateless execution ensures consistent, reproducible outcomes
   </Card>
 </CardGroup>
 
-## How Providers Work
+## Coming Soon
 
-<Steps>
-  <Step title="Task Description">
-    You provide a natural language description of what you want to accomplish
-  </Step>
-  
-  <Step title="Context Loading">
-    The provider loads available resources, integrations, and platform capabilities
-  </Step>
-  
-  <Step title="Workflow Generation">
-    AI models generate the workflow code based on your requirements
-  </Step>
-  
-  <Step title="Validation & Refinement">
-    The generated code is validated and refined if needed
-  </Step>
-  
-  <Step title="Execution (Optional)">
-    In "act" mode, the workflow is immediately executed with streaming updates
-  </Step>
-</Steps>
-
-## Provider Interface
-
-All providers implement a common interface:
-
-```python
-from abc import ABC, abstractmethod
-from typing import Dict, Any, AsyncIterator
-
-class BaseProvider(ABC):
-    @abstractmethod
-    async def generate_workflow(
-        self, 
-        task: str, 
-        context: Dict[str, Any]
-    ) -> Workflow:
-        """Generate a workflow from task description."""
-        pass
-    
-    @abstractmethod
-    async def validate_workflow(
-        self, 
-        workflow: Workflow
-    ) -> ValidationResult:
-        """Validate workflow syntax and logic."""
-        pass
-    
-    @abstractmethod
-    async def compose(
-        self,
-        task: str,
-        mode: str = "plan",
-        stream: bool = False,
-        **kwargs
-    ) -> Union[Dict, AsyncIterator[Dict]]:
-        """Main entry point for workflow composition."""
-        pass
-```
-
-## Using Providers
-
-### Basic Usage
-
-```python
-from kubiya_workflow_sdk.providers import get_provider
-
-# Get a provider instance
-provider = get_provider("adk")
-
-# Generate a workflow
-result = await provider.compose(
-    task="Create a backup workflow for PostgreSQL database",
-    mode="plan"
-)
-
-workflow = result["workflow"]
-```
-
-### Streaming Generation
-
-```python
-# Stream the generation process
-async for event in provider.compose(
-    task="Deploy application with health checks",
-    mode="act",
-    stream=True
-):
-    if event["type"] == "text":
-        print(f"AI: {event['content']}")
-    elif event["type"] == "execution":
-        print(f"Executing: {event['data']}")
-```
-
-### With Custom Context
-
-```python
-# Provide additional context
-result = await provider.compose(
-    task="Create monitoring workflow",
-    context={
-        "monitoring_tool": "prometheus",
-        "alert_channel": "#ops-alerts",
-        "check_interval": "5m"
-    },
-    mode="plan"
-)
-```
-
-## Provider Modes
-
-<Tabs>
-  <Tab title="Plan Mode">
-    Generate workflows without executing them. Perfect for:
-    - Reviewing generated workflows before execution
-    - Saving workflows for later use
-    - Learning how the AI interprets your requirements
-    
-    ```python
-    result = await provider.compose(task="...", mode="plan")
-    ```
-  </Tab>
-  
-  <Tab title="Act Mode">
-    Generate and immediately execute workflows. Ideal for:
-    - One-time automation tasks
-    - Quick operations that don't need review
-    - Interactive workflow development
-    
-    ```python
-    result = await provider.compose(task="...", mode="act")
-    ```
-  </Tab>
-</Tabs>
-
-## Configuration
-
-Providers can be configured through environment variables or programmatically:
-
-### Environment Variables
-
-```bash
-# ADK Provider
-export TOGETHER_API_KEY="your-key"
-export GOOGLE_API_KEY="your-key"  # Optional
-
-# General settings
-export PROVIDER_TIMEOUT=300
-export PROVIDER_MAX_RETRIES=3
-```
-
-### Programmatic Configuration
-
-```python
-from kubiya_workflow_sdk.providers.adk import ADKProviderConfig
-
-config = ADKProviderConfig(
-    model_provider="together",
-    max_loop_iterations=3,
-    timeout=300,
-    stream_format="sse"
-)
-
-provider = get_provider("adk", config=config)
-```
-
-## Best Practices
-
-<CardGroup cols={2}>
-  <Card title="Be Specific" icon="bullseye">
-    Provide detailed task descriptions with examples and constraints
-  </Card>
-  <Card title="Use Context" icon="database">
-    Include relevant context about your environment and tools
-  </Card>
-  <Card title="Start Simple" icon="seedling">
-    Begin with simple workflows and gradually increase complexity
-  </Card>
-  <Card title="Review Generated Code" icon="magnifying-glass">
-    Always review generated workflows in plan mode first
-  </Card>
-</CardGroup>
-
-## Creating Custom Providers
-
-You can create your own provider by extending the base class:
-
-```python
-from kubiya_workflow_sdk.providers import BaseProvider, register_provider
-
-@register_provider("my-provider")
-class MyCustomProvider(BaseProvider):
-    async def generate_workflow(self, task: str, context: Dict):
-        # Your implementation
-        pass
-    
-    async def validate_workflow(self, workflow: Workflow):
-        # Your validation logic
-        pass
-    
-    async def compose(self, task: str, **kwargs):
-        # Main composition logic
-        pass
-```
+While ADK is currently the sole orchestration provider, the Kubiya SDK architecture is designed to support multiple providers in the future, allowing you to choose the orchestration engine that best fits your needs.
 
 ## Next Steps
 
-<CardGroup cols={2}>
-  <Card title="ADK Provider" icon="rocket" href="/providers/adk/getting-started">
-    Start using the ADK provider for AI workflow generation
-  </Card>
-  <Card title="Custom Providers" icon="code" href="/providers/custom-providers">
-    Learn how to build your own provider
-  </Card>
-  <Card title="Examples" icon="lightbulb" href="/providers/adk/examples">
-    See real-world provider examples
-  </Card>
-  <Card title="API Reference" icon="book" href="/api-reference/providers">
-    Detailed provider API documentation
-  </Card>
-</CardGroup> 
+<Card title="Get Started with ADK" href="/providers/adk/getting-started" icon="rocket">
+  Learn how to create your first AI-powered workflow with ADK
+</Card>
+
+<Card title="Explore Streaming" href="/providers/adk/streaming" icon="broadcast">
+  Understand real-time execution feedback and monitoring
+</Card>
+
+<Card title="Multi-Agent Architecture" href="/providers/adk/agents" icon="users">
+  Dive deep into ADK's intelligent agent system
+</Card> 

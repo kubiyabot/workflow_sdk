@@ -14,7 +14,7 @@
 
 ## 🚀 The Future of AI is Deterministic
 
-**Kubiya Workflow SDK** is a composable workflow stack that transforms unpredictable AI agents into reliable, production-grade automation. By combining the structure of DAGs with the intelligence of AI, we deliver deterministic workflows that actually work.
+**Kubiya Workflow SDK** is a serverless workflow platform that transforms unpredictable AI agents into reliable, production-grade automation. Every workflow step runs as an independent Docker container, giving you the power to run ANY software while maintaining deterministic execution.
 
 ### Why We Built This
 
@@ -22,12 +22,12 @@ After watching teams struggle with free-wheeling agent frameworks that promise m
 
 ### Core Principles
 
+- **🐳 Serverless Containers**: Every step runs in its own Docker container - use ANY language, tool, or software
 - **🎯 Deterministic Execution**: Same inputs → Same workflow → Same outputs, every time
-- **🏗️ Composable Building Blocks**: Combine simple, tested components into complex workflows  
-- **🔧 Run ANY Docker Container**: Not limited to Python – use any tool, any language
-- **☸️ Kubernetes-Native**: Built for K8s from day zero, not retrofitted
+- **🏗️ Stateless Architecture**: Each execution starts fresh with zero state pollution
+- **🚀 Infinite Scale**: From 1 to 1,000,000 executions without infrastructure changes
 - **🏠 Your Infrastructure**: Runs entirely on-premise with zero vendor lock-in
-- **🤖 AI with Guardrails**: Intelligence where it matters, structure where it counts
+- **🤖 ADK Orchestration**: Powered by ADK (Agent Development Kit) for intelligent workflow orchestration
 
 ## ✨ Key Features
 
@@ -105,44 +105,119 @@ docker run -p 8000:8000 \
   kubiya-sdk-server
 ```
 
-## 🤖 AI-Powered Workflow Generation (Optional)
+## 🤖 AI-Powered Workflow Generation with ADK
 
-The SDK includes an optional ADK (Agent Development Kit) provider that uses AI to generate workflows from natural language:
+### The Power of ADK Orchestration
 
-```bash
-# Install with ADK provider (uses Together AI by default)
-pip install kubiya-workflow-sdk[adk]
-```
+Kubiya SDK is powered by **ADK (Agent Development Kit)**, our intelligent orchestration provider that enables AI-powered workflow generation and execution. ADK brings multi-agent intelligence to your workflows while maintaining the deterministic, containerized execution model.
+
+### 🐳 Every Step Runs in Docker
+
+**This is not just another Python framework** - Kubiya executes every workflow step as a serverless Docker container:
 
 ```python
-from kubiya_workflow_sdk import KubiyaClient
-from kubiya_workflow_sdk.providers import get_provider
-
-# Initialize client
-client = KubiyaClient(api_key="your-api-key", org_name="your-org")
-
-# Get ADK provider
-provider = get_provider("adk", client=client)
-
-# Generate workflow from natural language
-workflow = provider.generate_workflow(
-    task="Create a workflow to deploy a Docker container to Kubernetes with health checks",
-    context={"namespace": "production", "image": "myapp:v1.0"}
+# This workflow can use ANY language or tool
+workflow = KubiyaWorkflow.from_prompt(
+    """
+    Create a data pipeline that:
+    1. Extracts data using Python pandas
+    2. Transforms with Node.js 
+    3. Runs statistical analysis in R
+    4. Loads to database using Go
+    5. Sends notification via Ruby script
+    """,
+    runner="kubiya-hosted"
 )
 
-# The provider generates Python code using SDK abstractions,
-# compiles it, validates it, and returns the workflow as JSON
-print(workflow)
+# Each step runs in its own container with the right runtime
+# No need to pre-install anything!
 ```
 
-The ADK provider:
-- Generates workflows using the SDK's Python API (chain, step, etc.)
-- Validates using SDK's built-in validation
-- Automatically fixes compilation errors with AI refinement
-- Supports Together AI (default), Google AI, and Vertex AI models
-- Includes SSE and Vercel AI SDK streaming formats
+### Generate Workflows from Natural Language
 
-See the [Provider Documentation](kubiya_workflow_sdk/providers/README.md) for more details.
+Simply describe what you want in plain English, and ADK will generate production-ready workflows:
+
+```python
+from kubiya_workflow_sdk.providers import get_provider
+import asyncio
+
+async def generate_backup_workflow():
+    # Initialize AI provider
+    adk = get_provider("adk")
+    
+    # Describe your task in natural language
+    result = await adk.compose(
+        task="""
+        Create a workflow that:
+        1. Backs up all PostgreSQL databases
+        2. Compresses the backups
+        3. Uploads to S3 with encryption
+        4. Sends a Slack notification when complete
+        5. Cleans up backups older than 30 days
+        """,
+        mode="plan"  # Generate only (use "act" to also execute)
+    )
+    
+    # Get the generated workflow
+    workflow = result["workflow"]
+    print(f"Generated: {workflow['name']}")
+    print(f"Steps: {len(workflow['steps'])}")
+
+asyncio.run(generate_backup_workflow())
+```
+
+### Real-Time Streaming
+
+Watch the AI generate and execute workflows in real-time:
+
+```python
+async def deploy_with_ai():
+    adk = get_provider("adk")
+    
+    # Stream generation and execution
+    async for event in adk.compose(
+        task="Deploy my Node.js app to Kubernetes with zero downtime",
+        mode="act",  # Generate AND execute
+        stream=True,
+        parameters={
+            "app_name": "my-app",
+            "image": "myapp:v2.0",
+            "namespace": "production"
+        }
+    ):
+        print(event)  # Real-time updates
+
+asyncio.run(deploy_with_ai())
+```
+
+### REST API with Compose Endpoint
+
+The SDK server includes AI workflow generation via REST API:
+
+```bash
+# Generate a workflow from natural language
+curl -X POST http://localhost:8000/api/v1/compose \
+  -H "Authorization: Bearer $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "adk",
+    "task": "Create a CI/CD pipeline that runs tests, builds Docker image, and deploys to staging",
+    "mode": "plan"
+  }'
+
+# Generate and execute with streaming
+curl -X POST http://localhost:8000/api/v1/compose \
+  -H "Authorization: Bearer $KUBIYA_API_KEY" \
+  -H "Accept: text/event-stream" \
+  -d '{
+    "provider": "adk",
+    "task": "Check system health and restart unhealthy services",
+    "mode": "act",
+    "stream": true
+  }'
+```
+
+[Learn more about AI-powered workflows →](docs/kubiya/providers/adk/getting-started.mdx)
 
 ## 🎯 Quick Start
 
@@ -477,7 +552,7 @@ curl http://localhost:8000/health
 #### List Available Providers
 ```bash
 curl http://localhost:8000/api/v1/providers
-# Returns: ["adk", "langchain", "custom"]
+# Returns: ["adk"]  # Currently ADK is the only supported orchestration provider
 ```
 
 #### AI-Powered Workflow Generation (ADK Provider)
@@ -544,22 +619,236 @@ const eventSource = new EventSource(
   }),
   {
     headers: {
-      'Authorization': `Bearer ${apiKey}`
+      'Authorization': 'Bearer ' + KUBIYA_API_KEY
     }
   }
 );
 
 eventSource.onmessage = (event) => {
   const data = JSON.parse(event.data);
-  console.log('Event:', data);
+  console.log('Progress:', data);
 };
 ```
 
-The compose endpoint supports:
-- **Plan Mode** (`execute: false`): Generate workflow without execution
-- **Act Mode** (`execute: true`): Generate and immediately execute workflow
-- **Session Continuity**: Maintain context across requests
-- **Streaming**: Real-time updates via SSE or Vercel AI SDK format
+[Full API documentation →](https://docs.kubiya.ai/api-reference)
+
+## 🐳 Serverless Container Architecture
+
+### Every Step is a Docker Container
+
+Unlike traditional workflow engines that run Python scripts in a shared environment, Kubiya executes every workflow step as an independent, serverless Docker container. This revolutionary approach gives you:
+
+#### **Complete Software Freedom**
+
+```python
+# Example: Multi-language data pipeline
+workflow = (
+    workflow("data-processing-pipeline")
+    
+    # Step 1: Extract with Python
+    .step("extract")
+    .docker(
+        image="python:3.11",
+        packages=["pandas", "requests", "boto3"],
+        code="""
+        import pandas as pd
+        import requests
+        
+        # Use ANY Python library
+        data = pd.read_csv('s3://bucket/data.csv')
+        processed = data.transform(...)
+        save_artifact('extracted.parquet', processed)
+        """
+    )
+    
+    # Step 2: Transform with Node.js
+    .step("transform")
+    .docker(
+        image="node:20",
+        packages=["lodash", "moment", "csv-parser"],
+        code="""
+        const _ = require('lodash');
+        const data = loadArtifact('extracted.parquet');
+        
+        // Use ANY npm package
+        const transformed = _.chain(data)
+            .filter(...)
+            .groupBy(...)
+            .value();
+        
+        saveArtifact('transformed.json', transformed);
+        """
+    )
+    
+    # Step 3: Analyze with R
+    .step("analyze")
+    .docker(
+        image="r-base:latest",
+        code="""
+        library(ggplot2)
+        library(forecast)
+        
+        # Use ANY R package
+        data <- read_json('transformed.json')
+        model <- auto.arima(data$values)
+        forecast <- predict(model, n.ahead=30)
+        
+        save_artifact('forecast.rds', forecast)
+        """
+    )
+    
+    # Step 4: Load with Go for performance
+    .step("load")
+    .docker(
+        image="golang:1.21",
+        code="""
+        package main
+        
+        import (
+            "database/sql"
+            _ "github.com/lib/pq"
+        )
+        
+        func main() {
+            // High-performance database operations
+            db, _ := sql.Open("postgres", connStr)
+            // Bulk insert with Go's concurrency
+        }
+        """
+    )
+)
+```
+
+#### **True Statelessness**
+
+Each execution starts completely fresh:
+- No leftover files from previous runs
+- No environment pollution
+- No dependency conflicts
+- Perfect reproducibility
+
+#### **Infinite Scalability**
+
+The serverless model means:
+- No pre-provisioned compute
+- Scale from 0 to 1000s of concurrent executions
+- Pay only for what you use
+- No infrastructure management
+
+### Real-World Use Cases
+
+#### **Multi-Tool DevOps Pipeline**
+
+```python
+workflow = (
+    workflow("complete-deployment")
+    
+    # Terraform for infrastructure
+    .step("provision")
+    .docker(
+        image="hashicorp/terraform:latest",
+        code="terraform apply -auto-approve"
+    )
+    
+    # Ansible for configuration
+    .step("configure")
+    .docker(
+        image="ansible/ansible:latest",
+        code="ansible-playbook -i inventory site.yml"
+    )
+    
+    # Docker for building
+    .step("build")
+    .docker(
+        image="docker:dind",
+        code="docker build -t myapp:latest ."
+    )
+    
+    # Kubernetes for deployment
+    .step("deploy")
+    .docker(
+        image="bitnami/kubectl:latest",
+        code="kubectl rollout restart deployment/myapp"
+    )
+)
+```
+
+#### **Data Science Pipeline**
+
+```python
+workflow = (
+    workflow("ml-pipeline")
+    
+    # Jupyter notebook execution
+    .step("train-model")
+    .docker(
+        image="jupyter/tensorflow-notebook",
+        code="papermill train.ipynb output.ipynb -p epochs 100"
+    )
+    
+    # Model validation with custom image
+    .step("validate")
+    .docker(
+        image="myorg/ml-validator:latest",
+        code="python validate_model.py --model output/model.h5"
+    )
+)
+```
+
+### Container Management
+
+#### **Resource Control**
+
+```python
+.step("heavy-compute")
+.docker(
+    image="python:3.11",
+    resources={
+        "cpu": "4",
+        "memory": "16Gi",
+        "gpu": "1"  # For ML workloads
+    },
+    code="# Resource-intensive operations"
+)
+```
+
+#### **Custom Images**
+
+```python
+# Use your own Docker images
+.step("proprietary-tool")
+.docker(
+    image="myregistry.com/my-tool:v2.1",
+    registry_auth={
+        "username": "${REGISTRY_USER}",
+        "password": "${REGISTRY_PASS}"
+    },
+    code="./run-analysis.sh"
+)
+```
+
+#### **Volume Mounts**
+
+```python
+# Share data between steps efficiently
+.step("process")
+.docker(
+    image="processor:latest",
+    volumes=[
+        {"host": "/data", "container": "/input", "mode": "ro"},
+        {"host": "/output", "container": "/output", "mode": "rw"}
+    ],
+    code="process --input /input --output /output"
+)
+```
+
+### Security Benefits
+
+- **Complete Isolation**: Each container runs in its own namespace
+- **No Cross-Contamination**: Steps can't affect each other
+- **Controlled Access**: Fine-grained permissions per container
+- **Audit Trail**: Every container execution is logged
+- **Secrets Management**: Secure injection of credentials
 
 ## 📈 Monitoring & Observability
 

@@ -1,6 +1,6 @@
 ---
 title: Workflows
-description: Understanding Kubiya's workflow architecture and DAG execution
+description: Understanding Kubiya's serverless, containerized workflow architecture
 icon: sitemap
 ---
 
@@ -8,14 +8,49 @@ icon: sitemap
 
 Workflows are the heart of Kubiya - they define sequences of containerized tasks that execute reliably on your infrastructure. Built on the concept of Directed Acyclic Graphs (DAGs), workflows provide deterministic execution with full observability.
 
+<Note>
+  **Key Insight**: Every workflow step runs as an independent Docker container. This means you can use ANY language, tool, or software - not just Python. Each execution starts fresh with zero state pollution.
+</Note>
+
 ## What is a Workflow?
 
 A workflow in Kubiya is:
 - A **DAG** (Directed Acyclic Graph) of steps
-- Each step runs a **Docker container**
+- Each step runs in its own **Docker container** (serverless execution)
+- **Language agnostic** - use Python, Node.js, Go, Rust, or any tool
 - Steps can have **dependencies** on other steps
 - Execution is **deterministic** and **reproducible**
 - Fully **observable** with logs and metrics
+- **Stateless** - no pollution between executions
+
+## 🐳 The Container Revolution
+
+Unlike traditional workflow engines that run scripts in a shared Python environment, Kubiya executes every step as a serverless container:
+
+```python
+# This workflow uses multiple languages and tools
+workflow("multi-language-pipeline")
+.step("extract")
+.docker(
+    image="python:3.11",
+    code="import pandas as pd; df = pd.read_csv('data.csv')"
+)
+.step("transform")
+.docker(
+    image="node:20",
+    code="const data = require('./data.json'); /* Node.js processing */"
+)
+.step("analyze")
+.docker(
+    image="r-base:latest",
+    code="library(ggplot2); # R statistical analysis"
+)
+.step("deploy")
+.docker(
+    image="hashicorp/terraform:latest",
+    command="terraform apply -auto-approve"
+)
+```
 
 ## Workflow Architecture
 

@@ -9,6 +9,64 @@ icon: clock-rotate-left
 
 All notable changes to the Kubiya Workflow SDK will be documented here.
 
+## [3.1.0] - 2024-01-26
+
+### Documentation Updates
+- 🎯 **Provider Clarity** - Updated all documentation to accurately reflect ADK as the current orchestration provider
+- 🐳 **Containerized Execution** - Emphasized serverless Docker container execution throughout docs
+- 🛡️ **Application Layer Focus** - New "Why Kubiya" guide explaining safety vs god-mode AI systems
+- 📝 **DSL Reference** - Comprehensive DSL reference with all workflow schema features
+- 🚀 **Deterministic Workflows** - New concept guide explaining determinism in workflows
+
+### Added
+- Created `/concepts/why-kubiya.mdx` - Application-layer vs infrastructure-level AI orchestration
+- Created `/workflows/dsl-reference.mdx` - Complete DSL reference with AI-friendly explanations
+- Created `/concepts/deterministic-workflows.mdx` - Understanding deterministic execution
+
+### Changed
+- **Provider Overview** - Rewritten to accurately show ADK as the orchestration provider
+- **Architecture Docs** - Emphasized serverless, containerized execution model
+- **README** - Updated to highlight containerized execution and ADK orchestration
+- **All Provider References** - Removed misleading mentions of multiple providers
+
+### Key Messages
+- Every workflow step runs in its own Docker container
+- Workflows are stateless with zero pollution between executions
+- ADK provides intelligent orchestration at the application layer
+- No infrastructure god-mode permissions required
+- Simple, deterministic schema that AI can easily generate
+
+## [3.0.0] - 2024-01-25
+
+### Added
+- 🎯 **Compose API** - Unified interface for plan and act modes in ADK provider
+- 🌊 **Execute Workflow** - Complete implementation in ADK provider with streaming support
+- 📖 **Comprehensive ADK Docs** - Agent architecture, streaming guide, API reference
+- 🎓 **AI Automation Tutorial** - Step-by-step guide for natural language workflows
+- 🏃 **Default Runner Change** - Changed from "auto" to "kubiya-hosted" for better reliability
+- 🔧 **Context Loading Fix** - Direct platform context loading without MockContext issues
+
+### Changed
+- **ADK Provider** now supports both SSE and Vercel AI SDK streaming formats
+- **Organization Info** - Now uses client initialization parameter instead of API calls
+- **Workflow Generator** - Includes smart runner selection logic based on user requirements
+- **Loop Orchestrator** - Loads platform context using tools directly
+- **Config Handling** - Fixed enum handling for model_provider configuration
+
+### Fixed
+- MockContext missing ADK attributes (response_modalities, speech_config, etc.)
+- Authentication error handling in ADK provider
+- API endpoint issues with non-existent organization endpoint
+- Streaming event formatting for both SSE and Vercel formats
+
+### Documentation
+- Created `/providers/adk/agents.mdx` - Multi-agent architecture deep dive
+- Created `/providers/adk/streaming.mdx` - Comprehensive streaming guide  
+- Created `/api-reference/compose.mdx` - Complete compose API reference
+- Created `/tutorials/ai-powered-automation.mdx` - Hands-on AI workflow tutorial
+- Updated `/workflows/architecture.mdx` - Added AI-powered generation section
+- Updated `README.md` - Prominent AI workflow generation section
+
 ## [2.0.0] - 2024-01-20
 
 ### Added

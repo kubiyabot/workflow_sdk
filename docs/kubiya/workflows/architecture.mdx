@@ -1,562 +1,458 @@
 ---
-title: Workflow Architecture
-description: Deep dive into how Kubiya executes workflows as DAGs on your infrastructure
-icon: sitemap
+title: "Workflow Architecture"
+description: "Deep dive into Kubiya's serverless, containerized workflow execution model"
+icon: "server"
 ---
 
-# Workflow Architecture
+# Serverless Workflow Architecture
 
-Kubiya's workflow architecture is built on the principles of Directed Acyclic Graphs (DAGs), container orchestration, and distributed execution. This page explores how workflows are structured, executed, and managed at scale.
+Kubiya implements a cutting-edge serverless architecture where every workflow and step runs as an independent Docker container. This design enables unprecedented flexibility, scalability, and software compatibility.
 
-## DAG Execution Model
+## Core Principles
 
-### What is a DAG?
+### 1. **Containerized Everything**
 
-A Directed Acyclic Graph (DAG) is a collection of tasks organized with dependencies:
-- **Directed**: Dependencies flow in one direction
-- **Acyclic**: No circular dependencies allowed
-- **Graph**: Tasks connected by dependency edges
+<Card title="🐳 Docker-Based Execution" icon="docker">
+  Every single step in your workflow runs in its own Docker container:
+  
+  - **Any Language**: Python, JavaScript, Go, Rust, Java, C++, Ruby, etc.
+  - **Any Tool**: Git, AWS CLI, Terraform, kubectl, npm, cargo, etc.
+  - **Any Library**: Install and use any package or dependency
+  - **Any Version**: Pin specific versions of languages and tools
+</Card>
 
-```mermaid
-graph LR
-    A[Start] --> B[Extract Data]
-    B --> C[Validate]
-    B --> D[Transform]
-    C --> E[Quality Check]
-    D --> E
-    E --> F[Load to DB]
-    E --> G[Send Report]
-    F --> H[End]
-    G --> H
-    
-    style B fill:#0088ff,stroke:#0066cc,stroke-width:2px
-    style E fill:#00d4ff,stroke:#0066cc,stroke-width:2px
-```
+### 2. **True Statelessness**
 
-### Why DAGs Matter
-
-<CardGroup cols={2}>
-  <Card title="Deterministic Execution" icon="route">
-    Same input → Same execution path → Same output, every time
-  </Card>
-  <Card title="Parallel Processing" icon="layer-group">
-    Independent tasks run simultaneously for optimal performance
-  </Card>
-  <Card title="Clear Dependencies" icon="diagram-project">
-    Visual representation of task relationships and data flow
-  </Card>
-  <Card title="Fault Isolation" icon="shield">
-    Failed tasks don't affect unrelated parts of the workflow
-  </Card>
-</CardGroup>
-
-## Execution Lifecycle
-
-### 1. Workflow Submission
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant API as Kubiya API
-    participant Parser as DAG Parser
-    participant Store as Workflow Store
-    
-    Client->>API: Submit workflow
-    API->>Parser: Parse & validate
-    Parser->>Parser: Check for cycles
-    Parser->>Parser: Validate steps
-    Parser->>Store: Store DAG
-    Store->>API: Return workflow ID
-    API->>Client: Confirmation
-```
-
-### 2. DAG Scheduling
-
-The scheduler determines execution order:
+Each workflow execution is completely independent:
 
 ```python
-class DAGScheduler:
-    def get_ready_steps(self, dag, completed_steps):
-        """Find steps ready to execute"""
-        ready = []
-        for step in dag.steps:
-            if step.name in completed_steps:
-                continue
-            if all(dep in completed_steps for dep in step.dependencies):
-                ready.append(step)
-        return ready
+# This workflow runs in a fresh environment every time
+workflow = Workflow(
+    name="data-pipeline",
+    runner="kubiya-hosted"
+)
+
+# Step 1 runs in container A
+workflow.add_step(
+    name="fetch-data",
+    image="python:3.11",
+    code="# This container is destroyed after execution"
+)
+
+# Step 2 runs in container B (completely separate)
+workflow.add_step(
+    name="process-data",
+    image="python:3.11",
+    code="# Fresh container, no state from Step 1"
+)
 ```
 
-### 3. Container Execution
+### 3. **Infinite Scalability**
 
-Each step runs in an isolated container:
+The serverless model means:
+- No pre-provisioned resources
+- Automatic scaling based on demand
+- Pay only for actual execution time
+- Handle 1 or 1,000,000 workflows seamlessly
 
-```yaml
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: workflow-${workflow_id}-step-${step_name}
-  labels:
-    kubiya.ai/workflow-id: ${workflow_id}
-    kubiya.ai/step-name: ${step_name}
-spec:
-  template:
-    spec:
-      containers:
-      - name: executor
-        image: ${step.image}
-        command: ${step.command}
-        env:
-        - name: WORKFLOW_ID
-          value: ${workflow_id}
-        - name: STEP_NAME
-          value: ${step_name}
-        resources:
-          requests:
-            memory: ${step.resources.memory}
-            cpu: ${step.resources.cpu}
-          limits:
-            memory: ${step.resources.memory_limit}
-            cpu: ${step.resources.cpu_limit}
-      restartPolicy: OnFailure
-      activeDeadlineSeconds: ${step.timeout_seconds}
-```
-
-## Container Orchestration
-
-### Pod Lifecycle Management
+## Architecture Diagram
 
 ```mermaid
-stateDiagram-v2
-    [*] --> Pending: Step scheduled
-    Pending --> Creating: Resources available
-    Creating --> Running: Container started
-    Running --> Success: Exit code 0
-    Running --> Failed: Exit code != 0
-    Running --> Timeout: Deadline exceeded
-    Failed --> Retry: Retry policy
-    Retry --> Creating: Retry attempt
-    Success --> [*]
-    Failed --> [*]: Max retries
-    Timeout --> [*]
+graph TB
+    subgraph "Workflow Definition"
+        W[Workflow YAML/Code]
+    end
+    
+    subgraph "ADK Orchestration Layer"
+        O[ADK Orchestrator]
+        Q[Execution Queue]
+        S[State Manager]
+    end
+    
+    subgraph "Serverless Execution Layer"
+        subgraph "Step 1"
+            C1[Docker Container 1]
+            R1[Resources]
+        end
+        
+        subgraph "Step 2"
+            C2[Docker Container 2]
+            R2[Resources]
+        end
+        
+        subgraph "Step N"
+            CN[Docker Container N]
+            RN[Resources]
+        end
+    end
+    
+    subgraph "Storage Layer"
+        A[Artifact Storage]
+        L[Logs]
+        M[Metrics]
+    end
+    
+    W --> O
+    O --> Q
+    Q --> C1
+    Q --> C2
+    Q --> CN
+    
+    C1 --> A
+    C2 --> A
+    CN --> A
+    
+    C1 --> L
+    C2 --> L
+    CN --> L
+    
+    O --> S
+    S --> M
+    
+    style O fill:#f9f,stroke:#333,stroke-width:4px
+    style C1 fill:#bbf,stroke:#333,stroke-width:2px
+    style C2 fill:#bbf,stroke:#333,stroke-width:2px
+    style CN fill:#bbf,stroke:#333,stroke-width:2px
+```
+
+## How It Works
+
+### 1. **Workflow Definition**
+You define workflows using Python SDK, YAML, or through AI generation:
+
+```python
+from kubiya_workflow_sdk import Workflow, Step
+
+workflow = Workflow(
+    name="multi-tool-pipeline",
+    runner="kubiya-hosted"
+)
+```
+
+### 2. **Container Specification**
+Each step specifies its container requirements:
+
+```python
+# Use pre-built images
+workflow.add_step(Step(
+    name="python-analysis",
+    image="python:3.11-slim",
+    packages=["pandas", "numpy", "scikit-learn"],
+    code="..."
+))
+
+# Or custom images
+workflow.add_step(Step(
+    name="custom-tool",
+    image="myregistry/my-tool:latest",
+    code="..."
+))
+```
+
+### 3. **Execution**
+When a workflow runs:
+
+1. ADK orchestrator receives the workflow
+2. Each step is queued for execution
+3. Containers are spun up on-demand
+4. Code executes in isolated environment
+5. Results are captured and stored
+6. Container is destroyed
+
+### 4. **Data Flow**
+Steps communicate through artifacts:
+
+```python
+# Step 1: Generate data
+workflow.add_step(Step(
+    name="generate",
+    code="""
+    data = create_dataset()
+    save_artifact('dataset.csv', data)
+    """
+))
+
+# Step 2: Process data
+workflow.add_step(Step(
+    name="process",
+    code="""
+    data = load_artifact('dataset.csv')
+    results = analyze(data)
+    save_artifact('results.json', results)
+    """
+))
+```
+
+## Real-World Examples
+
+### Multi-Language ETL Pipeline
+
+```python
+workflow = Workflow(
+    name="advanced-etl",
+    runner="kubiya-hosted"
+)
+
+# Extract with Python
+workflow.add_step(Step(
+    name="extract",
+    image="python:3.11",
+    packages=["requests", "boto3"],
+    code="""
+    import requests
+    import boto3
+    
+    # Fetch from API
+    data = requests.get('https://api.example.com/data').json()
+    
+    # Also pull from S3
+    s3 = boto3.client('s3')
+    s3_data = s3.get_object(Bucket='my-bucket', Key='data.json')
+    
+    # Combine and save
+    combined = merge_data(data, s3_data)
+    save_artifact('raw_data.json', combined)
+    """
+))
+
+# Transform with Node.js
+workflow.add_step(Step(
+    name="transform",
+    image="node:20",
+    packages=["lodash", "moment"],
+    code="""
+    const _ = require('lodash');
+    const moment = require('moment');
+    
+    const data = loadArtifact('raw_data.json');
+    
+    // Complex transformations
+    const transformed = _.chain(data)
+        .filter(item => moment(item.date).isAfter('2024-01-01'))
+        .groupBy('category')
+        .mapValues(items => calculateMetrics(items))
+        .value();
+    
+    saveArtifact('transformed.json', transformed);
+    """
+))
+
+# Load with Go for performance
+workflow.add_step(Step(
+    name="load",
+    image="golang:1.21",
+    code="""
+    package main
+    
+    import (
+        "encoding/json"
+        "database/sql"
+        _ "github.com/lib/pq"
+    )
+    
+    func main() {
+        // Load transformed data
+        data := loadArtifact("transformed.json")
+        
+        // Bulk insert with Go's concurrency
+        db, _ := sql.Open("postgres", getConnString())
+        
+        // Use goroutines for parallel inserts
+        chunks := splitIntoChunks(data, 1000)
+        var wg sync.WaitGroup
+        
+        for _, chunk := range chunks {
+            wg.Add(1)
+            go func(c []Record) {
+                defer wg.Done()
+                bulkInsert(db, c)
+            }(chunk)
+        }
+        
+        wg.Wait()
+    }
+    """
+))
+```
+
+### DevOps Automation
+
+```python
+workflow = Workflow(
+    name="deploy-infrastructure",
+    runner="kubiya-hosted"
+)
+
+# Terraform for infrastructure
+workflow.add_step(Step(
+    name="provision",
+    image="hashicorp/terraform:latest",
+    code="""
+    terraform init
+    terraform plan -out=tfplan
+    terraform apply -auto-approve tfplan
+    
+    # Export outputs
+    terraform output -json > outputs.json
+    save_artifact('infra_outputs.json', 'outputs.json')
+    """
+))
+
+# Ansible for configuration
+workflow.add_step(Step(
+    name="configure",
+    image="ansible/ansible:latest",
+    code="""
+    # Load infrastructure details
+    HOSTS=$(cat /artifacts/infra_outputs.json | jq -r '.hosts.value')
+    
+    # Run playbook
+    ansible-playbook -i "$HOSTS" configure.yml
+    """
+))
+
+# Kubernetes deployment
+workflow.add_step(Step(
+    name="deploy",
+    image="bitnami/kubectl:latest",
+    code="""
+    # Apply manifests
+    kubectl apply -f k8s/
+    
+    # Wait for rollout
+    kubectl rollout status deployment/my-app
+    
+    # Run smoke tests
+    kubectl run test --image=curlimages/curl -- http://my-app/health
+    """
+))
+```
+
+## Advanced Features
+
+### Custom Base Images
+
+Create specialized images for your workflows:
+
+```dockerfile
+# Dockerfile
+FROM python:3.11
+RUN pip install pandas numpy scikit-learn tensorflow
+RUN apt-get update && apt-get install -y graphviz
+COPY models/ /opt/models/
+```
+
+```python
+workflow.add_step(Step(
+    name="ml-pipeline",
+    image="myregistry/ml-base:latest",
+    code="# Use pre-installed ML tools"
+))
 ```
 
 ### Resource Management
 
-Kubiya ensures efficient resource utilization:
+Control container resources:
 
 ```python
-@workflow
-def resource_optimized_pipeline():
-    # Light task - minimal resources
-    step.validate_input(
-        image="alpine:latest",
-        resources={"cpu": "100m", "memory": "128Mi"}
-    )
-    
-    # CPU-intensive task
-    step.process_data(
-        image="processor:latest",
-        resources={"cpu": "4", "memory": "2Gi"}
-    )
-    
-    # Memory-intensive task
-    step.analyze_results(
-        image="analyzer:latest",
-        resources={"cpu": "1", "memory": "8Gi"}
-    )
-    
-    # GPU task
-    step.ml_inference(
-        image="tensorflow:gpu",
-        resources={
-            "nvidia.com/gpu": "1",
-            "memory": "16Gi"
-        }
-    )
+workflow.add_step(Step(
+    name="memory-intensive",
+    image="python:3.11",
+    resources={
+        "memory": "8Gi",
+        "cpu": "4",
+        "gpu": "1"  # For ML workloads
+    },
+    code="# Run memory-intensive operations"
+))
 ```
 
-### Volume Management
+### Network Isolation
 
-Share data between steps efficiently:
+Each container runs in isolation:
 
 ```python
-@workflow
-def data_pipeline():
-    # Create shared volume
-    data_volume = Volume("pipeline-data", size="10Gi")
-    
-    # Step 1: Download data to volume
-    step.download(
-        image="downloader:latest",
-        volumes=[VolumeMount(data_volume, "/data")]
-    )
-    
-    # Step 2 & 3: Process in parallel
-    step.process_a(
-        image="processor-a:latest",
-        volumes=[VolumeMount(data_volume, "/data", read_only=True)],
-        depends_on=["download"]
-    )
-    
-    step.process_b(
-        image="processor-b:latest",
-        volumes=[VolumeMount(data_volume, "/data", read_only=True)],
-        depends_on=["download"]
-    )
-    
-    # Step 4: Merge results
-    step.merge(
-        image="merger:latest",
-        volumes=[VolumeMount(data_volume, "/data")],
-        depends_on=["process_a", "process_b"]
-    )
+# Step 1: Start a service
+workflow.add_step(Step(
+    name="api-server",
+    image="node:20",
+    ports=[3000],
+    code="# Start API server"
+))
+
+# Step 2: Different network namespace
+workflow.add_step(Step(
+    name="client",
+    image="python:3.11",
+    code="# Cannot access Step 1's ports directly"
+))
 ```
 
-## State Management
+## AI-Powered Generation
 
-### Workflow States
-
-```mermaid
-graph TB
-    subgraph "Workflow States"
-        PENDING[Pending]
-        RUNNING[Running]
-        SUCCESS[Success]
-        FAILED[Failed]
-        CANCELLED[Cancelled]
-    end
-    
-    PENDING --> RUNNING
-    RUNNING --> SUCCESS
-    RUNNING --> FAILED
-    RUNNING --> CANCELLED
-    FAILED --> PENDING
-    
-    style RUNNING fill:#0088ff,stroke:#0066cc,stroke-width:2px
-    style SUCCESS fill:#00d466,stroke:#00a050,stroke-width:2px
-    style FAILED fill:#ff4444,stroke:#cc0000,stroke-width:2px
-```
-
-### Persistence & Recovery
-
-Kubiya maintains workflow state for durability:
+<Note>
+  With ADK orchestration, you can generate these complex workflows using natural language:
+</Note>
 
 ```python
-class WorkflowState:
-    def __init__(self, workflow_id):
-        self.workflow_id = workflow_id
-        self.steps = {}
-        self.status = "pending"
-        self.started_at = None
-        self.completed_at = None
-    
-    def update_step(self, step_name, status, output=None):
-        self.steps[step_name] = {
-            "status": status,
-            "output": output,
-            "updated_at": datetime.now()
-        }
-        self._persist()
-    
-    def _persist(self):
-        # Save to persistent storage
-        # Enables recovery after runner restart
-        pass
+from kubiya_workflow_sdk import KubiyaWorkflow
+
+# Generate entire workflow from description
+workflow = KubiyaWorkflow.from_prompt(
+    """
+    Create a data pipeline that:
+    1. Extracts data from PostgreSQL and MongoDB
+    2. Transforms using Python pandas
+    3. Runs ML predictions with TensorFlow
+    4. Stores results in S3 and sends Slack notification
+    """,
+    runner="kubiya-hosted"
+)
+
+# ADK generates the complete containerized workflow
+result = workflow.execute()
 ```
 
-## Advanced Execution Patterns
-
-### Dynamic DAG Generation
-
-Generate workflow steps dynamically:
-
-```python
-@workflow
-def dynamic_processing():
-    # Get list of items to process
-    items = step.list_items(
-        image="lister:latest",
-        output_format="json"
-    )
-    
-    # Dynamically create processing steps
-    process_steps = []
-    for item in items.output:
-        step_name = f"process_{item['id']}"
-        process_steps.append(
-            step.create(
-                name=step_name,
-                image="processor:latest",
-                env={"ITEM_ID": item['id']},
-                depends_on=["list_items"]
-            )
-        )
-    
-    # Wait for all processing
-    step.aggregate(
-        image="aggregator:latest",
-        depends_on=[s.name for s in process_steps]
-    )
-```
-
-### Conditional Branching
-
-Execute different paths based on conditions:
-
-```python
-@workflow
-def conditional_deployment():
-    # Run tests
-    test_result = step.test(
-        image="tester:latest",
-        output_format="json"
-    )
-    
-    # Branch based on test results
-    if test_result.output["coverage"] > 80:
-        # High coverage - deploy to production
-        step.deploy_prod(
-            image="deployer:latest",
-            env={"TARGET": "production"}
-        )
-    else:
-        # Low coverage - deploy to staging only
-        step.deploy_staging(
-            image="deployer:latest",
-            env={"TARGET": "staging"}
-        )
-        
-        # Notify team
-        step.notify(
-            image="notifier:latest",
-            env={"MESSAGE": "Low coverage, staging only"}
-        )
-```
-
-### Map-Reduce Pattern
-
-Process large datasets efficiently:
-
-```python
-@workflow
-def map_reduce_analysis():
-    # Split data into chunks
-    chunks = step.split_data(
-        image="splitter:latest",
-        env={"CHUNK_SIZE": "1GB"},
-        output_format="json"
-    )
-    
-    # Map: Process each chunk in parallel
-    map_results = []
-    for i, chunk in enumerate(chunks.output["chunks"]):
-        result = step.map_process(
-            name=f"map_{i}",
-            image="mapper:latest",
-            env={"CHUNK_PATH": chunk["path"]},
-            depends_on=["split_data"]
-        )
-        map_results.append(result)
-    
-    # Reduce: Combine results
-    step.reduce(
-        image="reducer:latest",
-        env={"RESULT_COUNT": str(len(map_results))},
-        depends_on=[r.name for r in map_results]
-    )
-```
-
-## Performance Optimization
-
-### Parallel Execution
-
-Maximize parallelism in your workflows:
-
-```python
-@workflow
-def optimized_pipeline():
-    # These run in parallel
-    data1 = step.fetch_dataset1(image="fetcher:latest")
-    data2 = step.fetch_dataset2(image="fetcher:latest")
-    data3 = step.fetch_dataset3(image="fetcher:latest")
-    
-    # These also run in parallel
-    proc1 = step.process1(
-        image="processor:latest",
-        depends_on=[data1]
-    )
-    proc2 = step.process2(
-        image="processor:latest",
-        depends_on=[data2]
-    )
-    proc3 = step.process3(
-        image="processor:latest",
-        depends_on=[data3]
-    )
-    
-    # Final aggregation
-    step.aggregate(
-        image="aggregator:latest",
-        depends_on=[proc1, proc2, proc3]
-    )
-```
-
-### Caching Strategies
-
-Improve performance with caching:
-
-```python
-@workflow
-def cached_build():
-    # Check cache first
-    cache_hit = step.check_cache(
-        image="cache-checker:latest",
-        env={"CACHE_KEY": "${COMMIT_SHA}"}
-    )
-    
-    if not cache_hit.output["exists"]:
-        # Build if not cached
-        build_result = step.build(
-            image="builder:latest",
-            depends_on=["check_cache"]
-        )
-        
-        # Update cache
-        step.update_cache(
-            image="cache-updater:latest",
-            env={"CACHE_KEY": "${COMMIT_SHA}"},
-            depends_on=["build"]
-        )
-    
-    # Use cached or fresh build
-    step.deploy(
-        image="deployer:latest",
-        depends_on=["check_cache", "build", "update_cache"]
-    )
-```
-
-## Monitoring & Observability
-
-### Execution Metrics
-
-Track workflow performance:
-
-```prometheus
-# Workflow execution time
-workflow_duration_seconds{workflow="etl_pipeline"} 245.7
-
-# Step execution time
-step_duration_seconds{workflow="etl_pipeline",step="transform"} 120.3
-
-# Parallel execution efficiency
-workflow_parallelism_ratio{workflow="etl_pipeline"} 0.85
-
-# Resource utilization
-step_cpu_usage{workflow="etl_pipeline",step="transform"} 3.2
-step_memory_usage_bytes{workflow="etl_pipeline",step="transform"} 3.7e9
-```
-
-### Distributed Tracing
-
-Track execution across steps:
-
-```python
-# OpenTelemetry integration
-@workflow
-def traced_workflow():
-    with tracer.start_as_current_span("workflow.execution"):
-        # Each step automatically traced
-        step.process(
-            image="processor:latest",
-            env={
-                "OTEL_EXPORTER_OTLP_ENDPOINT": "http://collector:4317",
-                "OTEL_SERVICE_NAME": "workflow-step"
-            }
-        )
-```
-
-## Security & Isolation
-
-### Container Isolation
-
-Each step runs in complete isolation:
-
-```yaml
-# Pod Security Context
-securityContext:
-  runAsNonRoot: true
-  runAsUser: 1000
-  fsGroup: 2000
-  seccompProfile:
-    type: RuntimeDefault
-  capabilities:
-    drop:
-      - ALL
-```
-
-### Network Policies
-
-Control step communication:
-
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: workflow-isolation
-spec:
-  podSelector:
-    matchLabels:
-      kubiya.ai/workflow: "true"
-  policyTypes:
-  - Ingress
-  - Egress
-  egress:
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          name: kubiya-system
-  - to:
-    - podSelector:
-        matchLabels:
-          kubiya.ai/service: "api"
-```
-
-## Best Practices
-
-### 1. Design for Parallelism
-- Minimize sequential dependencies
-- Split large tasks into parallel chunks
-- Use map-reduce for data processing
-
-### 2. Handle Failures Gracefully
-- Add retries for transient failures
-- Use circuit breakers for external services
-- Implement compensating transactions
-
-### 3. Optimize Resource Usage
-- Right-size container resources
-- Use spot instances for batch work
-- Clean up temporary resources
-
-### 4. Monitor Everything
-- Add structured logging
-- Export metrics
-- Enable distributed tracing
-
-## Next Steps
+## Benefits Summary
 
 <CardGroup cols={2}>
-  <Card title="Python DSL" icon="python" href="/workflows/python-dsl">
-    Learn the Python workflow DSL
+  <Card title="🚀 Any Software" icon="cube">
+    Run literally any software, tool, or language in your workflows
   </Card>
-  <Card title="Examples" icon="code" href="/workflows/examples">
-    See real-world examples
+  
+  <Card title="📦 Zero Dependencies" icon="box">
+    No need to pre-install anything - containers have everything
   </Card>
-  <Card title="Performance" icon="gauge" href="/deployment/production">
-    Production optimization
+  
+  <Card title="🔄 Perfect Isolation" icon="shield">
+    Each step runs in complete isolation with no side effects
   </Card>
-  <Card title="Debugging" icon="bug" href="/tutorials/debugging">
-    Debug workflow issues
+  
+  <Card title="⚡ Instant Scale" icon="bolt">
+    From 1 to 1 million executions without infrastructure changes
   </Card>
-</CardGroup> 
+</CardGroup>
+
+## Security & Compliance
+
+The containerized architecture provides:
+
+- **Process Isolation**: Each step runs in its own namespace
+- **Resource Limits**: Prevent runaway processes
+- **Network Policies**: Control communication between steps
+- **Audit Trails**: Complete execution history
+- **Secrets Management**: Secure credential injection
+
+## What's Next?
+
+<Card title="Getting Started" href="/getting-started/quickstart" icon="rocket">
+  Create your first containerized workflow
+</Card>
+
+<Card title="ADK Provider" href="/providers/adk/getting-started" icon="robot">
+  Learn about AI-powered workflow generation
+</Card>
+
+<Card title="Examples" href="/workflows/examples" icon="code">
+  See real-world containerized workflows
+</Card> 

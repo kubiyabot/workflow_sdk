@@ -1,0 +1,563 @@
+---
+title: "Compose API"
+sidebarTitle: "Compose"
+description: End-to-end workflow generation and execution API
+icon: wand-magic-sparkles
+---
+
+<Note>
+  The Compose API is the main entry point for AI-powered workflow generation. It handles everything from understanding your request to generating and optionally executing workflows.
+</Note>
+
+## Overview
+
+The `compose()` method provides a unified interface for:
+
+- **Natural language to workflow** transformation
+- **Automatic validation** and refinement
+- **Optional execution** with streaming
+- **Multiple output formats** (JSON, YAML, streaming)
+
+## Method Signature
+
+```python
+async def compose(
+    task: str,
+    context: Optional[Dict[str, Any]] = None,
+    parameters: Optional[Dict[str, Any]] = None,
+    mode: str = "plan",
+    stream: bool = True,
+    stream_format: str = "sse",
+    session_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+    **kwargs
+) -> Union[Dict[str, Any], AsyncGenerator[str, None]]
+```
+
+## Parameters
+
+<ParamField path="task" type="str" required>
+  The task description in natural language. Be specific and include requirements.
+  
+  **Examples:**
+  - "Create a workflow to backup PostgreSQL databases daily"
+  - "Deploy a containerized app to Kubernetes with health checks"
+  - "Set up CI/CD pipeline for Python project with tests"
+</ParamField>
+
+<ParamField path="context" type="Dict[str, Any]" optional>
+  Additional context to guide workflow generation.
+  
+  **Supported fields:**
+  - `preferred_runner`: Specific runner to use
+  - `available_tools`: List of tools/commands available
+  - `constraints`: Security or operational constraints
+  - `environment`: Target environment details
+  
+  ```python
+  context = {
+      "preferred_runner": "kubernetes-runner",
+      "environment": "production",
+      "constraints": ["no sudo", "read-only filesystem"]
+  }
+  ```
+</ParamField>
+
+<ParamField path="parameters" type="Dict[str, Any]" optional>
+  Execution parameters (only used in `act` mode).
+  
+  ```python
+  parameters = {
+      "database": "myapp_prod",
+      "namespace": "production",
+      "replicas": 3
+  }
+  ```
+</ParamField>
+
+<ParamField path="mode" type="str" default="plan">
+  Operation mode:
+  - `"plan"`: Generate workflow only
+  - `"act"`: Generate and execute workflow
+</ParamField>
+
+<ParamField path="stream" type="bool" default="True">
+  Enable streaming response. When `True`, returns an async generator.
+</ParamField>
+
+<ParamField path="stream_format" type="str" default="sse">
+  Streaming format:
+  - `"sse"`: Server-Sent Events format
+  - `"vercel"`: Vercel AI SDK format
+  - `None`: Raw ADK events
+</ParamField>
+
+<ParamField path="session_id" type="str" optional>
+  Session ID for conversation continuity. Automatically generated if not provided.
+</ParamField>
+
+<ParamField path="user_id" type="str" optional>
+  User ID for namespacing and tracking. Defaults to `"default_user"`.
+</ParamField>
+
+## Return Values
+
+### Plan Mode (Non-streaming)
+
+Returns a dictionary with the generated workflow:
+
+```python
+{
+    "workflow": {
+        "name": "backup-databases",
+        "description": "Automated database backup workflow",
+        "runner": "kubiya-hosted",
+        "steps": [
+            {
+                "name": "backup_postgres",
+                "tool": "pg_dump",
+                "parameters": {...}
+            }
+        ]
+    }
+}
+```
+
+### Act Mode (Non-streaming)
+
+Returns both workflow and execution result:
+
+```python
+{
+    "workflow": {...},  # Generated workflow
+    "execution_result": {
+        "run_id": "run_abc123",
+        "status": "success",
+        "outputs": {...},
+        "duration": 45.2
+    }
+}
+```
+
+### Streaming Response
+
+Returns an async generator yielding events:
+
+```python
+async for event in compose(...):
+    # event is a string in the specified format
+    print(event)
+```
+
+## Usage Examples
+
+### Basic Workflow Generation
+
+```python
+from kubiya_workflow_sdk.providers import get_provider
+
+# Initialize ADK provider
+adk = get_provider("adk")
+
+# Generate a simple workflow
+result = await adk.compose(
+    task="Create a workflow to check disk space and alert if > 80%",
+    mode="plan",
+    stream=False
+)
+
+workflow = result["workflow"]
+print(f"Generated: {workflow['name']}")
+```
+
+### Streaming Generation
+
+```python
+# Stream the generation process
+async for event in adk.compose(
+    task="Deploy application to Kubernetes",
+    mode="plan",
+    stream=True
+):
+    # Handle SSE events
+    if event.startswith("data: "):
+        data = json.loads(event[6:])
+        print(f"{data['type']}: {data.get('content', '')}")
+```
+
+### Generate and Execute
+
+```python
+# Generate and immediately execute
+async for event in adk.compose(
+    task="Backup all databases and upload to S3",
+    mode="act",
+    parameters={
+        "s3_bucket": "my-backups",
+        "databases": ["users", "orders", "products"]
+    },
+    stream=True
+):
+    # Handle both generation and execution events
+    handle_event(event)
+```
+
+### With Custom Context
+
+```python
+# Provide specific context
+result = await adk.compose(
+    task="Set up monitoring for microservices",
+    context={
+        "services": ["api", "web", "worker"],
+        "monitoring_tool": "prometheus",
+        "alert_channel": "#ops-alerts",
+        "preferred_runner": "kubernetes-runner"
+    },
+    mode="plan"
+)
+```
+
+### Session Continuity
+
+```python
+# First request
+session_id = str(uuid.uuid4())
+
+workflow1 = await adk.compose(
+    task="Create a deployment workflow",
+    session_id=session_id,
+    mode="plan"
+)
+
+# Follow-up request in same session
+workflow2 = await adk.compose(
+    task="Add rollback capabilities to the previous workflow",
+    session_id=session_id,  # Same session
+    mode="plan"
+)
+```
+
+## Event Types
+
+When streaming is enabled, various event types are emitted:
+
+### Generation Events
+
+```python
+# Text generation progress
+{"type": "text", "content": "Analyzing requirements..."}
+
+# Tool calls (loading context)
+{"type": "tool_call", "name": "get_runners", "arguments": {}}
+
+# Tool results
+{"type": "tool_result", "name": "get_runners", "result": {...}}
+
+# Workflow ready
+{"type": "workflow", "data": {...}}
+```
+
+### Execution Events (Act Mode)
+
+```python
+# Execution started
+{"type": "execution_start", "workflow": "deploy-app", "run_id": "run_123"}
+
+# Step progress
+{"type": "step_start", "step": "build", "index": 0}
+{"type": "step_output", "step": "build", "output": "Building..."}
+{"type": "step_complete", "step": "build", "status": "success"}
+
+# Execution complete
+{"type": "execution_complete", "status": "success", "duration": 120.5}
+```
+
+## Error Handling
+
+The compose API handles various error scenarios:
+
+<AccordionGroup>
+  <Accordion title="Generation Errors" icon="triangle-exclamation">
+    ```python
+    try:
+        result = await adk.compose(task="...")
+    except ProviderError as e:
+        # Handle generation failures
+        print(f"Generation failed: {e}")
+    ```
+  </Accordion>
+  
+  <Accordion title="Validation Errors" icon="code">
+    ```python
+    # Validation errors are automatically handled
+    # The AI will attempt to fix them
+    # But you can set limits:
+    
+    config = ADKConfig(max_loop_iterations=2)
+    adk = get_provider("adk", config=config)
+    ```
+  </Accordion>
+  
+  <Accordion title="Execution Errors" icon="play">
+    ```python
+    async for event in adk.compose(task="...", mode="act"):
+        if event.get("type") == "error":
+            # Handle execution errors
+            logger.error(f"Execution error: {event['message']}")
+            # Decide whether to continue or abort
+    ```
+  </Accordion>
+  
+  <Accordion title="Timeout Errors" icon="clock">
+    ```python
+    import asyncio
+    
+    try:
+        async with asyncio.timeout(300):  # 5 minute timeout
+            result = await adk.compose(task="...")
+    except asyncio.TimeoutError:
+        print("Generation timed out")
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Advanced Configuration
+
+### Custom Models
+
+```python
+from kubiya_workflow_sdk.providers.adk import ADKConfig
+
+config = ADKConfig(
+    model_overrides={
+        "workflow_generator": "together_ai/Qwen/QwQ-32B-Preview",
+        "refinement": "together_ai/deepseek-ai/DeepSeek-V3"
+    }
+)
+
+adk = get_provider("adk", config=config)
+```
+
+### Performance Tuning
+
+```python
+config = ADKConfig(
+    max_loop_iterations=5,      # More refinement attempts
+    timeout=600,                # 10 minute timeout
+    enable_caching=True,        # Cache context loading
+    stream_buffer_size=2048     # Larger streaming buffer
+)
+```
+
+### Custom Filters
+
+```python
+# Filter streaming events
+async for event in adk.compose(
+    task="...",
+    stream=True,
+    stream_filter={
+        "include_tool_calls": False,  # Skip tool events
+        "include_thoughts": True,      # Include reasoning
+        "min_importance": "medium"     # Filter by importance
+    }
+):
+    process_filtered_event(event)
+```
+
+## Integration Examples
+
+### FastAPI Endpoint
+
+```python
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+
+app = FastAPI()
+
+class ComposeRequest(BaseModel):
+    task: str
+    mode: str = "plan"
+    context: dict = {}
+    parameters: dict = {}
+
+@app.post("/api/compose")
+async def compose_workflow(request: ComposeRequest):
+    try:
+        adk = get_provider("adk")
+        
+        if request.mode == "plan":
+            # Non-streaming for plan mode
+            result = await adk.compose(
+                task=request.task,
+                context=request.context,
+                mode="plan",
+                stream=False
+            )
+            return result
+        else:
+            # For act mode, use websocket instead
+            raise HTTPException(
+                status_code=400,
+                detail="Use WebSocket endpoint for act mode"
+            )
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+```
+
+### WebSocket Streaming
+
+```python
+from fastapi import WebSocket
+import json
+
+@app.websocket("/ws/compose")
+async def compose_stream(websocket: WebSocket):
+    await websocket.accept()
+    
+    try:
+        # Receive request
+        data = await websocket.receive_json()
+        
+        adk = get_provider("adk")
+        
+        # Stream responses
+        async for event in adk.compose(
+            task=data["task"],
+            mode=data.get("mode", "plan"),
+            context=data.get("context", {}),
+            parameters=data.get("parameters", {}),
+            stream=True,
+            stream_format="vercel"
+        ):
+            await websocket.send_text(event)
+            
+    except Exception as e:
+        await websocket.send_json({
+            "type": "error",
+            "message": str(e)
+        })
+    finally:
+        await websocket.close()
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Be Specific" icon="bullseye">
+    Provide detailed task descriptions for better results
+  </Card>
+  <Card title="Use Context" icon="info">
+    Include relevant context about your environment
+  </Card>
+  <Card title="Handle Errors" icon="shield">
+    Always implement proper error handling
+  </Card>
+  <Card title="Monitor Usage" icon="chart-line">
+    Track token usage and generation times
+  </Card>
+</CardGroup>
+
+## Common Patterns
+
+### Retry with Refinement
+
+```python
+async def compose_with_retry(task: str, max_attempts: int = 3):
+    for attempt in range(max_attempts):
+        try:
+            result = await adk.compose(
+                task=task,
+                context={
+                    "attempt": attempt + 1,
+                    "previous_errors": locals().get("errors", [])
+                }
+            )
+            return result
+        except ProviderError as e:
+            errors = locals().get("errors", [])
+            errors.append(str(e))
+            if attempt == max_attempts - 1:
+                raise
+            await asyncio.sleep(2 ** attempt)
+```
+
+### Progress Tracking
+
+```python
+class ProgressTracker:
+    def __init__(self):
+        self.stages = {
+            "context_loading": False,
+            "generation": False,
+            "validation": False,
+            "execution": False
+        }
+    
+    async def track_compose(self, adk, task, mode):
+        async for event in adk.compose(task=task, mode=mode, stream=True):
+            # Update progress based on events
+            if "Loading context" in str(event):
+                self.stages["context_loading"] = True
+            elif "Generating workflow" in str(event):
+                self.stages["generation"] = True
+            # ... etc
+            
+            yield event
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Empty Results" icon="inbox">
+    Ensure your task description is clear:
+    ```python
+    # Too vague
+    task = "backup stuff"
+    
+    # Better
+    task = "Create a workflow to backup all PostgreSQL databases to S3 daily at 2 AM"
+    ```
+  </Accordion>
+  
+  <Accordion title="Timeout Issues" icon="clock">
+    Increase timeout for complex workflows:
+    ```python
+    config = ADKConfig(timeout=900)  # 15 minutes
+    adk = get_provider("adk", config=config)
+    ```
+  </Accordion>
+  
+  <Accordion title="Context Not Used" icon="database">
+    Ensure context is properly formatted:
+    ```python
+    # Wrong
+    context = "use kubernetes runner"
+    
+    # Correct
+    context = {
+        "preferred_runner": "kubernetes-runner",
+        "namespace": "production"
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Execute API" icon="play" href="/api-reference/execute">
+    Direct workflow execution API
+  </Card>
+  <Card title="Providers" icon="plug" href="/providers/overview">
+    Learn about workflow providers
+  </Card>
+  <Card title="Streaming" icon="stream" href="/providers/adk/streaming">
+    Detailed streaming documentation
+  </Card>
+  <Card title="Examples" icon="code" href="/tutorials/ai-powered-automation">
+    More usage examples
+  </Card>
+</CardGroup> 
