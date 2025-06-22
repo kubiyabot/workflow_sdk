@@ -25,6 +25,31 @@ Kubiya implements a cutting-edge serverless architecture where every workflow an
 
 Each workflow execution is completely independent:
 
+```mermaid
+graph TD
+    subgraph "Execution 1"
+        A1[Fresh Container A]
+        B1[Fresh Container B]
+        A1 --> B1
+    end
+    
+    subgraph "Execution 2"
+        A2[Fresh Container A]
+        B2[Fresh Container B]
+        A2 --> B2
+    end
+    
+    subgraph "Execution N"
+        AN[Fresh Container A]
+        BN[Fresh Container B]
+        AN --> BN
+    end
+    
+    style A1 fill:#4CAF50,stroke:#333,stroke-width:2px
+    style A2 fill:#4CAF50,stroke:#333,stroke-width:2px
+    style AN fill:#4CAF50,stroke:#333,stroke-width:2px
+```
+
 ```python
 # This workflow runs in a fresh environment every time
 workflow = Workflow(
@@ -115,6 +140,141 @@ graph TB
     style CN fill:#bbf,stroke:#333,stroke-width:2px
 ```
 
+## Comparison with Other Orchestration Platforms
+
+### Kubiya vs Traditional Orchestrators
+
+```mermaid
+graph TD
+    subgraph "Traditional Orchestrators"
+        subgraph "Airflow/Prefect/Dagster"
+            W1[Worker Node 1]
+            W2[Worker Node 2]
+            W3[Worker Node 3]
+            DB1[(Metadata DB)]
+            S1[Scheduler]
+            
+            S1 --> W1
+            S1 --> W2
+            S1 --> W3
+            W1 --> DB1
+            W2 --> DB1
+            W3 --> DB1
+        end
+    end
+    
+    subgraph "Kubiya"
+        subgraph "Serverless Containers"
+            C1[Container 1<br/>Any Language]
+            C2[Container 2<br/>Any Tool]
+            C3[Container N<br/>Any Version]
+            ADK[ADK Orchestrator]
+            
+            ADK --> C1
+            ADK --> C2
+            ADK --> C3
+        end
+    end
+    
+    subgraph "Key Differences"
+        D1[❌ Pre-provisioned Workers<br/>✅ On-demand Containers]
+        D2[❌ Limited Languages<br/>✅ Any Language/Tool]
+        D3[❌ Shared Dependencies<br/>✅ Isolated Environments]
+        D4[❌ Complex Setup<br/>✅ Zero Infrastructure]
+    end
+    
+    style W1 fill:#FFB74D,stroke:#333,stroke-width:2px
+    style W2 fill:#FFB74D,stroke:#333,stroke-width:2px
+    style W3 fill:#FFB74D,stroke:#333,stroke-width:2px
+    style DB1 fill:#FF7043,stroke:#333,stroke-width:2px
+    
+    style C1 fill:#4CAF50,stroke:#333,stroke-width:2px
+    style C2 fill:#4CAF50,stroke:#333,stroke-width:2px
+    style C3 fill:#4CAF50,stroke:#333,stroke-width:2px
+    style ADK fill:#9C27B0,stroke:#333,stroke-width:3px,color:#fff
+```
+
+### Execution Model Comparison
+
+```mermaid
+graph LR
+    subgraph "Apache Airflow"
+        A1[Python Only]
+        A2[Shared Workers]
+        A3[pip dependencies]
+        A4[Version Conflicts]
+    end
+    
+    subgraph "GitHub Actions"
+        G1[YAML Config]
+        G2[Limited Runners]
+        G3[60min Timeout]
+        G4[GitHub Hosted]
+    end
+    
+    subgraph "AWS Step Functions"
+        S1[JSON Definition]
+        S2[Lambda Functions]
+        S3[15min Limit]
+        S4[AWS Lock-in]
+    end
+    
+    subgraph "Kubiya"
+        K1[Any Language]
+        K2[Infinite Scale]
+        K3[No Timeouts]
+        K4[Container Native]
+        K5[AI-Powered]
+    end
+    
+    style A1 fill:#FFB74D
+    style A4 fill:#FF5252
+    style G3 fill:#FF5252
+    style S3 fill:#FF5252
+    style S4 fill:#FF5252
+    
+    style K1 fill:#4CAF50
+    style K2 fill:#4CAF50
+    style K3 fill:#4CAF50
+    style K4 fill:#4CAF50
+    style K5 fill:#9C27B0,color:#fff
+```
+
+### Resource Management
+
+```mermaid
+graph TD
+    subgraph "Traditional: Fixed Resources"
+        TR[Fixed Worker Pool]
+        TR --> TW1[Worker 1<br/>2 CPU, 4GB RAM]
+        TR --> TW2[Worker 2<br/>2 CPU, 4GB RAM]
+        TR --> TW3[Worker 3<br/>2 CPU, 4GB RAM]
+        
+        TW1 -.->|"Idle 70%"| X1[Wasted Resources]
+        TW2 -.->|"Idle 80%"| X2[Wasted Resources]
+        TW3 -.->|"Queue Full"| X3[Bottleneck]
+    end
+    
+    subgraph "Kubiya: Dynamic Resources"
+        KR[Dynamic Allocation]
+        KR --> KC1[Step 1<br/>1 CPU, 2GB]
+        KR --> KC2[Step 2<br/>8 CPU, 32GB]
+        KR --> KC3[Step 3<br/>GPU, 16GB]
+        
+        KC1 -.->|"Exact Fit"| Y1[100% Efficient]
+        KC2 -.->|"Scales Up"| Y2[As Needed]
+        KC3 -.->|"GPU When Required"| Y3[Specialized]
+    end
+    
+    style X1 fill:#FF5252,color:#fff
+    style X2 fill:#FF5252,color:#fff
+    style X3 fill:#FF5252,color:#fff
+    
+    style Y1 fill:#4CAF50,color:#fff
+    style Y2 fill:#4CAF50,color:#fff
+    style Y3 fill:#4CAF50,color:#fff
+```
+
 ## How It Works
 
 ### 1. **Workflow Definition**
@@ -149,18 +309,66 @@ workflow.add_step(Step(
 ))
 ```
 
-### 3. **Execution**
-When a workflow runs:
+### 3. **Execution Flow**
 
-1. ADK orchestrator receives the workflow
-2. Each step is queued for execution
-3. Containers are spun up on-demand
-4. Code executes in isolated environment
-5. Results are captured and stored
-6. Container is destroyed
+```mermaid
+graph TD
+    A[Workflow Submitted] --> B{ADK Orchestrator}
+    B --> C[Parse Workflow]
+    C --> D[Queue Steps]
+    
+    D --> E1[Spin Up Container 1]
+    D --> E2[Spin Up Container 2]
+    D --> E3[Spin Up Container N]
+    
+    E1 --> F1[Execute Code]
+    E2 --> F2[Execute Code]
+    E3 --> F3[Execute Code]
+    
+    F1 --> G1[Save Artifacts]
+    F2 --> G2[Save Artifacts]
+    F3 --> G3[Save Artifacts]
+    
+    G1 --> H1[Destroy Container]
+    G2 --> H2[Destroy Container]
+    G3 --> H3[Destroy Container]
+    
+    H1 --> I[Workflow Complete]
+    H2 --> I
+    H3 --> I
+    
+    style B fill:#9C27B0,stroke:#333,stroke-width:3px,color:#fff
+    style E1 fill:#4CAF50,stroke:#333,stroke-width:2px
+    style E2 fill:#4CAF50,stroke:#333,stroke-width:2px
+    style E3 fill:#4CAF50,stroke:#333,stroke-width:2px
+    style I fill:#2196F3,stroke:#333,stroke-width:2px,color:#fff
+```
 
 ### 4. **Data Flow**
 Steps communicate through artifacts:
+
+```mermaid
+graph LR
+    subgraph "Step 1: Generate"
+        G[Python Container]
+        G --> A1[dataset.csv]
+    end
+    
+    subgraph "Artifact Storage"
+        AS[(Cloud Storage)]
+        A1 --> AS
+        AS --> A2[dataset.csv]
+    end
+    
+    subgraph "Step 2: Process"
+        A2 --> P[Node.js Container]
+        P --> R[results.json]
+    end
+    
+    style G fill:#4CAF50,stroke:#333,stroke-width:2px
+    style P fill:#2196F3,stroke:#333,stroke-width:2px
+    style AS fill:#FF9800,stroke:#333,stroke-width:2px
+```
 
 ```python
 # Step 1: Generate data
@@ -187,145 +395,75 @@ workflow.add_step(Step(
 
 ### Multi-Language ETL Pipeline
 
+```mermaid
+graph TD
+    subgraph "Extract Phase"
+        E1["🐍 Python<br/>API Fetch"]
+        E2["🐍 Python<br/>S3 Download"]
+        E1 --> M1[Merge Data]
+        E2 --> M1
+    end
+    
+    subgraph "Transform Phase"
+        M1 --> T["🟨 Node.js<br/>Data Transform"]
+    end
+    
+    subgraph "Load Phase"
+        T --> L["🐹 Go<br/>Bulk Insert"]
+    end
+    
+    subgraph "Containers"
+        C1[python:3.11]
+        C2[node:20]
+        C3[golang:1.21]
+    end
+    
+    E1 -.->|runs in| C1
+    T -.->|runs in| C2
+    L -.->|runs in| C3
+    
+    style E1 fill:#3776AB,stroke:#333,stroke-width:2px,color:#fff
+    style E2 fill:#3776AB,stroke:#333,stroke-width:2px,color:#fff
+    style T fill:#F7DF1E,stroke:#333,stroke-width:2px
+    style L fill:#00ADD8,stroke:#333,stroke-width:2px,color:#fff
+```
+
 ```python
-workflow = Workflow(
-    name="advanced-etl",
-    runner="kubiya-hosted"
-)
-
-# Extract with Python
-workflow.add_step(Step(
-    name="extract",
-    image="python:3.11",
-    packages=["requests", "boto3"],
-    code="""
-    import requests
-    import boto3
-    
-    # Fetch from API
-    data = requests.get('https://api.example.com/data').json()
-    
-    # Also pull from S3
-    s3 = boto3.client('s3')
-    s3_data = s3.get_object(Bucket='my-bucket', Key='data.json')
-    
-    # Combine and save
-    combined = merge_data(data, s3_data)
-    save_artifact('raw_data.json', combined)
-    """
-))
-
-# Transform with Node.js
-workflow.add_step(Step(
-    name="transform",
-    image="node:20",
-    packages=["lodash", "moment"],
-    code="""
-    const _ = require('lodash');
-    const moment = require('moment');
-    
-    const data = loadArtifact('raw_data.json');
-    
-    // Complex transformations
-    const transformed = _.chain(data)
-        .filter(item => moment(item.date).isAfter('2024-01-01'))
-        .groupBy('category')
-        .mapValues(items => calculateMetrics(items))
-        .value();
-    
-    saveArtifact('transformed.json', transformed);
-    """
-))
-
-# Load with Go for performance
-workflow.add_step(Step(
-    name="load",
-    image="golang:1.21",
-    code="""
-    package main
-    
-    import (
-        "encoding/json"
-        "database/sql"
-        _ "github.com/lib/pq"
-    )
-    
-    func main() {
-        // Load transformed data
-        data := loadArtifact("transformed.json")
-        
-        // Bulk insert with Go's concurrency
-        db, _ := sql.Open("postgres", getConnString())
-        
-        // Use goroutines for parallel inserts
-        chunks := splitIntoChunks(data, 1000)
-        var wg sync.WaitGroup
-        
-        for _, chunk := range chunks {
-            wg.Add(1)
-            go func(c []Record) {
-                defer wg.Done()
-                bulkInsert(db, c)
-            }(chunk)
-        }
-        
-        wg.Wait()
-    }
-    """
-))
+// ... existing code ...
 ```
 
 ### DevOps Automation
 
+```mermaid
+graph TD
+    subgraph "Infrastructure"
+        TF["🔧 Terraform<br/>Provision"]
+    end
+    
+    subgraph "Configuration"
+        TF --> AN["🤖 Ansible<br/>Configure"]
+    end
+    
+    subgraph "Deployment"
+        AN --> K8S["☸️ Kubernetes<br/>Deploy"]
+    end
+    
+    subgraph "Validation"
+        K8S --> TEST["🧪 Test<br/>Smoke Tests"]
+    end
+    
+    TF -.->|"outputs.json"| AN
+    AN -.->|"inventory"| K8S
+    K8S -.->|"endpoints"| TEST
+    
+    style TF fill:#5C4EE5,stroke:#333,stroke-width:2px,color:#fff
+    style AN fill:#EE0000,stroke:#333,stroke-width:2px,color:#fff
+    style K8S fill:#326CE5,stroke:#333,stroke-width:2px,color:#fff
+    style TEST fill:#4CAF50,stroke:#333,stroke-width:2px,color:#fff
+```
+
 ```python
-workflow = Workflow(
-    name="deploy-infrastructure",
-    runner="kubiya-hosted"
-)
-
-# Terraform for infrastructure
-workflow.add_step(Step(
-    name="provision",
-    image="hashicorp/terraform:latest",
-    code="""
-    terraform init
-    terraform plan -out=tfplan
-    terraform apply -auto-approve tfplan
-    
-    # Export outputs
-    terraform output -json > outputs.json
-    save_artifact('infra_outputs.json', 'outputs.json')
-    """
-))
-
-# Ansible for configuration
-workflow.add_step(Step(
-    name="configure",
-    image="ansible/ansible:latest",
-    code="""
-    # Load infrastructure details
-    HOSTS=$(cat /artifacts/infra_outputs.json | jq -r '.hosts.value')
-    
-    # Run playbook
-    ansible-playbook -i "$HOSTS" configure.yml
-    """
-))
-
-# Kubernetes deployment
-workflow.add_step(Step(
-    name="deploy",
-    image="bitnami/kubectl:latest",
-    code="""
-    # Apply manifests
-    kubectl apply -f k8s/
-    
-    # Wait for rollout
-    kubectl rollout status deployment/my-app
-    
-    # Run smoke tests
-    kubectl run test --image=curlimages/curl -- http://my-app/health
-    """
-))
+// ... existing code ...
 ```
 
 ## Advanced Features
@@ -354,6 +492,23 @@ workflow.add_step(Step(
 
 Control container resources:
 
+```mermaid
+graph TD
+    subgraph "Resource Allocation"
+        S1["Step 1: Light Processing<br/>1 CPU, 2GB RAM"]
+        S2["Step 2: Heavy Compute<br/>8 CPU, 32GB RAM"]
+        S3["Step 3: ML Training<br/>4 GPU, 64GB RAM"]
+    end
+    
+    S1 -.->|"Dynamic<br/>Allocation"| R1[Minimal Cost]
+    S2 -.->|"Scales<br/>Up"| R2[As Needed]
+    S3 -.->|"GPU<br/>On-Demand"| R3[Only When Required]
+    
+    style S1 fill:#4CAF50,stroke:#333,stroke-width:2px
+    style S2 fill:#FF9800,stroke:#333,stroke-width:2px
+    style S3 fill:#9C27B0,stroke:#333,stroke-width:2px,color:#fff
+```
+
 ```python
 workflow.add_step(Step(
     name="memory-intensive",
@@ -370,6 +525,40 @@ workflow.add_step(Step(
 ### Network Isolation
 
 Each container runs in isolation:
+
+```mermaid
+graph TD
+    subgraph "Network Namespaces"
+        subgraph "Container 1"
+            API[API Server<br/>Port 3000]
+        end
+        
+        subgraph "Container 2"
+            CLIENT[Client]
+        end
+        
+        subgraph "Container 3"
+            DB[Database<br/>Port 5432]
+        end
+    end
+    
+    API -.->|"❌ No Access"| CLIENT
+    CLIENT -.->|"❌ No Access"| DB
+    API -.->|"❌ No Access"| DB
+    
+    subgraph "Communication"
+        ART[Via Artifacts Only]
+    end
+    
+    API --> ART
+    CLIENT --> ART
+    DB --> ART
+    
+    style API fill:#FF5252,stroke:#333,stroke-width:2px
+    style CLIENT fill:#FF5252,stroke:#333,stroke-width:2px
+    style DB fill:#FF5252,stroke:#333,stroke-width:2px
+    style ART fill:#4CAF50,stroke:#333,stroke-width:2px
+```
 
 ```python
 # Step 1: Start a service
@@ -393,6 +582,31 @@ workflow.add_step(Step(
 <Note>
   With ADK orchestration, you can generate these complex workflows using natural language:
 </Note>
+
+```mermaid
+graph TD
+    A[Natural Language Request] --> B[ADK AI Engine]
+    B --> C[Workflow Generation]
+    C --> D[Validation]
+    D --> E[Execution]
+    
+    subgraph "AI Understanding"
+        B1[Parse Intent]
+        B2[Identify Tools]
+        B3[Design DAG]
+        B4[Generate Code]
+        
+        B --> B1
+        B1 --> B2
+        B2 --> B3
+        B3 --> B4
+        B4 --> C
+    end
+    
+    style A fill:#9C27B0,stroke:#333,stroke-width:2px,color:#fff
+    style B fill:#9C27B0,stroke:#333,stroke-width:3px,color:#fff
+    style E fill:#4CAF50,stroke:#333,stroke-width:2px
+```
 
 ```python
 from kubiya_workflow_sdk import KubiyaWorkflow
@@ -436,6 +650,37 @@ result = workflow.execute()
 ## Security & Compliance
 
 The containerized architecture provides:
+
+```mermaid
+graph TD
+    subgraph "Security Layers"
+        S1[Process Isolation]
+        S2[Resource Limits]
+        S3[Network Policies]
+        S4[Audit Trails]
+        S5[Secrets Management]
+    end
+    
+    subgraph "Each Container"
+        C1[Isolated Namespace]
+        C2[Limited Resources]
+        C3[No Network Access]
+        C4[Full Logging]
+        C5[Encrypted Secrets]
+    end
+    
+    S1 --> C1
+    S2 --> C2
+    S3 --> C3
+    S4 --> C4
+    S5 --> C5
+    
+    style S1 fill:#4CAF50,stroke:#333,stroke-width:2px
+    style S2 fill:#4CAF50,stroke:#333,stroke-width:2px
+    style S3 fill:#4CAF50,stroke:#333,stroke-width:2px
+    style S4 fill:#4CAF50,stroke:#333,stroke-width:2px
+    style S5 fill:#4CAF50,stroke:#333,stroke-width:2px
+```
 
 - **Process Isolation**: Each step runs in its own namespace
 - **Resource Limits**: Prevent runaway processes

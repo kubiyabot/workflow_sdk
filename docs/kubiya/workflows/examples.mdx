@@ -14,6 +14,20 @@ Explore real-world examples that demonstrate Kubiya's power in orchestrating con
 
 Simple sequential execution of steps:
 
+```mermaid
+graph LR
+    A[Start] --> B[Extract Data]
+    B --> C[Transform Data]
+    C --> D[Load Data]
+    D --> E[Complete]
+    
+    style A fill:#4CAF50,stroke:#333,stroke-width:2px
+    style E fill:#4CAF50,stroke:#333,stroke-width:2px
+    style B fill:#2196F3,stroke:#333,stroke-width:2px,color:#fff
+    style C fill:#2196F3,stroke:#333,stroke-width:2px,color:#fff
+    style D fill:#2196F3,stroke:#333,stroke-width:2px,color:#fff
+```
+
 ```python
 from kubiya_workflow_sdk import workflow, step
 
@@ -30,6 +44,24 @@ wf = (
 ### Parallel Execution
 
 Run multiple tasks in parallel:
+
+```mermaid
+graph TD
+    A[Start] --> B[Split Files]
+    B --> C1[Process file1.csv]
+    B --> C2[Process file2.csv]
+    B --> C3[Process file3.csv]
+    C1 --> D[Merge Results]
+    C2 --> D
+    C3 --> D
+    D --> E[Complete]
+    
+    style A fill:#4CAF50,stroke:#333,stroke-width:2px
+    style E fill:#4CAF50,stroke:#333,stroke-width:2px
+    style C1 fill:#FF9800,stroke:#333,stroke-width:2px
+    style C2 fill:#FF9800,stroke:#333,stroke-width:2px
+    style C3 fill:#FF9800,stroke:#333,stroke-width:2px
+```
 
 ```python
 from kubiya_workflow_sdk import workflow
@@ -52,6 +84,23 @@ wf = (
 ### Multi-Container Pipeline
 
 Orchestrate different containers for each step:
+
+```mermaid
+graph TD
+    A[Start] --> B["🐳 Node.js Container<br/>Build Application"]
+    B --> C["🐳 Cypress Container<br/>Run Tests"]
+    C --> D["🐳 Kubectl Container<br/>Deploy to K8s"]
+    D --> E[Complete]
+    
+    B -.->|"Output: dist/"| C
+    C -.->|"Test Results"| D
+    
+    style A fill:#4CAF50,stroke:#333,stroke-width:2px
+    style E fill:#4CAF50,stroke:#333,stroke-width:2px
+    style B fill:#1976D2,stroke:#333,stroke-width:2px,color:#fff
+    style C fill:#00897B,stroke:#333,stroke-width:2px,color:#fff
+    style D fill:#7B1FA2,stroke:#333,stroke-width:2px,color:#fff
+```
 
 ```python
 from kubiya_workflow_sdk import workflow, step
@@ -84,6 +133,24 @@ def build_and_deploy():
 ### Database Migration with Services
 
 Use bounded services for database operations:
+
+```mermaid
+graph LR
+    subgraph "Migration Step Container"
+        M[Migrate Tool]
+        DB[(PostgreSQL<br/>Service)]
+        
+        M -.->|"Execute<br/>Migrations"| DB
+    end
+    
+    A[Start] --> M
+    M --> E[Complete]
+    
+    style A fill:#4CAF50,stroke:#333,stroke-width:2px
+    style E fill:#4CAF50,stroke:#333,stroke-width:2px
+    style M fill:#2196F3,stroke:#333,stroke-width:2px,color:#fff
+    style DB fill:#336791,stroke:#333,stroke-width:2px,color:#fff
+```
 
 ```python
 from kubiya_workflow_sdk import step
@@ -124,6 +191,33 @@ migrate -path /migrations -database postgres://user:pass@database:5432/db up
 ### Inline AI Agent for Log Analysis
 
 Integrate AI agents directly in workflows using inline_agent with function calling:
+
+```mermaid
+graph TD
+    A[Start] --> B["🐳 AWS CLI Container<br/>Fetch Logs"]
+    B --> C["🤖 AI Agent<br/>Analyze Logs"]
+    
+    subgraph "AI Agent Tools"
+        T1["📊 Parse JSON Logs"]
+        T2["🕐 Extract Timestamps"]
+    end
+    
+    C -.->|"Function<br/>Calling"| T1
+    C -.->|"Function<br/>Calling"| T2
+    C --> D["🐳 Python Container<br/>Generate Report"]
+    D --> E[Complete]
+    
+    B -.->|"LOG_CONTENT"| C
+    C -.->|"ANALYSIS_RESULT"| D
+    
+    style A fill:#4CAF50,stroke:#333,stroke-width:2px
+    style E fill:#4CAF50,stroke:#333,stroke-width:2px
+    style B fill:#FF9800,stroke:#333,stroke-width:2px,color:#fff
+    style C fill:#9C27B0,stroke:#333,stroke-width:3px,color:#fff
+    style D fill:#2196F3,stroke:#333,stroke-width:2px,color:#fff
+    style T1 fill:#E1BEE7,stroke:#333,stroke-width:1px
+    style T2 fill:#E1BEE7,stroke:#333,stroke-width:1px
+```
 
 ```python
 from kubiya_workflow_sdk import workflow, step
@@ -225,6 +319,31 @@ print("Report generated at /tmp/report.md")
 
 Use inline agents for intelligent code review:
 
+```mermaid
+graph TD
+    A[Start] --> B["🐳 Git Container<br/>Fetch PR Diff"]
+    B --> C["🤖 AI Code Reviewer"]
+    
+    subgraph "AI Agent Analysis Tools"
+        T1["📏 Count Lines Changed"]
+        T2["🔍 Detect Patterns"]
+    end
+    
+    C -.->|"Analyze<br/>Complexity"| T1
+    C -.->|"Find<br/>Issues"| T2
+    C --> D["🐳 Alpine Container<br/>Post Review"]
+    D --> E[Complete]
+    
+    B -.->|"PR_DIFF"| C
+    C -.->|"REVIEW_COMMENTS"| D
+    
+    style A fill:#4CAF50,stroke:#333,stroke-width:2px
+    style E fill:#4CAF50,stroke:#333,stroke-width:2px
+    style B fill:#F44336,stroke:#333,stroke-width:2px,color:#fff
+    style C fill:#9C27B0,stroke:#333,stroke-width:3px,color:#fff
+    style D fill:#00BCD4,stroke:#333,stroke-width:2px
+```
+
 ```python
 from kubiya_workflow_sdk import workflow, step
 
@@ -317,6 +436,39 @@ EOF
 ### Intelligent Incident Response
 
 Serverless agents for automated incident response:
+
+```mermaid
+graph TD
+    A[Start] --> B["🚨 Detect Incident"]
+    B --> C["🤖 AI Incident Commander"]
+    
+    subgraph "AI Response Tools"
+        T1["💓 Check Service Health"]
+        T2["📦 Get Recent Deployments"]
+        T3["📊 Check Resource Usage"]
+    end
+    
+    C -.->|"Assess<br/>Severity"| T1
+    C -.->|"Find Root<br/>Cause"| T2
+    C -.->|"Check<br/>Resources"| T3
+    
+    C --> D{Severity?}
+    D -->|"P1/P2"| E["⚡ Execute Immediate Actions"]
+    D -->|"P3/P4"| F["📋 Create Ticket"]
+    E --> G["📢 Notify Team"]
+    F --> G
+    G --> H[Complete]
+    
+    B -.->|"INCIDENTS"| C
+    C -.->|"RESPONSE_PLAN"| D
+    
+    style A fill:#4CAF50,stroke:#333,stroke-width:2px
+    style H fill:#4CAF50,stroke:#333,stroke-width:2px
+    style B fill:#F44336,stroke:#333,stroke-width:2px,color:#fff
+    style C fill:#9C27B0,stroke:#333,stroke-width:3px,color:#fff
+    style E fill:#FF5722,stroke:#333,stroke-width:2px,color:#fff
+    style G fill:#FFC107,stroke:#333,stroke-width:2px
+```
 
 ```python
 @workflow
@@ -456,6 +608,18 @@ echo "See full response plan above"
 ### Custom CLI Tool
 
 Define reusable tools inline:
+
+```mermaid
+graph LR
+    A[Workflow Step] --> B["🔧 Tool Definition<br/>slack-notifier"]
+    B --> C["🐳 Curl Container<br/>Send Notification"]
+    C --> D[Slack Channel]
+    
+    style A fill:#4CAF50,stroke:#333,stroke-width:2px
+    style B fill:#9E9E9E,stroke:#333,stroke-width:2px
+    style C fill:#00BCD4,stroke:#333,stroke-width:2px
+    style D fill:#4CAF50,stroke:#333,stroke-width:2px
+```
 
 ```python
 from kubiya_workflow_sdk import step
