@@ -33,7 +33,8 @@
               "concepts/runners",
               "concepts/integrations",
               "concepts/deterministic-workflows",
-              "concepts/why-kubiya"
+              "concepts/why-kubiya",
+              "concepts/agent-frameworks-comparison"
             ]
           },
           {
@@ -42,7 +43,8 @@
               "workflows/overview",
               "workflows/architecture",
               "workflows/dsl-reference",
-              "workflows/examples"
+              "workflows/examples",
+              "workflows/advanced"
             ]
           }
         ]
@@ -109,6 +111,21 @@
               "changelog",
               "migration-guide",
               "updates"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "SDK",
+        "groups": [
+          {
+            "group": "SDK Deep Dive",
+            "pages": [
+              "sdk/overview",
+              "sdk/api-reference",
+              "sdk/examples",
+              "sdk/contributing",
+              "sdk/changelog"
             ]
           }
         ]

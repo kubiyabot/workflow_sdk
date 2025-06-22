@@ -1,171 +1,336 @@
 ---
 title: Platform Overview
-description: Understanding Kubiya's architecture and core components
-icon: layer-group
+description: The end-to-end platform for AI-powered workflow automation that puts you on rails to production
+icon: rocket
 ---
 
-# Platform Overview
+# Platform Overview: From Agent Chaos to Workflow Clarity
 
-Kubiya is a comprehensive platform that brings together AI intelligence and infrastructure automation. At its core, Kubiya enables AI agents to generate and execute complex workflows on your infrastructure securely and reliably.
+Kubiya is a revolutionary platform that bridges the gap between AI capabilities and production reliability. Unlike agent frameworks that let AI run wild, Kubiya puts you **on rails to production** with deterministic, containerized workflows.
 
-## Core Components
-
-### 1. Kubiya Platform
-
-The central control plane that manages:
-- **Workflow Registry**: Stores and versions workflow definitions
-- **Agent Service**: Connects to AI providers for intelligent automation
-- **API Gateway**: RESTful and streaming APIs for all operations
-- **Security & Auth**: RBAC, audit logs, and credential management
-
-### 2. Kubiya Runners
-
-Kubernetes operators that execute workflows in your infrastructure:
-- **Local Runners**: Deploy in your K8s clusters
-- **Hosted Runners**: Managed by Kubiya for quick starts
-- **Hybrid Mode**: Mix local and hosted for flexibility
-
-### 3. Workflow Engine
-
-The execution engine that:
-- Parses workflow DAGs
-- Schedules container execution
-- Manages state and retries
-- Streams real-time logs
-
-### 4. AI Integration Layer
-
-Connects various AI providers:
-- **Google ADK**: Agent Development Kit integration
-- **Anthropic Claude**: Via MCP protocol
-- **OpenAI**: GPT models for workflow generation
-- **Custom Models**: Bring your own LLMs
-
-## Architecture Flow
+## The Rails Approach to AI Automation
 
 ```mermaid
-sequenceDiagram
-    participant User
-    participant AI as AI Agent
-    participant API as Kubiya API
-    participant Runner as K8s Runner
-    participant Pod as Workflow Pod
+graph TD
+    subgraph "Traditional Agent Frameworks"
+        CHAOS[🌪️ Agent Chaos]
+        A1[Unpredictable Paths]
+        A2[State Management Hell]
+        A3[Debug Nightmares]
+        A4[Production Failures]
+        
+        CHAOS --> A1
+        CHAOS --> A2
+        CHAOS --> A3
+        A1 --> A4
+        A2 --> A4
+        A3 --> A4
+    end
     
-    User->>AI: Describe workflow need
-    AI->>API: Generate workflow definition
-    API->>API: Validate & store workflow
-    User->>API: Execute workflow
-    API->>Runner: Deploy workflow
-    Runner->>Pod: Create pods
-    Pod->>Pod: Execute containers
-    Pod->>Runner: Stream logs
-    Runner->>API: Status updates
-    API->>User: Real-time results
+    subgraph "Kubiya: On Rails"
+        RAILS[🚄 On Rails to Production]
+        K1[Natural Language Input]
+        K2[Deterministic Workflows]
+        K3[Container Isolation]
+        K4[Production Success]
+        
+        RAILS --> K1
+        K1 --> K2
+        K2 --> K3
+        K3 --> K4
+    end
+    
+    style CHAOS fill:#FF5252,stroke:#333,stroke-width:3px,color:#fff
+    style A4 fill:#D32F2F,stroke:#333,stroke-width:2px,color:#fff
+    
+    style RAILS fill:#4CAF50,stroke:#333,stroke-width:3px,color:#fff
+    style K4 fill:#2E7D32,stroke:#333,stroke-width:2px,color:#fff
 ```
 
-## Key Differentiators
+## Why "On Rails"?
 
-### Infrastructure-First Design
+Just like Ruby on Rails revolutionized web development by providing conventions and structure, Kubiya revolutionizes AI automation by providing:
 
-Unlike SaaS workflow tools, Kubiya runs entirely in your environment:
+- **Convention over Configuration**: Sensible defaults for production workflows
+- **Guardrails for Safety**: AI generates workflows within safe boundaries
+- **Predictable Patterns**: Same input → Same workflow → Same result
+- **Clear Path to Production**: From idea to deployed automation in minutes
 
-<ComparisonTable>
-  <ComparisonRow>
-    <ComparisonHeader>Feature</ComparisonHeader>
-    <ComparisonHeader>Kubiya</ComparisonHeader>
-    <ComparisonHeader>Traditional SaaS</ComparisonHeader>
-  </ComparisonRow>
-  <ComparisonRow>
-    <ComparisonCell>Data Location</ComparisonCell>
-    <ComparisonCell>✅ Stays in your infrastructure</ComparisonCell>
-    <ComparisonCell>❌ Flows through vendor cloud</ComparisonCell>
-  </ComparisonRow>
-  <ComparisonRow>
-    <ComparisonCell>Container Support</ComparisonCell>
-    <ComparisonCell>✅ Any Docker image</ComparisonCell>
-    <ComparisonCell>❌ Limited to vendor tools</ComparisonCell>
-  </ComparisonRow>
-  <ComparisonRow>
-    <ComparisonCell>Network Access</ComparisonCell>
-    <ComparisonCell>✅ Direct access to internal resources</ComparisonCell>
-    <ComparisonCell>❌ Requires VPN/tunnels</ComparisonCell>
-  </ComparisonRow>
-  <ComparisonRow>
-    <ComparisonCell>Compliance</ComparisonCell>
-    <ComparisonCell>✅ Full control for compliance</ComparisonCell>
-    <ComparisonCell>❌ Shared responsibility model</ComparisonCell>
-  </ComparisonRow>
-</ComparisonTable>
+## Core Architecture
 
-### AI-Native Workflow Generation
+```mermaid
+graph TB
+    subgraph "Input Layer"
+        NL[Natural Language Request]
+        API[API Call]
+        MCP[MCP Client]
+    end
+    
+    subgraph "AI Generation Layer"
+        ADK[ADK Orchestrator]
+        WG[Workflow Generator]
+        VAL[Validation Engine]
+    end
+    
+    subgraph "Execution Layer"
+        subgraph "Deterministic DAG"
+            S1[Step 1: Container A]
+            S2[Step 2: Container B]
+            S3[Step 3: Container C]
+        end
+    end
+    
+    subgraph "Infrastructure Layer"
+        K8S[Kubernetes Runners]
+        DOCKER[Docker Containers]
+        STORAGE[Artifact Storage]
+    end
+    
+    NL --> ADK
+    API --> ADK
+    MCP --> ADK
+    
+    ADK --> WG
+    WG --> VAL
+    VAL --> S1
+    
+    S1 --> S2
+    S2 --> S3
+    
+    S1 -.->|runs in| DOCKER
+    S2 -.->|runs in| DOCKER
+    S3 -.->|runs in| DOCKER
+    
+    DOCKER -.->|orchestrated by| K8S
+    S1 --> STORAGE
+    S2 --> STORAGE
+    S3 --> STORAGE
+    
+    style ADK fill:#9C27B0,stroke:#333,stroke-width:3px,color:#fff
+    style S1 fill:#4CAF50,stroke:#333,stroke-width:2px
+    style S2 fill:#4CAF50,stroke:#333,stroke-width:2px
+    style S3 fill:#4CAF50,stroke:#333,stroke-width:2px
+```
 
-Kubiya is built from the ground up for AI agents:
+## Key Components
 
-1. **Natural Language to DAG**: AI agents understand intent and generate structured workflows
-2. **Context Awareness**: Agents have access to your tools, integrations, and patterns
-3. **Learning Loop**: Workflows improve based on execution feedback
-4. **Multi-Agent Coordination**: Different AI models for different tasks
+### 1. **ADK (Agent Development Kit)**
+The intelligent orchestration layer that understands natural language and generates deterministic workflows.
 
-### Enterprise-Grade Security
+<Card title="🤖 AI-Powered Generation" icon="robot">
+  ADK translates your intent into structured workflows, not unpredictable agent chains
+</Card>
 
-Security is built into every layer:
+### 2. **Workflow Engine**
+Executes workflows as directed acyclic graphs (DAGs) with each step running in isolated containers.
 
-- **Zero Trust**: Runners authenticate with mutual TLS
-- **RBAC**: Fine-grained permissions for users and agents
-- **Audit Logging**: Complete trail of all operations
-- **Secrets Management**: Integration with K8s secrets, Vault, etc.
-- **Network Policies**: Runners respect your K8s network policies
+<Card title="🚄 Deterministic Execution" icon="train">
+  Every execution follows the same path - no surprises, no agent wandering
+</Card>
+
+### 3. **Container Runtime**
+Every workflow step runs in its own Docker container with complete isolation.
+
+<Card title="🐳 Universal Compatibility" icon="docker">
+  Run any language, tool, or software - from Python to Go to Terraform
+</Card>
+
+### 4. **Runners**
+Deploy runners on your infrastructure (Kubernetes, Docker, local) to execute workflows where your data lives.
+
+<Card title="🏃 Run Anywhere" icon="running">
+  Your infrastructure, your control, your security boundaries
+</Card>
+
+## From Chaos to Clarity
+
+### The Agent Framework Problem
+
+```mermaid
+graph LR
+    subgraph "Agent Frameworks Journey"
+        START[Start Task]
+        
+        A1[Agent Thinks]
+        A2[Agent Acts]
+        A3[Something Breaks]
+        A4[Agent Retries]
+        A5[Different Path]
+        A6[Lost Context]
+        A7[Manual Intervention]
+        
+        START --> A1
+        A1 --> A2
+        A2 --> A3
+        A3 --> A4
+        A4 --> A5
+        A5 --> A6
+        A6 --> A7
+        
+        A2 -.->|"Maybe?"| SUCCESS[Success?]
+        A5 -.->|"Unlikely"| SUCCESS
+        A7 --> FAILURE[😭 Production Down]
+    end
+    
+    style A3 fill:#FF5252,stroke:#333,stroke-width:2px
+    style A6 fill:#FF5252,stroke:#333,stroke-width:2px
+    style FAILURE fill:#D32F2F,stroke:#333,stroke-width:3px,color:#fff
+```
+
+### The Kubiya Solution
+
+```mermaid
+graph LR
+    subgraph "Kubiya Rails Journey"
+        START[Define Goal]
+        
+        K1[ADK Generates Workflow]
+        K2[Review & Validate]
+        K3[Execute Step 1]
+        K4[Execute Step 2]
+        K5[Execute Step N]
+        K6[Complete]
+        
+        START --> K1
+        K1 --> K2
+        K2 --> K3
+        K3 --> K4
+        K4 --> K5
+        K5 --> K6
+        
+        K6 --> SUCCESS[✅ Predictable Success]
+    end
+    
+    style K1 fill:#9C27B0,stroke:#333,stroke-width:2px,color:#fff
+    style K3 fill:#4CAF50,stroke:#333,stroke-width:2px
+    style K4 fill:#4CAF50,stroke:#333,stroke-width:2px
+    style K5 fill:#4CAF50,stroke:#333,stroke-width:2px
+    style SUCCESS fill:#2E7D32,stroke:#333,stroke-width:3px,color:#fff
+```
 
 ## Platform Capabilities
 
-### Workflow Orchestration
+### Natural Language to Workflow
 
-- **DAG Execution**: Complex dependency graphs
-- **Parallel Execution**: Run steps concurrently
-- **Conditional Logic**: If/else branches
-- **Loops & Iterations**: For/while constructs
-- **Error Handling**: Retries, fallbacks, compensations
+Transform requirements into production-ready workflows:
 
-### Container Management
+```python
+# Simple request
+workflow = KubiyaWorkflow.from_prompt(
+    "Deploy my Node.js app to Kubernetes with health checks",
+    runner="kubiya-hosted"
+)
 
-- **Any Image**: Public or private registries
-- **Resource Limits**: CPU, memory, GPU allocation
-- **Volume Mounts**: Persistent and ephemeral storage
-- **Environment Variables**: Secure injection
-- **Network Policies**: Control container networking
+# ADK generates complete workflow with:
+# - Build steps
+# - Test execution
+# - Kubernetes deployment
+# - Health monitoring
+```
 
-### Integration Ecosystem
+### Multi-Language Support
 
-<CardGroup cols={3}>
-  <Card title="Source Control" icon="code-branch">
-    Git, GitHub, GitLab, Bitbucket
+```mermaid
+graph TD
+    subgraph "One Workflow, Many Languages"
+        W[Workflow Definition]
+        
+        S1["🐍 Python Step<br/>Data Analysis"]
+        S2["🟨 JavaScript Step<br/>API Calls"]
+        S3["🐹 Go Step<br/>Performance Tasks"]
+        S4["🦀 Rust Step<br/>System Operations"]
+        S5["☸️ Kubectl Step<br/>Deployments"]
+        
+        W --> S1
+        W --> S2
+        W --> S3
+        W --> S4
+        W --> S5
+    end
+    
+    style S1 fill:#3776AB,stroke:#333,stroke-width:2px,color:#fff
+    style S2 fill:#F7DF1E,stroke:#333,stroke-width:2px
+    style S3 fill:#00ADD8,stroke:#333,stroke-width:2px,color:#fff
+    style S4 fill:#CE422B,stroke:#333,stroke-width:2px,color:#fff
+    style S5 fill:#326CE5,stroke:#333,stroke-width:2px,color:#fff
+```
+
+### Enterprise-Grade Features
+
+<CardGroup cols={2}>
+  <Card title="🔒 Security First" icon="shield">
+    - Container isolation
+    - No infrastructure access required
+    - Audit trails for compliance
+    - Secrets management
   </Card>
-  <Card title="CI/CD" icon="infinity">
-    Jenkins, CircleCI, GitHub Actions
+  
+  <Card title="📈 Scalability" icon="chart-line">
+    - Serverless execution
+    - Auto-scaling runners
+    - Parallel step execution
+    - Resource optimization
   </Card>
-  <Card title="Cloud Providers" icon="cloud">
-    AWS, GCP, Azure, Private clouds
+  
+  <Card title="🔍 Observability" icon="magnifying-glass">
+    - Real-time execution logs
+    - Step-by-step visibility
+    - Performance metrics
+    - Error tracking
   </Card>
-  <Card title="Databases" icon="database">
-    PostgreSQL, MySQL, MongoDB, Redis
-  </Card>
-  <Card title="Messaging" icon="message">
-    Kafka, RabbitMQ, SQS, Pub/Sub
-  </Card>
-  <Card title="Monitoring" icon="chart-line">
-    Prometheus, Grafana, DataDog
+  
+  <Card title="🔄 Reliability" icon="arrows-rotate">
+    - Automatic retries
+    - Error handling
+    - Rollback capabilities
+    - Health checks
   </Card>
 </CardGroup>
 
-### Observability
+## Integration Ecosystem
 
-Built-in monitoring and debugging:
-
-- **Real-time Logs**: Stream from all containers
-- **Metrics**: Execution time, resource usage
-- **Tracing**: Distributed tracing support
-- **Debugging**: Step-through execution
-- **Alerting**: Integration with your alerting stack
+```mermaid
+graph TD
+    subgraph "Input Sources"
+        I1[Claude Desktop]
+        I2[Cursor IDE]
+        I3[REST API]
+        I4[Python SDK]
+        I5[CLI]
+    end
+    
+    subgraph "Kubiya Platform"
+        CORE[Kubiya Core]
+        ADK[ADK Engine]
+        WF[Workflow Engine]
+    end
+    
+    subgraph "Execution Targets"
+        E1[Kubernetes]
+        E2[Docker]
+        E3[AWS]
+        E4[GCP]
+        E5[On-Premise]
+    end
+    
+    I1 --> CORE
+    I2 --> CORE
+    I3 --> CORE
+    I4 --> CORE
+    I5 --> CORE
+    
+    CORE --> ADK
+    ADK --> WF
+    
+    WF --> E1
+    WF --> E2
+    WF --> E3
+    WF --> E4
+    WF --> E5
+    
+    style CORE fill:#0088ff,stroke:#333,stroke-width:3px,color:#fff
+    style ADK fill:#9C27B0,stroke:#333,stroke-width:2px,color:#fff
+```
 
 ## Use Cases
 
@@ -176,38 +341,147 @@ Built-in monitoring and debugging:
 - Incident response
 
 ### Data Engineering
-- ETL/ELT pipelines
+- ETL pipelines
 - Data quality checks
-- ML model training
-- Batch processing
+- Report generation
+- Analytics workflows
 
-### Security Operations
-- Vulnerability scanning
-- Compliance checks
-- Incident investigation
-- Automated remediation
+### AI/ML Operations
+- Model training pipelines
+- Data preprocessing
+- Model deployment
+- A/B testing
 
 ### Business Automation
 - Report generation
 - Data synchronization
 - Notification workflows
-- Integration workflows
+- Approval processes
+
+## The Rails Philosophy
+
+<Note>
+  **"Convention over Configuration"**: Kubiya provides sensible defaults and patterns that guide you toward production success, just like Rails did for web development.
+</Note>
+
+### Rails Principles Applied to AI Automation
+
+1. **DRY (Don't Repeat Yourself)**
+   - Reusable workflow templates
+   - Shared tool definitions
+   - Component libraries
+
+2. **Convention over Configuration**
+   - Standard workflow patterns
+   - Default retry strategies
+   - Built-in error handling
+
+3. **Explicit is Better than Implicit**
+   - Clear workflow definitions
+   - Visible execution paths
+   - Transparent logging
+
+4. **Fast Development, Reliable Deployment**
+   - Quick prototyping with AI
+   - Production-ready from day one
+   - No rewrite needed
 
 ## Getting Started
 
-Ready to explore Kubiya? Check out these resources:
+<Steps>
+  <Step title="Install SDK">
+    ```bash
+    pip install kubiya-workflow-sdk
+    ```
+  </Step>
+  
+  <Step title="Generate First Workflow">
+    ```python
+    from kubiya_workflow_sdk import KubiyaWorkflow
+    
+    workflow = KubiyaWorkflow.from_prompt(
+        "Create a backup of my PostgreSQL database",
+        runner="kubiya-hosted"
+    )
+    ```
+  </Step>
+  
+  <Step title="Review and Execute">
+    ```python
+    # See what will run
+    print(workflow.to_yaml())
+    
+    # Execute with confidence
+    result = workflow.execute()
+    ```
+  </Step>
+</Steps>
+
+## Why Choose Kubiya?
+
+<ComparisonTable>
+  <Row>
+    <Cell>Feature</Cell>
+    <Cell>Agent Frameworks</Cell>
+    <Cell>Traditional Orchestrators</Cell>
+    <Cell>Kubiya</Cell>
+  </Row>
+  <Row>
+    <Cell>AI Integration</Cell>
+    <Cell>✅ Deep but chaotic</Cell>
+    <Cell>❌ Manual only</Cell>
+    <Cell>✅ AI-generated, deterministic</Cell>
+  </Row>
+  <Row>
+    <Cell>Production Ready</Cell>
+    <Cell>❌ Experimental</Cell>
+    <Cell>✅ Yes, but complex</Cell>
+    <Cell>✅ Built for production</Cell>
+  </Row>
+  <Row>
+    <Cell>Debugging</Cell>
+    <Cell>❌ Nearly impossible</Cell>
+    <Cell>⚠️ Depends on setup</Cell>
+    <Cell>✅ Full visibility</Cell>
+  </Row>
+  <Row>
+    <Cell>Language Support</Cell>
+    <Cell>⚠️ Limited by framework</Cell>
+    <Cell>⚠️ Often Python-only</Cell>
+    <Cell>✅ Any language/tool</Cell>
+  </Row>
+  <Row>
+    <Cell>Setup Time</Cell>
+    <Cell>Days/Weeks</Cell>
+    <Cell>Days/Weeks</Cell>
+    <Cell>Minutes</Cell>
+  </Row>
+</ComparisonTable>
+
+## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Workflows Guide" icon="sitemap" href="/concepts/workflows">
-    Learn about workflow architecture
+  <Card title="Compare with Agent Frameworks" icon="robot" href="/concepts/agent-frameworks-comparison">
+    See how Kubiya puts agent chaos on rails
   </Card>
-  <Card title="Runners Guide" icon="server" href="/concepts/runners">
-    Deploy runners in your infrastructure
+  
+  <Card title="Quick Start Guide" icon="rocket" href="/getting-started/quickstart">
+    Build your first workflow in 5 minutes
   </Card>
-  <Card title="Quick Start" icon="rocket" href="/getting-started/quickstart">
-    Build your first workflow
+  
+  <Card title="Workflow Architecture" icon="sitemap" href="/workflows/architecture">
+    Deep dive into containerized execution
   </Card>
-  <Card title="API Reference" icon="code" href="/api-reference/overview">
-    Explore the platform APIs
+  
+  <Card title="Why Kubiya?" icon="shield-check" href="/concepts/why-kubiya">
+    Understand our security-first approach
   </Card>
-</CardGroup> 
+</CardGroup>
+
+## Join the Movement
+
+Move from agent chaos to workflow clarity. Join thousands of engineers who've discovered the rails approach to AI automation.
+
+<Card title="Start Building Today" icon="hammer" href="https://app.kubiya.ai">
+  Get your API key and put your automation on rails
+</Card> 

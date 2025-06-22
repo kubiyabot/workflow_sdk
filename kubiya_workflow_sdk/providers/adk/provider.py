@@ -153,7 +153,13 @@ class ADKProvider(BaseProvider):
         self._orchestrator = None
         self._runner = None
         
-        logger.info(f"Initialized ADK Provider with {self.config.model_provider.value} models")
+        # Handle both string and enum types for model_provider
+        provider_value = (
+            self.config.model_provider.value 
+            if hasattr(self.config.model_provider, 'value') 
+            else self.config.model_provider
+        )
+        logger.info(f"Initialized ADK Provider with {provider_value} models")
     
     @property
     def orchestrator(self):
@@ -1043,7 +1049,13 @@ Please provide the corrected workflow code.
         try:
             import litellm
             
-            logger.info(f"Configuring LiteLLM for {self.config.model_provider.value} models...")
+            # Handle both string and enum types for model_provider
+            provider_value = (
+                self.config.model_provider.value 
+                if hasattr(self.config.model_provider, 'value') 
+                else self.config.model_provider
+            )
+            logger.info(f"Configuring LiteLLM for {provider_value} models...")
             
             # Configure based on model provider
             if self.config.model_provider == ModelProvider.TOGETHER_AI:
@@ -1074,8 +1086,13 @@ Please provide the corrected workflow code.
             litellm.set_verbose = False
             
             # Log configured models
-            logger.info(f"✅ LiteLLM configured for {self.config.model_provider.value} models")
+            logger.info(f"✅ LiteLLM configured for {provider_value} models")
             logger.debug(f"Models configured: {', '.join([self.config.get_model_for_role(role) for role in ['orchestrator', 'context_loader', 'workflow_generator', 'compiler', 'refinement', 'fast']])}")
                     
         except ImportError as e:
-            logger.warning(f"Could not import litellm - {self.config.model_provider.value} models not available: {e}") 
+            provider_value = (
+                self.config.model_provider.value 
+                if hasattr(self.config.model_provider, 'value') 
+                else self.config.model_provider
+            )
+            logger.warning(f"Could not import litellm - {provider_value} models not available: {e}") 

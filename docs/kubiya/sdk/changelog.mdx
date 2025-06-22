@@ -1,0 +1,248 @@
+---
+title: "SDK Changelog"
+description: "Release history and changes for the Kubiya Workflow SDK"
+icon: "clock"
+---
+
+# SDK Changelog
+
+All notable changes to the Kubiya Workflow SDK are documented here.
+
+## [2.0.0] - 2024-12-15
+
+### 🎉 Major Release
+
+Complete rewrite of the SDK with enhanced AI capabilities and streaming support.
+
+### ✨ Added
+
+- **AI Workflow Generation**: Generate workflows from natural language using ADK provider
+- **Streaming Execution**: Real-time workflow execution updates
+- **Provider System**: Extensible provider architecture for different orchestration backends
+- **MCP Server**: Model Context Protocol server for AI integration
+- **Enhanced DSL**: More intuitive Python DSL with decorators
+- **Inline Agents**: Embed AI decision-making directly in workflows
+- **Resource Management**: Better container resource allocation
+- **Parallel Execution**: Native support for parallel step execution
+
+### 🔄 Changed
+
+- **API Redesign**: Cleaner, more intuitive API structure
+- **Client Configuration**: Simplified client initialization
+- **Error Handling**: More descriptive error messages and types
+- **Step Definition**: Unified step creation interface
+- **Default Runner**: Changed from "auto" to "kubiya-hosted"
+
+### 🐛 Fixed
+
+- Context loading issues with ADK provider
+- Streaming event formatting
+- Authentication with UserKey format
+- Runner selection logic
+
+### 💥 Breaking Changes
+
+- Removed `workflow.add_step()` in favor of DSL approach
+- Changed provider initialization API
+- Updated streaming event structure
+- Renamed several core classes for clarity
+
+### 📚 Documentation
+
+- Complete documentation overhaul
+- New SDK deep dive section
+- Comprehensive examples
+- API reference updates
+
+## [1.5.0] - 2024-11-01
+
+### ✨ Added
+
+- Basic workflow composition
+- Docker container support
+- Simple retry mechanisms
+- Environment variable management
+
+### 🔄 Changed
+
+- Improved error messages
+- Better validation logic
+- Updated dependencies
+
+### 🐛 Fixed
+
+- Memory leaks in long-running workflows
+- Docker socket permission issues
+- Windows compatibility problems
+
+## [1.0.0] - 2024-09-15
+
+### 🎉 Initial Release
+
+- Basic workflow definition and execution
+- Python DSL for workflow creation
+- Command-line interface
+- Docker integration
+- Simple step types (shell, python)
+
+---
+
+## Version Guidelines
+
+We follow [Semantic Versioning](https://semver.org/):
+
+- **Major** (X.0.0): Breaking API changes
+- **Minor** (0.X.0): New features, backward compatible
+- **Patch** (0.0.X): Bug fixes, backward compatible
+
+## Upgrade Guide
+
+### From 1.x to 2.0
+
+#### Client Initialization
+
+**Before (1.x):**
+```python
+from kubiya_sdk import KubiyaClient
+
+client = KubiyaClient(
+    token="...",
+    base_url="..."
+)
+```
+
+**After (2.0):**
+```python
+from kubiya_workflow_sdk import Client
+
+client = Client(
+    api_key="key_...",
+    api_url="https://api.kubiya.ai"
+)
+```
+
+#### Workflow Definition
+
+**Before (1.x):**
+```python
+workflow = Workflow("my-workflow")
+workflow.add_step(ShellStep("echo", "echo 'Hello'"))
+workflow.add_step(PythonStep("process", "print('Processing')"))
+```
+
+**After (2.0):**
+```python
+@workflow(name="my-workflow")
+def my_workflow():
+    step.shell("echo 'Hello'", name="echo")
+    step.python("print('Processing')", name="process")
+```
+
+#### Streaming
+
+**Before (1.x):**
+```python
+# Not supported
+result = client.run_workflow(workflow)
+print(result)
+```
+
+**After (2.0):**
+```python
+# Real-time streaming
+for event in client.execute_workflow(workflow, stream=True):
+    if event.type == "log":
+        print(event.data["message"])
+```
+
+#### Error Handling
+
+**Before (1.x):**
+```python
+try:
+    client.run_workflow(workflow)
+except Exception as e:
+    print(f"Error: {e}")
+```
+
+**After (2.0):**
+```python
+from kubiya_workflow_sdk.errors import (
+    ValidationError,
+    ExecutionError,
+    StepError
+)
+
+try:
+    client.execute_workflow(workflow)
+except StepError as e:
+    print(f"Step {e.step_name} failed: {e.message}")
+except ExecutionError as e:
+    print(f"Workflow failed: {e}")
+```
+
+## Deprecation Policy
+
+- Features marked as deprecated will be maintained for at least 2 minor versions
+- Deprecation warnings will be added to affected code
+- Migration guides will be provided for deprecated features
+- Breaking changes only occur in major version releases
+
+## Support Policy
+
+| Version | Status | Support Until |
+|---------|--------|---------------|
+| 2.0.x | **Current** | Active |
+| 1.5.x | Maintenance | 2025-03-01 |
+| 1.0.x | End of Life | 2024-12-31 |
+
+### Support Levels
+
+- **Current**: Full support, new features, bug fixes
+- **Maintenance**: Critical bug fixes only
+- **End of Life**: No support, upgrade recommended
+
+## Reporting Issues
+
+Found a bug or have a feature request?
+
+1. Check [existing issues](https://github.com/kubiya-sandbox/kubiya-workflow-sdk/issues)
+2. Create a [new issue](https://github.com/kubiya-sandbox/kubiya-workflow-sdk/issues/new)
+3. Include:
+   - SDK version
+   - Python version
+   - Minimal reproduction code
+   - Error messages/logs
+
+## Future Roadmap
+
+### Version 2.1 (Q1 2025)
+
+- [ ] Enhanced provider ecosystem
+- [ ] Advanced scheduling capabilities
+- [ ] Workflow versioning
+- [ ] Blue-green deployments
+
+### Version 2.2 (Q2 2025)
+
+- [ ] GraphQL API support
+- [ ] Workflow marketplace
+- [ ] Visual workflow designer integration
+- [ ] Enhanced monitoring and alerting
+
+### Version 3.0 (Q3 2025)
+
+- [ ] Complete async/await support
+- [ ] Distributed workflow execution
+- [ ] Advanced AI orchestration
+- [ ] Multi-cloud native support
+
+## Contributing
+
+See our [Contributing Guide](/sdk/contributing) to help shape the future of the SDK!
+
+---
+
+<Note>
+  Stay updated with the latest changes by watching our [GitHub repository](https://github.com/kubiya-sandbox/kubiya-workflow-sdk).
+</Note> 

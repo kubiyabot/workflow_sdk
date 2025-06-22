@@ -1,0 +1,430 @@
+---
+title: "Contributing to the SDK"
+description: "Guide for contributing to the Kubiya Workflow SDK"
+icon: "code-branch"
+---
+
+# Contributing to the SDK
+
+Thank you for your interest in contributing to the Kubiya Workflow SDK! This guide will help you get started.
+
+## Getting Started
+
+### Fork and Clone
+
+```bash
+# Fork the repository on GitHub
+# Then clone your fork
+git clone https://github.com/YOUR-USERNAME/kubiya-workflow-sdk.git
+cd kubiya-workflow-sdk
+
+# Add upstream remote
+git remote add upstream https://github.com/kubiya-sandbox/kubiya-workflow-sdk.git
+```
+
+### Development Setup
+
+```bash
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install in development mode
+pip install -e ".[dev]"
+
+# Install pre-commit hooks
+pre-commit install
+```
+
+## Development Workflow
+
+### 1. Create a Feature Branch
+
+```bash
+# Update your fork
+git fetch upstream
+git checkout main
+git merge upstream/main
+
+# Create feature branch
+git checkout -b feature/your-feature-name
+```
+
+### 2. Make Your Changes
+
+Follow these guidelines:
+
+- **Code Style**: Follow PEP 8 and use Black for formatting
+- **Type Hints**: Add type hints to all functions
+- **Docstrings**: Use Google-style docstrings
+- **Tests**: Write tests for new features
+
+Example:
+
+```python
+from typing import Dict, List, Optional
+
+def process_workflow(
+    workflow: Dict[str, Any],
+    params: Optional[Dict[str, str]] = None
+) -> WorkflowResult:
+    """Process a workflow with given parameters.
+    
+    Args:
+        workflow: Workflow specification dictionary
+        params: Optional parameters to pass to workflow
+        
+    Returns:
+        WorkflowResult object containing execution details
+        
+    Raises:
+        ValidationError: If workflow format is invalid
+        ExecutionError: If workflow execution fails
+    """
+    # Implementation
+    pass
+```
+
+### 3. Write Tests
+
+```python
+# tests/test_your_feature.py
+import pytest
+from kubiya_workflow_sdk import YourNewFeature
+
+class TestYourFeature:
+    def test_basic_functionality(self):
+        """Test basic feature functionality."""
+        feature = YourNewFeature()
+        result = feature.do_something()
+        assert result == expected_value
+    
+    def test_error_handling(self):
+        """Test error cases."""
+        with pytest.raises(ExpectedError):
+            YourNewFeature().do_invalid_thing()
+    
+    @pytest.mark.integration
+    def test_integration(self):
+        """Test integration with other components."""
+        # Integration test
+        pass
+```
+
+### 4. Run Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run specific test file
+pytest tests/test_your_feature.py
+
+# Run with coverage
+pytest --cov=kubiya_workflow_sdk --cov-report=html
+
+# Run linting
+flake8 kubiya_workflow_sdk/
+black --check kubiya_workflow_sdk/
+mypy kubiya_workflow_sdk/
+```
+
+### 5. Update Documentation
+
+```bash
+# Generate API docs
+make docs
+
+# Build documentation locally
+cd docs
+make html
+
+# View docs
+open _build/html/index.html
+```
+
+## Code Architecture
+
+### Directory Structure
+
+```
+kubiya_workflow_sdk/
+├── __init__.py          # Public API exports
+├── client.py            # Client implementation
+├── core/                # Core functionality
+│   ├── __init__.py
+│   ├── workflow.py      # Workflow classes
+│   ├── step.py          # Step classes
+│   └── executor.py      # Execution engine
+├── dsl/                 # DSL implementation
+│   ├── __init__.py
+│   ├── decorators.py    # @workflow decorator
+│   └── builder.py       # Fluent API
+├── providers/           # Provider implementations
+│   ├── __init__.py
+│   ├── base.py          # Base provider class
+│   └── adk/             # ADK provider
+├── utils/               # Utilities
+│   ├── __init__.py
+│   └── validation.py    # Validation helpers
+└── errors.py            # Exception classes
+```
+
+### Adding a New Feature
+
+#### 1. Provider
+
+```python
+# kubiya_workflow_sdk/providers/custom.py
+from .base import BaseProvider
+
+class CustomProvider(BaseProvider):
+    """Custom workflow provider."""
+    
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        # Initialize provider
+    
+    async def compose(self, task: str, **kwargs) -> Dict[str, Any]:
+        """Generate workflow from task description."""
+        # Implementation
+        pass
+    
+    async def execute_workflow(self, workflow: Workflow, **kwargs):
+        """Execute workflow with custom logic."""
+        # Implementation
+        pass
+```
+
+#### 2. Step Type
+
+```python
+# kubiya_workflow_sdk/core/steps/custom_step.py
+from ..step import Step, StepType
+
+@register_step_type("custom")
+class CustomStep(Step):
+    """Custom step implementation."""
+    
+    def __init__(self, name: str, **kwargs):
+        super().__init__(name, **kwargs)
+        self.custom_field = kwargs.get("custom_field")
+    
+    def validate(self) -> List[str]:
+        """Validate step configuration."""
+        errors = super().validate()
+        if not self.custom_field:
+            errors.append("custom_field is required")
+        return errors
+    
+    def to_container_spec(self) -> Dict[str, Any]:
+        """Convert to container specification."""
+        return {
+            "image": self.image,
+            "command": self.build_command(),
+            "env": self.build_env()
+        }
+```
+
+#### 3. DSL Extension
+
+```python
+# kubiya_workflow_sdk/dsl/extensions.py
+from .builder import step
+
+@step.register("custom")
+def custom_step(name: str, custom_field: str, **kwargs):
+    """Create a custom step.
+    
+    Args:
+        name: Step name
+        custom_field: Custom field value
+        **kwargs: Additional step options
+        
+    Returns:
+        CustomStep instance
+    """
+    return CustomStep(
+        name=name,
+        custom_field=custom_field,
+        **kwargs
+    )
+```
+
+## Testing Guidelines
+
+### Unit Tests
+
+```python
+# Test individual components
+def test_workflow_creation():
+    workflow = Workflow(name="test")
+    assert workflow.name == "test"
+    assert workflow.steps == []
+```
+
+### Integration Tests
+
+```python
+# Test component interactions
+@pytest.mark.integration
+def test_workflow_execution():
+    client = Client()
+    workflow = create_test_workflow()
+    result = client.execute_workflow(workflow)
+    assert result.success
+```
+
+### End-to-End Tests
+
+```python
+# Test full user scenarios
+@pytest.mark.e2e
+def test_ai_workflow_generation():
+    provider = get_provider("adk")
+    result = provider.compose("Deploy a web app")
+    assert "workflow" in result
+```
+
+## Documentation Standards
+
+### Code Documentation
+
+```python
+def complex_function(
+    param1: str,
+    param2: Optional[int] = None,
+    **kwargs: Any
+) -> Tuple[bool, str]:
+    """Brief description of function.
+    
+    Longer description explaining the function's purpose,
+    behavior, and any important details.
+    
+    Args:
+        param1: Description of param1
+        param2: Description of param2. Defaults to None.
+        **kwargs: Additional keyword arguments:
+            - option1: Description
+            - option2: Description
+            
+    Returns:
+        Tuple containing:
+            - bool: Success status
+            - str: Result message
+            
+    Raises:
+        ValueError: If param1 is invalid
+        RuntimeError: If operation fails
+        
+    Example:
+        >>> result, message = complex_function("test", param2=42)
+        >>> print(f"Success: {result}, Message: {message}")
+        Success: True, Message: Operation completed
+    """
+    # Implementation
+    pass
+```
+
+### User Documentation
+
+When adding features, update:
+
+1. **API Reference** (`docs/api/`)
+2. **User Guide** (`docs/guide/`)
+3. **Examples** (`examples/`)
+4. **Changelog** (`CHANGELOG.md`)
+
+## Pull Request Process
+
+### 1. Before Submitting
+
+- [ ] All tests pass (`pytest`)
+- [ ] Code is formatted (`black .`)
+- [ ] No linting errors (`flake8`)
+- [ ] Type hints added (`mypy`)
+- [ ] Documentation updated
+- [ ] Changelog entry added
+
+### 2. PR Description Template
+
+```markdown
+## Description
+Brief description of changes
+
+## Type of Change
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Breaking change
+- [ ] Documentation update
+
+## Testing
+- [ ] Unit tests pass
+- [ ] Integration tests pass
+- [ ] Manual testing completed
+
+## Checklist
+- [ ] Code follows style guidelines
+- [ ] Self-review completed
+- [ ] Comments added for complex code
+- [ ] Documentation updated
+- [ ] No new warnings
+```
+
+### 3. Review Process
+
+1. CI checks must pass
+2. Code review by maintainer
+3. Address feedback
+4. Maintainer merges PR
+
+## Release Process
+
+### Version Numbering
+
+We follow [Semantic Versioning](https://semver.org/):
+
+- **MAJOR**: Breaking changes
+- **MINOR**: New features (backward compatible)
+- **PATCH**: Bug fixes
+
+### Release Steps
+
+```bash
+# Update version
+bumpversion minor  # or major, patch
+
+# Update changelog
+# Edit CHANGELOG.md with release notes
+
+# Create release PR
+git add -A
+git commit -m "Release v2.1.0"
+git push origin release/v2.1.0
+
+# After merge, tag release
+git tag v2.1.0
+git push origin v2.1.0
+```
+
+## Community
+
+### Getting Help
+
+- **Discord**: [Join our community](https://discord.gg/kubiya)
+- **GitHub Issues**: [Report bugs](https://github.com/kubiya-sandbox/kubiya-workflow-sdk/issues)
+- **Discussions**: [Ask questions](https://github.com/kubiya-sandbox/kubiya-workflow-sdk/discussions)
+
+### Code of Conduct
+
+We follow the [Contributor Covenant](https://www.contributor-covenant.org/). Please be respectful and inclusive in all interactions.
+
+## Recognition
+
+Contributors are recognized in:
+
+- `CONTRIBUTORS.md` file
+- Release notes
+- GitHub contributors page
+
+Thank you for contributing to Kubiya! 🎉 
