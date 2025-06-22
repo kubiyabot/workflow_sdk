@@ -1,6 +1,111 @@
 # Kubiya Workflow SDK Documentation
 
-This directory contains the documentation for the Kubiya Workflow SDK, hosted on [Mintlify Cloud](https://mintlify.com).
+This directory contains the official documentation for the Kubiya Workflow SDK.
+
+## Documentation Structure
+
+The documentation is organized into the following main sections:
+
+```
+docs/kubiya/
+├── index.mdx                 # Main landing page
+├── getting-started/         # Installation and quickstart guides
+│   ├── welcome.mdx
+│   ├── installation.mdx
+│   └── quickstart.mdx
+├── concepts/               # Core concepts and architecture
+│   ├── platform-overview.mdx
+│   ├── workflows.mdx
+│   ├── runners.mdx
+│   ├── integrations.mdx
+│   ├── deterministic-workflows.mdx
+│   ├── why-kubiya.mdx
+│   └── agent-frameworks-comparison.mdx
+├── workflows/              # Workflow documentation
+│   ├── overview.mdx
+│   ├── dsl-reference.mdx
+│   ├── examples.mdx
+│   ├── architecture.mdx
+│   └── advanced.mdx
+├── providers/              # Provider documentation
+│   ├── overview.mdx
+│   └── adk/               # Agent Development Kit
+│       ├── getting-started.mdx
+│       ├── agents.mdx
+│       └── streaming.mdx
+├── sdk/                   # SDK reference documentation
+│   ├── overview.mdx
+│   ├── api-reference.mdx
+│   ├── examples.mdx
+│   ├── contributing.mdx
+│   └── changelog.mdx
+├── api-reference/         # REST API documentation
+│   └── compose.mdx
+├── deployment/            # Deployment guides
+│   └── helm-chart.mdx
+├── tutorials/            # Step-by-step tutorials
+│   └── ai-powered-automation.mdx
+├── mcp/                  # MCP integration docs
+│   └── overview.mdx
+├── servers/              # Server documentation
+│   └── overview.mdx
+└── docs.json            # Navigation configuration
+
+```
+
+## Navigation Configuration
+
+The navigation structure is defined in `docs.json`. The key sections are:
+
+1. **Home** - Landing page with overview
+2. **Getting Started** - New user onboarding
+3. **Core Concepts** - Fundamental concepts
+4. **Workflows** - Workflow creation and management
+5. **AI & Automation** - ADK and AI features
+6. **Platform Features** - Advanced features
+7. **SDK Documentation** - Complete SDK reference
+8. **API & Integrations** - External integrations
+9. **Deployment & Operations** - Production deployment
+10. **Resources** - Changelogs and migration guides
+
+## Adding New Documentation
+
+When adding new documentation:
+
+1. Create the `.mdx` file in the appropriate directory
+2. Add frontmatter with title and description:
+   ```yaml
+   ---
+   title: Your Page Title
+   description: Brief description of the page content
+   ---
+   ```
+3. Update `docs.json` to include the new page in navigation
+4. Follow the existing content structure and style
+
+## Style Guidelines
+
+- Use clear, concise language
+- Include code examples where relevant
+- Use MDX components for rich content (Cards, Tabs, etc.)
+- Add navigation aids (links to related content)
+- Include practical examples and use cases
+
+## Building Documentation
+
+The documentation is built using Mintlify. To preview locally:
+
+```bash
+npx mintlify dev
+```
+
+## Contributing
+
+Please ensure all documentation:
+- Is accurate and up-to-date
+- Follows the established structure
+- Includes relevant examples
+- Has been reviewed for clarity and correctness
 
 ## 🚀 Local Development
 
@@ -37,19 +142,6 @@ After deployment, you can add a custom domain:
 2. Navigate to "Custom Domain"
 3. Add your domain (e.g., `docs.kubiya.ai`)
 4. Update your DNS records as instructed
-
-## 📝 Documentation Structure
-
-```
-docs/kubiya/
-├── docs.json              # Mintlify configuration
-├── assets/               # Images and static files
-├── getting-started/      # Getting started guides
-├── providers/            # AI provider documentation
-├── workflows/            # Workflow documentation
-├── servers/              # Server documentation
-└── api-reference/        # API documentation
-```
 
 ## 🔧 Configuration
 
