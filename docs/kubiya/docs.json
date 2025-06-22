@@ -9,11 +9,7 @@
   "colors": {
     "primary": "#0EA5E9",
     "light": "#38BDF8",
-    "dark": "#0284C7",
-    "anchors": {
-      "from": "#0EA5E9",
-      "to": "#6366F1"
-    }
+    "dark": "#0284C7"
   },
   "topbarLinks": [
     {
@@ -64,90 +60,92 @@
       "url": "/changelog"
     }
   ],
-  "navigation": [
-    {
-      "group": "Introduction",
-      "pages": [
-        "getting-started/welcome",
-        "getting-started/installation", 
-        "getting-started/quickstart"
-      ]
-    },
-    {
-      "group": "Core Concepts",
-      "pages": [
-        "concepts/platform-overview",
-        "concepts/workflows",
-        "concepts/runners",
-        "concepts/integrations",
-        "concepts/deterministic-workflows",
-        "concepts/why-kubiya",
-        "concepts/agent-frameworks-comparison"
-      ]
-    },
-    {
-      "group": "Workflows",
-      "pages": [
-        "workflows/overview",
-        "workflows/architecture",
-        "workflows/dsl-reference",
-        "workflows/examples",
-        "workflows/advanced"
-      ]
-    },
-    {
-      "group": "AI & Automation",
-      "pages": [
-        "providers/overview",
-        "providers/adk/getting-started",
-        "providers/adk/agents",
-        "providers/adk/streaming"
-      ]
-    },
-    {
-      "group": "Integrations",
-      "pages": [
-        "mcp/overview",
-        "servers/overview"
-      ]
-    },
-    {
-      "group": "SDK Reference",
-      "pages": [
-        "sdk/overview",
-        "sdk/api-reference",
-        "sdk/examples",
-        "sdk/contributing",
-        "sdk/changelog"
-      ]
-    },
-    {
-      "group": "API Reference",
-      "pages": [
-        "api-reference/compose"
-      ]
-    },
-    {
-      "group": "Deployment",
-      "pages": [
-        "deployment/helm-chart"
-      ]
-    },
-    {
-      "group": "Tutorials",
-      "pages": [
-        "tutorials/ai-powered-automation"
-      ]
-    },
-    {
-      "group": "Resources",
-      "pages": [
-        "changelog",
-        "migration-guide",
-        "updates"
-      ]
-    }
-  ],
+  "navigation": {
+    "groups": [
+      {
+        "group": "Introduction",
+        "pages": [
+          "getting-started/welcome",
+          "getting-started/installation", 
+          "getting-started/quickstart"
+        ]
+      },
+      {
+        "group": "Core Concepts",
+        "pages": [
+          "concepts/platform-overview",
+          "concepts/workflows",
+          "concepts/runners",
+          "concepts/integrations",
+          "concepts/deterministic-workflows",
+          "concepts/why-kubiya",
+          "concepts/agent-frameworks-comparison"
+        ]
+      },
+      {
+        "group": "Workflows",
+        "pages": [
+          "workflows/overview",
+          "workflows/architecture",
+          "workflows/dsl-reference",
+          "workflows/examples",
+          "workflows/advanced"
+        ]
+      },
+      {
+        "group": "AI & Automation",
+        "pages": [
+          "providers/overview",
+          "providers/adk/getting-started",
+          "providers/adk/agents",
+          "providers/adk/streaming"
+        ]
+      },
+      {
+        "group": "Integrations",
+        "pages": [
+          "mcp/overview",
+          "servers/overview"
+        ]
+      },
+      {
+        "group": "SDK Reference",
+        "pages": [
+          "sdk/overview",
+          "sdk/api-reference",
+          "sdk/examples",
+          "sdk/contributing",
+          "sdk/changelog"
+        ]
+      },
+      {
+        "group": "API Reference",
+        "pages": [
+          "api-reference/compose"
+        ]
+      },
+      {
+        "group": "Deployment",
+        "pages": [
+          "deployment/helm-chart"
+        ]
+      },
+      {
+        "group": "Tutorials",
+        "pages": [
+          "tutorials/ai-powered-automation"
+        ]
+      },
+      {
+        "group": "Resources",
+        "pages": [
+          "changelog",
+          "migration-guide",
+          "updates"
+        ]
+      }
+    ]
+  },
   "footerSocials": {
     "github": "https://github.com/kubiyabot",
     "linkedin": "https://www.linkedin.com/company/kubiya-ai",
