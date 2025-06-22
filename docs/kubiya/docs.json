@@ -164,7 +164,7 @@
   "custom": {
     "css": ["/style.css"]
   },
-  "theme": "quill",
+  "theme": "mint",
   "redirects": [
     {
       "source": "/providers/adk",
