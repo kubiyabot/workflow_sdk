@@ -64,22 +64,37 @@ graph TB
 
 ### Local Runners
 
-Deploy in your own Kubernetes clusters:
+Deploy runners in your own infrastructure for complete control:
 
-<CardGroup cols={2}>
-  <Card title="Full Control" icon="shield-check">
-    Complete control over the execution environment, security policies, and resource allocation
-  </Card>
-  <Card title="Data Locality" icon="database">
-    Direct access to your databases, APIs, and internal services without data leaving your network
-  </Card>
-  <Card title="Compliance" icon="certificate">
-    Meet regulatory requirements by keeping all execution within your infrastructure
-  </Card>
-  <Card title="Custom Resources" icon="microchip">
-    Use specialized hardware like GPUs, high-memory nodes, or specific instance types
-  </Card>
-</CardGroup>
+- **Your Infrastructure**: Run in your Kubernetes cluster, VMs, or bare metal
+- **Network Isolation**: Keep sensitive data within your network
+- **Custom Configuration**: Tailor resources to your needs
+- **Compliance**: Meet regulatory requirements
+
+#### Deployment Options
+
+1. **Helm Chart** (Recommended)
+   ```bash
+   helm repo add kubiya https://charts.kubiya.ai
+   helm install my-runner kubiya/kubiya-runner \
+     --namespace kubiya \
+     --create-namespace
+   ```
+   
+   See the [Helm Chart documentation](/deployment/helm-chart) for detailed configuration options.
+
+2. **Kubernetes Manifest**
+   - Create runner in Kubiya platform
+   - Download generated manifest
+   - Apply to your cluster
+
+3. **Docker**
+   - For development/testing only
+   - Not recommended for production
+
+<Note>
+  Local runners require outbound HTTPS connectivity to Kubiya's control plane for management and coordination. Your data and workflows remain within your infrastructure.
+</Note>
 
 ### Hosted Runners
 

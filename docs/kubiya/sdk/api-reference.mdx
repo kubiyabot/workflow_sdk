@@ -42,7 +42,7 @@ client = Client(
 
 #### Methods
 
-##### `execute_workflow(workflow, params=None, stream=False)`
+##### `execute_workflow(workflow, params=None, stream=False, runner=None)`
 
 Execute a workflow.
 
@@ -50,7 +50,8 @@ Execute a workflow.
 result = client.execute_workflow(
     workflow=my_workflow,
     params={"env": "production"},
-    stream=True
+    stream=True,
+    runner="my-custom-runner"  # Optional: specify a runner created via Kubiya platform
 )
 ```
 
@@ -58,8 +59,13 @@ result = client.execute_workflow(
 - `workflow`: Workflow object or dict
 - `params`: Dict of parameters to pass to workflow
 - `stream`: Boolean to enable streaming response
+- `runner`: String name of the runner (created via Kubiya platform). Defaults to "kubiya-hosted"
 
 **Returns:** `ExecutionResult` or generator of `StreamEvent`
+
+<Note>
+  Runners must be created through the Kubiya platform (web interface or API). The platform will provide a Kubernetes manifest or Helm chart to deploy the runner in your infrastructure.
+</Note>
 
 ##### `list_workflows()`
 

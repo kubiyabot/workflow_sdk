@@ -12,126 +12,90 @@
     "dark": "/assets/logo-dark.png",
     "light": "/assets/logo-light.png"
   },
-  "navigation": {
-    "tabs": [
-      {
-        "tab": "Documentation",
-        "groups": [
-          {
-            "group": "Getting Started",
-            "pages": [
-              "getting-started/welcome",
-              "getting-started/installation", 
-              "getting-started/quickstart"
-            ]
-          },
-          {
-            "group": "Core Concepts",
-            "pages": [
-              "concepts/platform-overview",
-              "concepts/workflows",
-              "concepts/runners",
-              "concepts/integrations",
-              "concepts/deterministic-workflows",
-              "concepts/why-kubiya",
-              "concepts/agent-frameworks-comparison"
-            ]
-          },
-          {
-            "group": "Workflows",
-            "pages": [
-              "workflows/overview",
-              "workflows/architecture",
-              "workflows/dsl-reference",
-              "workflows/examples",
-              "workflows/advanced"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "Integration",
-        "groups": [
-          {
-            "group": "MCP Integration",
-            "pages": [
-              "mcp/overview"
-            ]
-          },
-          {
-            "group": "Servers",
-            "pages": [
-              "servers/overview"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "AI & Providers",
-        "groups": [
-          {
-            "group": "AI Providers",
-            "pages": [
-              "providers/overview",
-              "providers/adk/getting-started",
-              "providers/adk/agents",
-              "providers/adk/streaming"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "API Reference",
-        "groups": [
-          {
-            "group": "API",
-            "pages": [
-              "api-reference/compose"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "Tutorials",
-        "groups": [
-          {
-            "group": "Guides",
-            "pages": [
-              "tutorials/ai-powered-automation"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "Resources",
-        "groups": [
-          {
-            "group": "Updates",
-            "pages": [
-              "changelog",
-              "migration-guide",
-              "updates"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "SDK",
-        "groups": [
-          {
-            "group": "SDK Deep Dive",
-            "pages": [
-              "sdk/overview",
-              "sdk/api-reference",
-              "sdk/examples",
-              "sdk/contributing",
-              "sdk/changelog"
-            ]
-          }
-        ]
-      }
-    ]
-  },
+  "navigation": [
+    {
+      "group": "Getting Started",
+      "pages": [
+        "getting-started/welcome",
+        "getting-started/installation", 
+        "getting-started/quickstart"
+      ]
+    },
+    {
+      "group": "Core Concepts",
+      "pages": [
+        "concepts/platform-overview",
+        "concepts/workflows",
+        "concepts/runners",
+        "concepts/integrations",
+        "concepts/deterministic-workflows",
+        "concepts/why-kubiya",
+        "concepts/agent-frameworks-comparison"
+      ]
+    },
+    {
+      "group": "Workflows",
+      "pages": [
+        "workflows/overview",
+        "workflows/architecture",
+        "workflows/dsl-reference",
+        "workflows/examples",
+        "workflows/advanced"
+      ]
+    },
+    {
+      "group": "AI & Providers",
+      "pages": [
+        "providers/overview",
+        "providers/adk/getting-started",
+        "providers/adk/agents",
+        "providers/adk/streaming"
+      ]
+    },
+    {
+      "group": "Integration",
+      "pages": [
+        "mcp/overview",
+        "servers/overview"
+      ]
+    },
+    {
+      "group": "SDK",
+      "pages": [
+        "sdk/overview",
+        "sdk/api-reference",
+        "sdk/examples",
+        "sdk/contributing",
+        "sdk/changelog"
+      ]
+    },
+    {
+      "group": "API Reference",
+      "pages": [
+        "api-reference/compose"
+      ]
+    },
+    {
+      "group": "Deployment",
+      "pages": [
+        "deployment/helm-chart"
+      ]
+    },
+    {
+      "group": "Tutorials",
+      "pages": [
+        "tutorials/ai-powered-automation"
+      ]
+    },
+    {
+      "group": "Resources",
+      "pages": [
+        "changelog",
+        "migration-guide",
+        "updates"
+      ]
+    }
+  ],
   "topbarLinks": [
     {
       "name": "GitHub",

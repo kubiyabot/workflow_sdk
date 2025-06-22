@@ -273,15 +273,24 @@ services:
       - KUBIYA_MODE=local
 ```
 
-### Local Runner
+### Local Runners
 
-```python
-from kubiya_workflow_sdk import LocalRunner
+Local runners are created and managed through the Kubiya platform:
 
-# Test workflows locally
-runner = LocalRunner()
-result = runner.execute(workflow)
+1. **Via Web Interface**: Go to the Kubiya platform and create a new runner
+2. **Via API**: Use the Kubiya API to create a runner programmatically
+3. **Get Manifest**: Receive a Kubernetes manifest or Helm chart
+4. **Deploy**: Apply the manifest to your Kubernetes cluster
+
+```bash
+# Example: Apply the runner manifest
+kubectl apply -f kubiya-runner-manifest.yaml
+
+# Or using Helm
+helm install my-runner kubiya/runner -f values.yaml
 ```
+
+For detailed setup instructions, see the [Runners documentation](/concepts/runners).
 
 ## Proxy Configuration
 

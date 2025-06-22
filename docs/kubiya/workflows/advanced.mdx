@@ -206,13 +206,9 @@ Simply create a local runner on the Kubiya platform web interface, REST API, or 
 ```python
 # test_workflow.py
 import pytest
-from kubiya_workflow_sdk import Workflow, LocalRunner
+from kubiya_workflow_sdk import Workflow, Client, Step
 
-@pytest.fixture
-def local_runner():
-    return LocalRunner(docker_socket="/var/run/docker.sock")
-
-def test_data_pipeline(local_runner):
+def test_data_pipeline():
     workflow = Workflow(
         name="test-pipeline",
         steps=[
@@ -222,7 +218,12 @@ def test_data_pipeline(local_runner):
         ]
     )
     
-    result = local_runner.execute(workflow)
+    # Use client with your test runner
+    client = Client(api_key="test-key")
+    result = client.execute_workflow(
+        workflow,
+        runner="your-test-runner"  # Created via Kubiya platform
+    )
     assert result.success
     assert len(result.steps) == 3
 ```
