@@ -139,10 +139,28 @@ setup-env: ## Copy env.example to .env
 
 release: ## Create a new release
 	@echo "$(BLUE)Creating new release...$(NC)"
-	@read -p "Version (e.g., 2.0.1): " version; \
-	git tag -a v$$version -m "Release v$$version"; \
-	git push origin v$$version; \
-	echo "$(GREEN)✓ Released v$$version$(NC)"
+	python scripts/release.py
+
+release-patch: ## Release patch version (1.0.0 -> 1.0.1)
+	python scripts/release.py patch
+
+release-minor: ## Release minor version (1.0.0 -> 1.1.0)
+	python scripts/release.py minor
+
+release-major: ## Release major version (1.0.0 -> 2.0.0)
+	python scripts/release.py major
+
+build: ## Build distribution packages
+	python -m build
+	@echo "$(GREEN)✓ Built distribution packages$(NC)"
+
+publish-test: ## Publish to Test PyPI
+	python -m twine upload --repository testpypi dist/*
+	@echo "$(GREEN)✓ Published to Test PyPI$(NC)"
+
+publish: ## Publish to PyPI (use with caution)
+	python -m twine upload dist/*
+	@echo "$(GREEN)✓ Published to PyPI$(NC)"
 
 version: ## Show current version
 	@python -c "from kubiya_workflow_sdk import __version__; print(__version__)"

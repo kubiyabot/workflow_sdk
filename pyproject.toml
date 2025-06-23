@@ -4,12 +4,27 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kubiya-workflow-sdk"
-version = "0.1.0"
+dynamic = ["version"]
 description = "SDK for building and managing Kubiya workflows"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
     {name = "Kubiya Team", email = "support@kubiya.ai"}
+]
+keywords = ["kubiya", "workflow", "sdk", "automation", "ai"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Distributed Computing",
 ]
 requires-python = ">=3.8"
 dependencies = [
@@ -64,6 +79,9 @@ packages = ["kubiya_workflow_sdk"]
 
 [tool.setuptools.package-data]
 kubiya_workflow_sdk = ["py.typed"]
+
+[tool.setuptools.dynamic]
+version = {attr = "kubiya_workflow_sdk.__version__.__version__"}
 
 [tool.black]
 line-length = 100
