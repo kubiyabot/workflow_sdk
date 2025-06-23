@@ -2,8 +2,8 @@
   "$schema": "https://mintlify.com/docs.json",
   "name": "Kubiya",
   "logo": {
-    "dark": "/assets/logo-dark.png",
-    "light": "/assets/logo-light.png"
+    "dark": "/assets/kubiya_logo.png",
+    "light": "assets/kubiya_logo.png"
   },
   "favicon": "/assets/favicon.ico",
   "colors": {
