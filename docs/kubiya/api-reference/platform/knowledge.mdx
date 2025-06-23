@@ -1,0 +1,759 @@
+---
+title: "Knowledge API"
+sidebarTitle: "Knowledge"
+description: API endpoints for managing knowledge entries in the Kubiya platform
+icon: brain
+api: "GET /api/v1/knowledge"
+---
+
+# Knowledge API
+
+The Knowledge API allows you to create, retrieve, update, and delete knowledge entries in the Kubiya platform. Knowledge entries provide contextual information that can be used by teammates and tools to improve their performance.
+
+## Base URL
+
+```
+https://api.kubiya.ai/api/v1/knowledge
+```
+
+All endpoints require authentication with a valid API key.
+
+## Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET    | `/api/v1/knowledge` | List all knowledge entries |
+| GET    | `/api/v1/knowledge/{knowledgeId}` | Get knowledge entry details |
+| POST   | `/api/v1/knowledge` | Create a new knowledge entry |
+| PUT    | `/api/v1/knowledge/{knowledgeId}` | Update a knowledge entry |
+| DELETE | `/api/v1/knowledge/{knowledgeId}` | Delete a knowledge entry |
+| GET    | `/api/v1/knowledge/search` | Search knowledge entries |
+| GET    | `/api/v1/knowledge/{knowledgeId}/versions` | Get knowledge entry version history |
+
+## Common Response Status Codes
+
+| Status Code | Description |
+|-------------|-------------|
+| 200 | Success |
+| 400 | Bad Request - Invalid parameters or request body |
+| 401 | Unauthorized - Invalid or missing API key |
+| 403 | Forbidden - Insufficient permissions |
+| 404 | Not Found - Resource doesn't exist |
+| 500 | Internal Server Error |
+
+## Error Response Format
+
+```json
+{
+  "error": {
+    "code": "string",
+    "message": "string",
+    "details": {}
+  }
+}
+```
+
+## Knowledge Entry Object
+
+<CodeGroup>
+
+```json Knowledge Entry Response
+{
+  "id": "knowledge-123456",
+  "title": "AWS Security Best Practices",
+  "content": "This document outlines AWS security best practices...",
+  "tags": ["aws", "security", "cloud"],
+  "created_at": "2023-01-01T00:00:00Z",
+  "updated_at": "2023-01-01T00:00:00Z",
+  "created_by": "user@example.com",
+  "visibility": "organization",
+  "version": 1,
+  "metadata": {
+    "source": "manual",
+    "format": "markdown",
+    "size_bytes": 1024
+  }
+}
+```
+
+```json Search Result
+{
+  "id": "knowledge-123456",
+  "title": "AWS Security Best Practices",
+  "content": "This document outlines AWS security best practices...",
+  "tags": ["aws", "security", "cloud"],
+  "created_at": "2023-01-01T00:00:00Z",
+  "updated_at": "2023-01-01T00:00:00Z",
+  "created_by": "user@example.com",
+  "visibility": "organization",
+  "version": 1,
+  "metadata": {
+    "source": "manual",
+    "format": "markdown",
+    "size_bytes": 1024
+  },
+  "relevance_score": 0.95
+}
+```
+
+</CodeGroup>
+
+## List Knowledge Entries
+
+Retrieve a list of all knowledge entries in your organization.
+
+```http
+GET /api/v1/knowledge
+```
+
+### Query Parameters
+
+<ParamField query="tag" type="string">
+  Filter by tag
+</ParamField>
+
+<ParamField query="limit" type="integer" default="50">
+  Maximum number of entries to return
+</ParamField>
+
+<ParamField query="page" type="integer">
+  Page number for pagination
+</ParamField>
+
+<ParamField query="sort" type="string">
+  Sort field (e.g., "created_at", "updated_at")
+</ParamField>
+
+<ParamField query="order" type="string">
+  Sort order ("asc" or "desc")
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash List All Knowledge icon="terminal"
+curl -X GET "https://api.kubiya.ai/api/v1/knowledge" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Filter by Tag icon="tag"
+curl -X GET "https://api.kubiya.ai/api/v1/knowledge?tag=aws&limit=20" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Sorted by Date icon="calendar"
+curl -X GET "https://api.kubiya.ai/api/v1/knowledge?sort=created_at&order=desc" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+[
+  {
+    "id": "knowledge-123456",
+    "title": "AWS Security Best Practices",
+    "content": "This document outlines AWS security best practices...",
+    "tags": ["aws", "security", "cloud"],
+    "created_at": "2023-01-01T00:00:00Z",
+    "updated_at": "2023-01-01T00:00:00Z",
+    "created_by": "user@example.com",
+    "visibility": "organization",
+    "version": 1,
+    "metadata": {
+      "source": "manual",
+      "format": "markdown",
+      "size_bytes": 1024
+    }
+  }
+]
+```
+
+## Create Knowledge Entry
+
+Create a new knowledge entry in your organization.
+
+```http
+POST /api/v1/knowledge
+```
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+<ParamField header="Content-Type" type="string" required>
+  application/json
+</ParamField>
+
+### Request Body
+
+<ParamField body="title" type="string" required>
+  Title of the knowledge entry
+</ParamField>
+
+<ParamField body="content" type="string" required>
+  Content of the knowledge entry
+</ParamField>
+
+<ParamField body="visibility" type="string" required>
+  Visibility level ("private", "organization", "public")
+</ParamField>
+
+<ParamField body="tags" type="array">
+  Array of tags for categorization
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Additional metadata for the knowledge entry
+  
+  <Expandable title="Metadata Properties">
+    <ParamField body="metadata.source" type="string">
+      Source of the knowledge entry
+    </ParamField>
+    <ParamField body="metadata.format" type="string">
+      Format of the content (e.g., "markdown", "text")
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash Create Knowledge Entry icon="terminal"
+curl -X POST "https://api.kubiya.ai/api/v1/knowledge" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "AWS Security Best Practices",
+    "content": "This document outlines AWS security best practices...",
+    "tags": ["aws", "security", "cloud"],
+    "visibility": "organization",
+    "metadata": {
+      "source": "manual",
+      "format": "markdown"
+    }
+  }'
+```
+
+```bash Create with Response icon="plus"
+curl -X POST "https://api.kubiya.ai/api/v1/knowledge" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "DevOps Runbook",
+    "content": "Standard operating procedures for DevOps tasks",
+    "visibility": "organization"
+  }' | jq '.id'
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "id": "knowledge-123456",
+  "title": "AWS Security Best Practices",
+  "content": "This document outlines AWS security best practices...",
+  "tags": ["aws", "security", "cloud"],
+  "created_at": "2023-01-01T00:00:00Z",
+  "updated_at": "2023-01-01T00:00:00Z",
+  "created_by": "user@example.com",
+  "visibility": "organization",
+  "version": 1,
+  "metadata": {
+    "source": "manual",
+    "format": "markdown",
+    "size_bytes": 1024
+  }
+}
+```
+
+## Get Knowledge Entry
+
+Retrieve a specific knowledge entry by ID.
+
+```http
+GET /api/v1/knowledge/{knowledgeId}
+```
+
+### Path Parameters
+
+<ParamField path="knowledgeId" type="string" required>
+  ID of the knowledge entry to retrieve
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash Get Knowledge Entry icon="terminal"
+curl -X GET "https://api.kubiya.ai/api/v1/knowledge/knowledge-123456" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Get Entry Title icon="info"
+curl -X GET "https://api.kubiya.ai/api/v1/knowledge/knowledge-123456" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" | jq '.title'
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "id": "knowledge-123456",
+  "title": "AWS Security Best Practices",
+  "content": "This document outlines AWS security best practices...",
+  "tags": ["aws", "security", "cloud"],
+  "created_at": "2023-01-01T00:00:00Z",
+  "updated_at": "2023-01-02T00:00:00Z",
+  "created_by": "user@example.com",
+  "visibility": "organization",
+  "version": 2,
+  "metadata": {
+    "source": "manual",
+    "format": "markdown",
+    "size_bytes": 1024
+  }
+}
+```
+
+## Update Knowledge Entry
+
+Update an existing knowledge entry.
+
+```http
+PUT /api/v1/knowledge/{knowledgeId}
+```
+
+### Path Parameters
+
+<ParamField path="knowledgeId" type="string" required>
+  ID of the knowledge entry to update
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+<ParamField header="Content-Type" type="string" required>
+  application/json
+</ParamField>
+
+### Request Body
+
+<ParamField body="title" type="string">
+  Updated title of the knowledge entry
+</ParamField>
+
+<ParamField body="content" type="string">
+  Updated content of the knowledge entry
+</ParamField>
+
+<ParamField body="tags" type="array">
+  Updated array of tags
+</ParamField>
+
+<ParamField body="visibility" type="string">
+  Updated visibility level
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Updated metadata
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash Update Knowledge Entry icon="terminal"
+curl -X PUT "https://api.kubiya.ai/api/v1/knowledge/knowledge-123456" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Updated AWS Security Best Practices",
+    "content": "This updated document outlines AWS security best practices...",
+    "tags": ["aws", "security", "cloud", "best-practices"],
+    "visibility": "organization",
+    "metadata": {
+      "source": "manual",
+      "format": "markdown"
+    }
+  }'
+```
+
+```bash Update Content Only icon="edit"
+curl -X PUT "https://api.kubiya.ai/api/v1/knowledge/knowledge-123456" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"content": "Updated content with new best practices"}' | jq '.version'
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "id": "knowledge-123456",
+  "title": "Updated AWS Security Best Practices",
+  "content": "This updated document outlines AWS security best practices...",
+  "tags": ["aws", "security", "cloud", "best-practices"],
+  "created_at": "2023-01-01T00:00:00Z",
+  "updated_at": "2023-01-03T00:00:00Z",
+  "created_by": "user@example.com",
+  "visibility": "organization",
+  "version": 3,
+  "metadata": {
+    "source": "manual",
+    "format": "markdown",
+    "size_bytes": 2048
+  }
+}
+```
+
+## Delete Knowledge Entry
+
+Delete a knowledge entry.
+
+```http
+DELETE /api/v1/knowledge/{knowledgeId}
+```
+
+### Path Parameters
+
+<ParamField path="knowledgeId" type="string" required>
+  ID of the knowledge entry to delete
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash Delete Knowledge Entry icon="terminal"
+curl -X DELETE "https://api.kubiya.ai/api/v1/knowledge/knowledge-123456" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Delete with Confirmation icon="trash"
+curl -X DELETE "https://api.kubiya.ai/api/v1/knowledge/old-knowledge" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  && echo "Knowledge entry deleted successfully"
+```
+
+</CodeGroup>
+
+### Response
+
+A successful delete operation returns an HTTP 200 status with no response body.
+
+## Search Knowledge
+
+Search for knowledge entries based on keywords or tags.
+
+```http
+GET /api/v1/knowledge/search
+```
+
+### Query Parameters
+
+<ParamField query="query" type="string" required>
+  Search query
+</ParamField>
+
+<ParamField query="tags" type="array">
+  Filter by tags
+</ParamField>
+
+<ParamField query="visibility" type="string">
+  Filter by visibility
+</ParamField>
+
+<ParamField query="limit" type="integer" default="50">
+  Maximum number of entries to return
+</ParamField>
+
+<ParamField query="page" type="integer">
+  Page number for pagination
+</ParamField>
+
+<ParamField query="sort" type="string">
+  Sort field (e.g., "relevance", "created_at")
+</ParamField>
+
+<ParamField query="order" type="string">
+  Sort order ("asc" or "desc")
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash Search Knowledge icon="terminal"
+curl -X GET "https://api.kubiya.ai/api/v1/knowledge/search?query=aws+security" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Search with Tags icon="tag"
+curl -X GET "https://api.kubiya.ai/api/v1/knowledge/search?query=security&tags=aws,cloud" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Search by Relevance icon="search"
+curl -X GET "https://api.kubiya.ai/api/v1/knowledge/search?query=best+practices&sort=relevance" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "results": [
+    {
+      "id": "knowledge-123456",
+      "title": "AWS Security Best Practices",
+      "content": "This document outlines AWS security best practices...",
+      "tags": ["aws", "security", "cloud"],
+      "created_at": "2023-01-01T00:00:00Z",
+      "updated_at": "2023-01-01T00:00:00Z",
+      "created_by": "user@example.com",
+      "visibility": "organization",
+      "version": 1,
+      "metadata": {
+        "source": "manual",
+        "format": "markdown",
+        "size_bytes": 1024
+      },
+      "relevance_score": 0.95
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "limit": 50
+}
+```
+
+## Get Knowledge Entry Version History
+
+Retrieve the version history of a knowledge entry.
+
+```http
+GET /api/v1/knowledge/{knowledgeId}/versions
+```
+
+### Path Parameters
+
+<ParamField path="knowledgeId" type="string" required>
+  ID of the knowledge entry
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="limit" type="integer" default="50">
+  Maximum number of versions to return
+</ParamField>
+
+<ParamField query="page" type="integer">
+  Page number for pagination
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash Get Version History icon="terminal"
+curl -X GET "https://api.kubiya.ai/api/v1/knowledge/knowledge-123456/versions" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Get Latest Versions icon="history"
+curl -X GET "https://api.kubiya.ai/api/v1/knowledge/knowledge-123456/versions?limit=5" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+[
+  {
+    "version": 1,
+    "title": "AWS Security Best Practices",
+    "content": "Initial version of AWS security best practices...",
+    "created_at": "2023-01-01T00:00:00Z",
+    "created_by": "user@example.com"
+  },
+  {
+    "version": 2,
+    "title": "AWS Security Best Practices",
+    "content": "Updated AWS security best practices...",
+    "created_at": "2023-01-02T00:00:00Z",
+    "created_by": "user@example.com"
+  }
+]
+```
+
+## Example Usage
+
+<CodeGroup>
+
+```bash Complete Workflow icon="workflow"
+# List all knowledge entries
+curl -X GET "https://api.kubiya.ai/api/v1/knowledge" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+
+# Create a new knowledge entry
+KNOWLEDGE_ID=$(curl -X POST "https://api.kubiya.ai/api/v1/knowledge" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "AWS Security Best Practices",
+    "content": "This document outlines AWS security best practices...",
+    "tags": ["aws", "security", "cloud"],
+    "visibility": "organization"
+  }' | jq -r '.id')
+
+# Update the knowledge entry
+curl -X PUT "https://api.kubiya.ai/api/v1/knowledge/$KNOWLEDGE_ID" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Updated AWS Security Best Practices",
+    "content": "This updated document...",
+    "tags": ["aws", "security", "cloud", "best-practices"]
+  }'
+
+# Search for the entry
+curl -X GET "https://api.kubiya.ai/api/v1/knowledge/search?query=aws+security" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Bulk Operations icon="copy"
+# Get all entries with specific tag
+curl -X GET "https://api.kubiya.ai/api/v1/knowledge?tag=aws" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" | \
+  jq '.[] | {id: .id, title: .title}'
+
+# Count entries by visibility
+curl -X GET "https://api.kubiya.ai/api/v1/knowledge" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" | \
+  jq 'group_by(.visibility) | map({visibility: .[0].visibility, count: length})'
+```
+
+</CodeGroup>
+
+## Common Errors
+
+<CodeGroup>
+
+```json Knowledge Not Found
+{
+  "error": {
+    "code": "not_found",
+    "message": "Knowledge entry not found",
+    "details": {
+      "knowledgeId": "knowledge-invalid"
+    }
+  }
+}
+```
+
+```json Invalid Request
+{
+  "error": {
+    "code": "invalid_request",
+    "message": "Invalid request parameters",
+    "details": {
+      "title": "Title is required"
+    }
+  }
+}
+```
+
+```json Permission Denied
+{
+  "error": {
+    "code": "permission_denied",
+    "message": "Insufficient permissions to access this knowledge entry",
+    "details": {
+      "required_permission": "knowledge:read"
+    }
+  }
+}
+```
+
+</CodeGroup>
+
+## Error Status Codes
+
+| HTTP Status | Description |
+|-------------|-------------|
+| 400 | Bad Request - Invalid request body or missing required fields |
+| 401 | Unauthorized - API key is missing or invalid |
+| 403 | Forbidden - The API key doesn't have permission to perform this action |
+| 404 | Not Found - The specified knowledge entry was not found |
+| 500 | Internal Server Error - An unexpected error occurred on the server |
+
+<Info>
+Knowledge entries can be used by teammates to provide context-aware responses and by tools to access relevant information during execution.
+</Info>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Agents API" icon="robot" href="/api-reference/platform/agents">
+    Use knowledge entries to provide context to your agents
+  </Card>
+  <Card title="Sources API" icon="database" href="/api-reference/platform/sources">
+    Set up sources that automatically create knowledge entries
+  </Card>
+  <Card title="Tasks API" icon="list-check" href="/api-reference/platform/tasks">
+    Execute tasks using knowledge-enhanced agents
+  </Card>
+  <Card title="Search Integration" icon="search" href="/api-reference/platform/search">
+    Build advanced search functionality with knowledge entries
+  </Card>
+</CardGroup> 

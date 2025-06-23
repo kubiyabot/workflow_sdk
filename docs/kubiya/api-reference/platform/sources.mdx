@@ -1,0 +1,766 @@
+---
+title: "Sources API"
+sidebarTitle: "Sources"
+description: API endpoints for managing tool sources in the Kubiya platform
+icon: database
+api: "GET /api/v1/sources"
+---
+
+# Sources API
+
+Sources in Kubiya are collections of tools that can be attached to teammates. Sources can be Git repositories, directories, or other tool collections. The Sources API allows you to create, discover, synchronize, and manage sources.
+
+## Base URL
+
+```
+https://api.kubiya.ai/api/v1/sources
+```
+
+All endpoints require authentication with a valid API key.
+
+## Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET    | `/api/v1/sources` | List all sources |
+| GET    | `/api/v1/sources/{sourceId}` | Get source by ID |
+| GET    | `/api/v1/sources/{sourceId}/metadata` | Get source metadata |
+| GET    | `/api/v1/sources/load` | Discover/load a source (GET) |
+| POST   | `/api/v1/sources` | Create a new source |
+| PUT    | `/api/v1/sources/{sourceId}` | Sync a source |
+| DELETE | `/api/v1/sources/{sourceId}` | Delete a source |
+| GET    | `/api/v1/sources/agent_sources/{sourceId}` | Get agent sources |
+| PUT    | `/api/v1/sources/zip/load` | Load a zipped source |
+| PUT    | `/api/v1/sources/zip` | Create a zipped source |
+| PUT    | `/api/v1/sources/zip/sync/{sourceId}` | Sync a zipped source |
+
+## Common Response Status Codes
+
+| Status Code | Description |
+|-------------|-------------|
+| 200 | Success |
+| 400 | Bad Request - Invalid parameters or request body |
+| 401 | Unauthorized - Invalid or missing API key |
+| 403 | Forbidden - Insufficient permissions |
+| 404 | Not Found - Resource doesn't exist |
+| 500 | Internal Server Error |
+
+## Error Response Format
+
+```json
+{
+  "error": {
+    "code": "string",
+    "message": "string",
+    "details": {}
+  }
+}
+```
+
+## Source Object
+
+<CodeGroup>
+
+```json Source Object
+{
+  "id": "source-123",
+  "name": "AWS Tools",
+  "type": "git",
+  "url": "https://github.com/org/aws-tools",
+  "branch": "main",
+  "status": "active",
+  "created_at": "2023-01-01T00:00:00Z",
+  "updated_at": "2023-01-15T12:00:00Z",
+  "metadata": {
+    "description": "Collection of AWS automation tools",
+    "tags": ["aws", "automation"],
+    "version": "1.0.0"
+  }
+}
+```
+
+```json Source with Metadata
+{
+  "id": "source-123",
+  "metadata": {
+    "description": "Collection of AWS automation tools",
+    "tags": ["aws", "automation"],
+    "version": "1.0.0",
+    "last_sync": "2023-01-15T12:00:00Z",
+    "tools_count": 15,
+    "dependencies": {
+      "python": ">=3.8",
+      "aws-cli": ">=2.0"
+    }
+  }
+}
+```
+
+</CodeGroup>
+
+## List All Sources
+
+Retrieve all sources in your organization.
+
+```http
+GET /api/v1/sources
+```
+
+### Query Parameters
+
+<ParamField query="type" type="string">
+  Filter by source type
+</ParamField>
+
+<ParamField query="status" type="string">
+  Filter by source status
+</ParamField>
+
+<ParamField query="limit" type="integer" default="50">
+  Maximum number of sources to return
+</ParamField>
+
+<ParamField query="page" type="integer">
+  Page number for pagination
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash List All Sources icon="terminal"
+curl -X GET "https://api.kubiya.ai/api/v1/sources" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Filter by Type icon="filter"
+curl -X GET "https://api.kubiya.ai/api/v1/sources?type=git&status=active" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+[
+  {
+    "id": "source-123",
+    "name": "AWS Tools",
+    "type": "git",
+    "url": "https://github.com/org/aws-tools",
+    "branch": "main",
+    "status": "active",
+    "created_at": "2023-01-01T00:00:00Z",
+    "updated_at": "2023-01-15T12:00:00Z",
+    "metadata": {
+      "description": "Collection of AWS automation tools",
+      "tags": ["aws", "automation"],
+      "version": "1.0.0"
+    }
+  }
+]
+```
+
+## Get Source by ID
+
+Retrieve details for a specific source.
+
+```http
+GET /api/v1/sources/{sourceId}
+```
+
+### Path Parameters
+
+<ParamField path="sourceId" type="string" required>
+  ID of the source to retrieve
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash Get Source Details icon="terminal"
+curl -X GET "https://api.kubiya.ai/api/v1/sources/source-123" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Get Source Name icon="info"
+curl -X GET "https://api.kubiya.ai/api/v1/sources/source-123" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" | jq '.name'
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "id": "source-123",
+  "name": "AWS Tools",
+  "type": "git",
+  "url": "https://github.com/org/aws-tools",
+  "branch": "main",
+  "status": "active",
+  "created_at": "2023-01-01T00:00:00Z",
+  "updated_at": "2023-01-15T12:00:00Z",
+  "metadata": {
+    "description": "Collection of AWS automation tools",
+    "tags": ["aws", "automation"],
+    "version": "1.0.0"
+  }
+}
+```
+
+## Get Source Metadata
+
+Retrieve metadata for a specific source.
+
+```http
+GET /api/v1/sources/{sourceId}/metadata
+```
+
+### Path Parameters
+
+<ParamField path="sourceId" type="string" required>
+  ID of the source
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.kubiya.ai/api/v1/sources/source-123/metadata" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+### Response
+
+```json
+{
+  "id": "source-123",
+  "metadata": {
+    "description": "Collection of AWS automation tools",
+    "tags": ["aws", "automation"],
+    "version": "1.0.0",
+    "last_sync": "2023-01-15T12:00:00Z",
+    "tools_count": 15,
+    "dependencies": {
+      "python": ">=3.8",
+      "aws-cli": ">=2.0"
+    }
+  }
+}
+```
+
+## Discover/Load a Source
+
+Discover and load a source from a URL.
+
+```http
+GET /api/v1/sources/load?url={source_url}
+```
+
+### Query Parameters
+
+<ParamField query="url" type="string" required>
+  URL of the source to load
+</ParamField>
+
+<ParamField query="branch" type="string">
+  Branch to load (for Git sources)
+</ParamField>
+
+<ParamField query="type" type="string">
+  Source type (git, zip, local)
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash Load Git Source icon="terminal"
+curl -X GET "https://api.kubiya.ai/api/v1/sources/load?url=https://github.com/org/tools&branch=main" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Load with Type icon="git-branch"
+curl -X GET "https://api.kubiya.ai/api/v1/sources/load?url=https://github.com/org/tools&type=git" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "id": "source-123",
+  "name": "AWS Tools",
+  "type": "git",
+  "url": "https://github.com/org/aws-tools",
+  "branch": "main",
+  "status": "active",
+  "created_at": "2023-01-01T00:00:00Z",
+  "updated_at": "2023-01-15T12:00:00Z",
+  "metadata": {
+    "description": "Collection of AWS automation tools",
+    "tags": ["aws", "automation"],
+    "version": "1.0.0"
+  }
+}
+```
+
+## Create a Source
+
+Create a new source.
+
+```http
+POST /api/v1/sources
+```
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+<ParamField header="Content-Type" type="string" required>
+  application/json
+</ParamField>
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  Name of the source
+</ParamField>
+
+<ParamField body="type" type="string" required>
+  Type of source (git, zip, local)
+</ParamField>
+
+<ParamField body="url" type="string" required>
+  URL of the source (for git and zip types)
+</ParamField>
+
+<ParamField body="branch" type="string">
+  Branch name (for git sources)
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Additional metadata for the source
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash Create Git Source icon="terminal"
+curl -X POST "https://api.kubiya.ai/api/v1/sources" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "AWS Tools",
+    "type": "git",
+    "url": "https://github.com/org/aws-tools",
+    "branch": "main",
+    "metadata": {
+      "description": "Collection of AWS automation tools",
+      "tags": ["aws", "automation"]
+    }
+  }'
+```
+
+```bash Create with Response icon="plus"
+curl -X POST "https://api.kubiya.ai/api/v1/sources" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "DevOps Tools",
+    "type": "git",
+    "url": "https://github.com/company/devops-tools"
+  }' | jq '.id'
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "id": "source-123",
+  "name": "AWS Tools",
+  "type": "git",
+  "url": "https://github.com/org/aws-tools",
+  "branch": "main",
+  "status": "active",
+  "created_at": "2023-01-01T00:00:00Z",
+  "updated_at": "2023-01-15T12:00:00Z",
+  "metadata": {
+    "description": "Collection of AWS automation tools",
+    "tags": ["aws", "automation"],
+    "version": "1.0.0"
+  }
+}
+```
+
+## Sync a Source
+
+Synchronize a source with its remote repository.
+
+```http
+PUT /api/v1/sources/{sourceId}
+```
+
+### Path Parameters
+
+<ParamField path="sourceId" type="string" required>
+  ID of the source to sync
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+<ParamField header="Content-Type" type="string" required>
+  application/json
+</ParamField>
+
+### Request Body
+
+<ParamField body="branch" type="string">
+  Branch to sync to
+</ParamField>
+
+<ParamField body="force" type="boolean" default="false">
+  Force sync even if there are conflicts
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash Sync Source icon="terminal"
+curl -X PUT "https://api.kubiya.ai/api/v1/sources/source-123" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "branch": "main",
+    "force": false
+  }'
+```
+
+```bash Force Sync icon="refresh"
+curl -X PUT "https://api.kubiya.ai/api/v1/sources/source-123" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"force": true}' | jq '.status'
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "id": "source-123",
+  "name": "AWS Tools",
+  "type": "git",
+  "url": "https://github.com/org/aws-tools",
+  "branch": "main",
+  "status": "active",
+  "created_at": "2023-01-01T00:00:00Z",
+  "updated_at": "2023-01-15T12:00:00Z",
+  "metadata": {
+    "description": "Collection of AWS automation tools",
+    "tags": ["aws", "automation"],
+    "version": "1.0.0",
+    "last_sync": "2023-01-15T12:00:00Z"
+  }
+}
+```
+
+## Delete a Source
+
+Delete a source.
+
+```http
+DELETE /api/v1/sources/{sourceId}
+```
+
+### Path Parameters
+
+<ParamField path="sourceId" type="string" required>
+  ID of the source to delete
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash Delete Source icon="terminal"
+curl -X DELETE "https://api.kubiya.ai/api/v1/sources/source-123" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Delete with Confirmation icon="trash"
+curl -X DELETE "https://api.kubiya.ai/api/v1/sources/old-source" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  && echo "Source deleted successfully"
+```
+
+</CodeGroup>
+
+### Response
+
+A successful delete operation returns an HTTP 200 status with no response body.
+
+## Get Agent Sources
+
+Retrieve sources associated with a specific agent.
+
+```http
+GET /api/v1/sources/agent_sources/{sourceId}
+```
+
+### Path Parameters
+
+<ParamField path="sourceId" type="string" required>
+  ID of the agent
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.kubiya.ai/api/v1/sources/agent_sources/agent-123" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+### Response
+
+```json
+[
+  {
+    "id": "source-123",
+    "name": "AWS Tools",
+    "type": "git",
+    "url": "https://github.com/org/aws-tools",
+    "status": "active",
+    "metadata": {
+      "description": "Collection of AWS automation tools",
+      "tags": ["aws", "automation"]
+    }
+  }
+]
+```
+
+## Zip Endpoints
+
+### Load a Zipped Source
+
+Load a source from a zip file.
+
+```http
+PUT /api/v1/sources/zip/load
+```
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+<ParamField header="Content-Type" type="string" required>
+  multipart/form-data
+</ParamField>
+
+### Request Body
+
+<ParamField body="file" type="file" required>
+  Zip file containing the source
+</ParamField>
+
+<ParamField body="name" type="string" required>
+  Name for the source
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Additional metadata
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X PUT "https://api.kubiya.ai/api/v1/sources/zip/load" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -F "file=@tools.zip" \
+  -F "name=Local Tools" \
+  -F "metadata={\"description\":\"Local tools collection\"}"
+```
+
+### Response
+
+```json
+{
+  "id": "source-123",
+  "name": "Local Tools",
+  "type": "zip",
+  "status": "active",
+  "created_at": "2023-01-01T00:00:00Z",
+  "updated_at": "2023-01-15T12:00:00Z",
+  "metadata": {
+    "description": "Local tools collection",
+    "tags": ["local", "tools"]
+  }
+}
+```
+
+### Create a Zipped Source
+
+Create a zip file from a source.
+
+```http
+PUT /api/v1/sources/zip
+```
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+<ParamField header="Content-Type" type="string" required>
+  application/json
+</ParamField>
+
+### Request Body
+
+<ParamField body="source_id" type="string" required>
+  ID of the source to zip
+</ParamField>
+
+<ParamField body="include_metadata" type="boolean" default="true">
+  Whether to include metadata in the zip
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X PUT "https://api.kubiya.ai/api/v1/sources/zip" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source_id": "source-123",
+    "include_metadata": true
+  }' -o source-backup.zip
+```
+
+### Response
+
+The response is a zip file containing the source.
+
+## Common Errors
+
+<CodeGroup>
+
+```json Source Not Found
+{
+  "error": {
+    "code": "not_found",
+    "message": "Source not found",
+    "details": {
+      "sourceId": "source-invalid"
+    }
+  }
+}
+```
+
+```json Invalid URL
+{
+  "error": {
+    "code": "invalid_request",
+    "message": "Invalid repository URL",
+    "details": {
+      "url": "invalid-url"
+    }
+  }
+}
+```
+
+```json Sync Failed
+{
+  "error": {
+    "code": "sync_failed",
+    "message": "Failed to sync source",
+    "details": {
+      "reason": "Network timeout"
+    }
+  }
+}
+```
+
+</CodeGroup>
+
+## Error Status Codes
+
+| HTTP Status | Description |
+|-------------|-------------|
+| 400 | Bad Request - Invalid request body or missing required fields |
+| 401 | Unauthorized - API key is missing or invalid |
+| 403 | Forbidden - The API key doesn't have permission to perform this action |
+| 404 | Not Found - The specified source was not found |
+| 500 | Internal Server Error - An unexpected error occurred on the server |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Agents API" icon="robot" href="/api-reference/platform/agents">
+    Attach sources to your agents
+  </Card>
+  <Card title="Tasks API" icon="list-check" href="/api-reference/platform/tasks">
+    Execute tasks using tools from sources
+  </Card>
+  <Card title="Runners API" icon="server" href="/api-reference/platform/runners">
+    Deploy sources to runners
+  </Card>
+  <Card title="Knowledge API" icon="brain" href="/api-reference/platform/knowledge">
+    Add knowledge alongside tool sources
+  </Card>
+</CardGroup> 

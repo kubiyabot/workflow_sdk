@@ -3,6 +3,7 @@ title: "Compose API"
 sidebarTitle: "Compose"
 description: End-to-end workflow generation and execution API
 icon: wand-magic-sparkles
+api: "POST /compose"
 ---
 
 <Note>
@@ -18,25 +19,17 @@ The `compose()` method provides a unified interface for:
 - **Optional execution** with streaming
 - **Multiple output formats** (JSON, YAML, streaming)
 
-## Method Signature
+## HTTP Endpoint
 
-```python
-async def compose(
-    task: str,
-    context: Optional[Dict[str, Any]] = None,
-    parameters: Optional[Dict[str, Any]] = None,
-    mode: str = "plan",
-    stream: bool = True,
-    stream_format: str = "sse",
-    session_id: Optional[str] = None,
-    user_id: Optional[str] = None,
-    **kwargs
-) -> Union[Dict[str, Any], AsyncGenerator[str, None]]
+```http
+POST /compose
+Content-Type: application/json
+Authorization: Bearer your-api-key
 ```
 
-## Parameters
+### Request Body
 
-<ParamField path="task" type="str" required>
+<ParamField body="task" type="string" required>
   The task description in natural language. Be specific and include requirements.
   
   **Examples:**
@@ -45,115 +38,126 @@ async def compose(
   - "Set up CI/CD pipeline for Python project with tests"
 </ParamField>
 
-<ParamField path="context" type="Dict[str, Any]" optional>
+<ParamField body="context" type="object" optional>
   Additional context to guide workflow generation.
   
-  **Supported fields:**
-  - `preferred_runner`: Specific runner to use
-  - `available_tools`: List of tools/commands available
-  - `constraints`: Security or operational constraints
-  - `environment`: Target environment details
-  
-  ```python
-  context = {
-      "preferred_runner": "kubernetes-runner",
-      "environment": "production",
-      "constraints": ["no sudo", "read-only filesystem"]
-  }
-  ```
+  <Expandable title="Context Properties">
+    <ParamField body="context.preferred_runner" type="string">
+      Specific runner to use for execution
+    </ParamField>
+    <ParamField body="context.available_tools" type="array">
+      List of tools/commands available
+    </ParamField>
+    <ParamField body="context.constraints" type="array">
+      Security or operational constraints
+    </ParamField>
+    <ParamField body="context.environment" type="string">
+      Target environment details
+    </ParamField>
+  </Expandable>
 </ParamField>
 
-<ParamField path="parameters" type="Dict[str, Any]" optional>
+<ParamField body="parameters" type="object" optional>
   Execution parameters (only used in `act` mode).
-  
-  ```python
-  parameters = {
-      "database": "myapp_prod",
-      "namespace": "production",
-      "replicas": 3
-  }
-  ```
 </ParamField>
 
-<ParamField path="mode" type="str" default="plan">
+<ParamField body="mode" type="string" default="plan">
   Operation mode:
   - `"plan"`: Generate workflow only
   - `"act"`: Generate and execute workflow
 </ParamField>
 
-<ParamField path="stream" type="bool" default="True">
-  Enable streaming response. When `True`, returns an async generator.
+<ParamField body="stream" type="boolean" default="true">
+  Enable streaming response. When `true`, returns Server-Sent Events.
 </ParamField>
 
-<ParamField path="stream_format" type="str" default="sse">
+<ParamField body="stream_format" type="string" default="sse">
   Streaming format:
   - `"sse"`: Server-Sent Events format
   - `"vercel"`: Vercel AI SDK format
-  - `None`: Raw ADK events
+  - `null`: Raw ADK events
 </ParamField>
 
-<ParamField path="session_id" type="str" optional>
+<ParamField body="session_id" type="string" optional>
   Session ID for conversation continuity. Automatically generated if not provided.
 </ParamField>
 
-<ParamField path="user_id" type="str" optional>
+<ParamField body="user_id" type="string" optional>
   User ID for namespacing and tracking. Defaults to `"default_user"`.
 </ParamField>
 
-## Return Values
+## Response Format
 
-### Plan Mode (Non-streaming)
+<CodeGroup>
 
-Returns a dictionary with the generated workflow:
-
-```python
+```json Plan Mode Response
 {
-    "workflow": {
-        "name": "backup-databases",
-        "description": "Automated database backup workflow",
-        "runner": "kubiya-hosted",
-        "steps": [
-            {
-                "name": "backup_postgres",
-                "tool": "pg_dump",
-                "parameters": {...}
-            }
-        ]
-    }
+  "workflow": {
+    "name": "backup-databases",
+    "description": "Automated database backup workflow",
+    "runner": "kubiya-hosted",
+    "steps": [
+      {
+        "name": "backup_postgres",
+        "tool": "pg_dump",
+        "parameters": {
+          "database": "production",
+          "output": "/backups/db-backup.sql"
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "generated_at": "2024-01-15T10:30:00Z",
+    "model": "gpt-4o",
+    "tokens_used": 1250
+  }
 }
 ```
 
-### Act Mode (Non-streaming)
-
-Returns both workflow and execution result:
-
-```python
+```json Act Mode Response  
 {
-    "workflow": {...},  # Generated workflow
-    "execution_result": {
-        "run_id": "run_abc123",
-        "status": "success",
-        "outputs": {...},
-        "duration": 45.2
-    }
+  "workflow": {
+    "name": "backup-databases",
+    "description": "Automated database backup workflow",
+    "runner": "kubiya-hosted",
+    "steps": [...]
+  },
+  "execution_result": {
+    "run_id": "run_abc123",
+    "status": "success",
+    "outputs": {
+      "backup_file": "/backups/db-backup-20240115.sql",
+      "size": "2.5GB"
+    },
+    "duration": 45.2,
+    "started_at": "2024-01-15T10:30:00Z",
+    "completed_at": "2024-01-15T10:30:45Z"
+  }
 }
 ```
 
-### Streaming Response
-
-Returns an async generator yielding events:
-
-```python
-async for event in compose(...):
-    # event is a string in the specified format
-    print(event)
-```
+</CodeGroup>
 
 ## Usage Examples
 
-### Basic Workflow Generation
+<CodeGroup>
 
-```python
+```bash cURL Example
+curl -X POST http://localhost:8001/compose \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-api-key" \
+  -d '{
+    "task": "Deploy my Node.js app to Kubernetes staging",
+    "mode": "plan",
+    "context": {
+      "environment": "staging",
+      "preferred_runner": "k8s-staging"
+    }
+  }'
+```
+
+```python Python SDK icon="python"
 from kubiya_workflow_sdk.providers import get_provider
 
 # Initialize ADK provider
@@ -170,9 +174,49 @@ workflow = result["workflow"]
 print(f"Generated: {workflow['name']}")
 ```
 
-### Streaming Generation
+```typescript TypeScript SDK icon="typescript"
+import { OrchestrationClient } from '@kubiya/sdk';
 
-```python
+const client = new OrchestrationClient('http://localhost:8001', 'your-api-key');
+
+// Generate workflow
+const result = await client.compose({
+  task: "Deploy application to staging environment",
+  mode: "plan",
+  context: {
+    environment: "staging",
+    preferred_runner: "k8s-staging"
+  }
+});
+
+console.log('Generated workflow:', result.workflow.name);
+```
+
+```javascript JavaScript Fetch icon="square-js"
+const response = await fetch('http://localhost:8001/compose', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer your-api-key'
+  },
+  body: JSON.stringify({
+    task: "Set up monitoring for my microservices",
+    mode: "plan",
+    context: {
+      services: ["api", "web", "worker"],
+      monitoring_tool: "prometheus"
+    }
+  })
+});
+```
+
+</CodeGroup>
+
+## Streaming Examples
+
+<CodeGroup>
+
+```python Streaming Generation icon="python" lines
 # Stream the generation process
 async for event in adk.compose(
     task="Deploy application to Kubernetes",
@@ -185,93 +229,88 @@ async for event in adk.compose(
         print(f"{data['type']}: {data.get('content', '')}")
 ```
 
-### Generate and Execute
+```typescript Server-Sent Events icon="typescript" lines
+const response = await fetch('http://localhost:8001/compose', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer your-api-key'
+  },
+  body: JSON.stringify({
+    task: "Deploy to production",
+    mode: "act",
+    stream: true
+  })
+});
 
-```python
-# Generate and immediately execute
-async for event in adk.compose(
-    task="Backup all databases and upload to S3",
-    mode="act",
-    parameters={
-        "s3_bucket": "my-backups",
-        "databases": ["users", "orders", "products"]
-    },
-    stream=True
-):
-    # Handle both generation and execution events
-    handle_event(event)
+const reader = response.body?.getReader();
+const decoder = new TextDecoder();
+
+while (reader) {
+  const { done, value } = await reader.read();
+  if (done) break;
+  
+  const chunk = decoder.decode(value);
+  const lines = chunk.split('\n');
+  
+  for (const line of lines) {
+    if (line.startsWith('data: ')) {
+      const event = JSON.parse(line.slice(6));
+      console.log(`Event: ${event.type}`, event);
+    }
+  }
+}
 ```
 
-### With Custom Context
-
-```python
-# Provide specific context
-result = await adk.compose(
-    task="Set up monitoring for microservices",
-    context={
-        "services": ["api", "web", "worker"],
-        "monitoring_tool": "prometheus",
-        "alert_channel": "#ops-alerts",
-        "preferred_runner": "kubernetes-runner"
-    },
-    mode="plan"
-)
+```bash Streaming with cURL icon="terminal" lines
+curl -X POST http://localhost:8001/compose \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-api-key" \
+  -H "Accept: text/event-stream" \
+  -N \
+  -d '{
+    "task": "Deploy my application",
+    "mode": "act", 
+    "stream": true
+  }'
 ```
 
-### Session Continuity
-
-```python
-# First request
-session_id = str(uuid.uuid4())
-
-workflow1 = await adk.compose(
-    task="Create a deployment workflow",
-    session_id=session_id,
-    mode="plan"
-)
-
-# Follow-up request in same session
-workflow2 = await adk.compose(
-    task="Add rollback capabilities to the previous workflow",
-    session_id=session_id,  # Same session
-    mode="plan"
-)
-```
+</CodeGroup>
 
 ## Event Types
 
 When streaming is enabled, various event types are emitted:
 
-### Generation Events
+<CodeGroup>
 
-```python
-# Text generation progress
+```json Generation Events
+// Text generation progress
 {"type": "text", "content": "Analyzing requirements..."}
 
-# Tool calls (loading context)
+// Tool calls (loading context)
 {"type": "tool_call", "name": "get_runners", "arguments": {}}
 
-# Tool results
-{"type": "tool_result", "name": "get_runners", "result": {...}}
+// Tool results  
+{"type": "tool_result", "name": "get_runners", "result": [...]}
 
-# Workflow ready
+// Workflow ready
 {"type": "workflow", "data": {...}}
 ```
 
-### Execution Events (Act Mode)
-
-```python
-# Execution started
+```json Execution Events (Act Mode)
+// Execution started
 {"type": "execution_start", "workflow": "deploy-app", "run_id": "run_123"}
 
-# Step progress
+// Step progress
 {"type": "step_start", "step": "build", "index": 0}
 {"type": "step_output", "step": "build", "output": "Building..."}
 {"type": "step_complete", "step": "build", "status": "success"}
 
-# Execution complete
+// Execution complete
 {"type": "execution_complete", "status": "success", "duration": 120.5}
 ```
+
+</CodeGroup>
 
 ## Error Handling
 

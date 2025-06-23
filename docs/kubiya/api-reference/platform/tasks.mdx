@@ -1,0 +1,715 @@
+---
+title: "Tasks API"
+sidebarTitle: "Tasks"
+description: API endpoints for managing tasks in the Kubiya platform
+icon: list-check
+api: "POST /api/v1/tasks"
+---
+
+# Infrastrure as code Tasks API
+
+The Tasks API allows you to manage IAC tasks in your organization, including creating, monitoring, and controlling their execution lifecycle.
+
+Tasks are powered behind the scenes using Terraform and allows a flexible interface for users and agents to consume infrastrcuture automations from within workflows
+
+## Base URL
+
+```
+https://api.kubiya.ai/api/v1/tasks
+```
+
+All endpoints require authentication with a valid API key.
+
+## Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET    | `/api/v1/tasks` | List all tasks |
+| GET    | `/api/v1/tasks/{taskId}` | Get task details |
+| POST   | `/api/v1/tasks` | Create a new task |
+| PUT    | `/api/v1/tasks/{taskId}/cancel` | Cancel a task |
+| GET    | `/api/v1/tasks/{taskId}/logs` | Get task logs |
+| GET    | `/api/v1/tasks/{taskId}/status` | Get task status |
+| GET    | `/api/v1/tasks/agent/{agentId}` | List tasks for an agent |
+| GET    | `/api/v1/tasks/runner/{runnerId}` | List tasks for a runner |
+
+## Common Response Status Codes
+
+| Status Code | Description |
+|-------------|-------------|
+| 200 | Success |
+| 400 | Bad Request - Invalid parameters or request body |
+| 401 | Unauthorized - Invalid or missing API key |
+| 403 | Forbidden - Insufficient permissions |
+| 404 | Not Found - Resource doesn't exist |
+| 500 | Internal Server Error |
+
+## Error Response Format
+
+```json
+{
+  "error": {
+    "code": "string",
+    "message": "string",
+    "details": {}
+  }
+}
+```
+
+## Task Object
+
+<CodeGroup>
+
+```json Task Object
+{
+  "id": "task-123",
+  "name": "Deploy Application",
+  "description": "Deploy application to production environment",
+  "status": "running",
+  "progress": 75,
+  "created_at": "2023-01-01T00:00:00Z",
+  "updated_at": "2023-01-01T00:15:00Z",
+  "started_at": "2023-01-01T00:00:00Z",
+  "completed_at": null,
+  "agent_id": "agent-456",
+  "runner_id": "runner-789",
+  "metadata": {
+    "environment": "production",
+    "version": "1.2.0",
+    "priority": "high"
+  },
+  "result": {
+    "output": {},
+    "error": null
+  }
+}
+```
+
+```json Task with Logs
+{
+  "task_id": "task-123",
+  "logs": [
+    {
+      "timestamp": "2023-01-01T00:00:00Z",
+      "level": "info",
+      "message": "Task started",
+      "metadata": {
+        "component": "runner",
+        "step": "initialization"
+      }
+    },
+    {
+      "timestamp": "2023-01-01T00:15:00Z",
+      "level": "error",
+      "message": "Failed to connect to database",
+      "metadata": {
+        "component": "database",
+        "error_code": "DB001"
+      }
+    }
+  ]
+}
+```
+
+</CodeGroup>
+
+## List Tasks
+
+Retrieve all tasks in your organization.
+
+```http
+GET /api/v1/tasks
+```
+
+### Query Parameters
+
+<ParamField query="status" type="string">
+  Filter by task status
+</ParamField>
+
+<ParamField query="agent" type="string">
+  Filter by agent ID
+</ParamField>
+
+<ParamField query="runner" type="string">
+  Filter by runner ID
+</ParamField>
+
+<ParamField query="limit" type="integer" default="50">
+  Maximum number of tasks to return
+</ParamField>
+
+<ParamField query="page" type="integer">
+  Page number for pagination
+</ParamField>
+
+<ParamField query="sort" type="string">
+  Sort by field (created_at, updated_at, status)
+</ParamField>
+
+<ParamField query="order" type="string">
+  Sort order (asc, desc)
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Request
+
+<CodeGroup>
+
+```bash List All Tasks icon="terminal"
+curl -X GET "https://api.kubiya.ai/api/v1/tasks" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Filter by Status icon="filter"
+curl -X GET "https://api.kubiya.ai/api/v1/tasks?status=running&limit=10" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Filter by Agent icon="user"
+curl -X GET "https://api.kubiya.ai/api/v1/tasks?agent=agent-456&status=completed" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+[
+  {
+    "id": "task-123",
+    "name": "Deploy Application",
+    "description": "Deploy application to production environment",
+    "status": "running",
+    "progress": 75,
+    "created_at": "2023-01-01T00:00:00Z",
+    "updated_at": "2023-01-01T00:15:00Z",
+    "started_at": "2023-01-01T00:00:00Z",
+    "completed_at": null,
+    "agent_id": "agent-456",
+    "runner_id": "runner-789",
+    "metadata": {
+      "environment": "production",
+      "version": "1.2.0",
+      "priority": "high"
+    }
+  }
+]
+```
+
+## Get Task Details
+
+Retrieve details for a specific task.
+
+```http
+GET /api/v1/tasks/{taskId}
+```
+
+### Path Parameters
+
+<ParamField path="taskId" type="string" required>
+  ID of the task
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Request
+
+<CodeGroup>
+
+```bash Get Task Details icon="terminal"
+curl -X GET "https://api.kubiya.ai/api/v1/tasks/task-123" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Get with JSON Processing icon="code"
+curl -X GET "https://api.kubiya.ai/api/v1/tasks/task-123" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" | jq '.name, .status'
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "id": "task-123",
+  "name": "Deploy Application",
+  "description": "Deploy application to production environment",
+  "status": "running",
+  "progress": 75,
+  "created_at": "2023-01-01T00:00:00Z",
+  "updated_at": "2023-01-01T00:15:00Z",
+  "started_at": "2023-01-01T00:00:00Z",
+  "completed_at": null,
+  "agent_id": "agent-456",
+  "runner_id": "runner-789",
+  "metadata": {
+    "environment": "production",
+    "version": "1.2.0",
+    "priority": "high"
+  },
+  "result": {
+    "output": {},
+    "error": null
+  }
+}
+```
+
+## Create Task
+
+Create a new task.
+
+```http
+POST /api/v1/tasks
+```
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+<ParamField header="Content-Type" type="string" required>
+  application/json
+</ParamField>
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  Name of the task
+</ParamField>
+
+<ParamField body="description" type="string">
+  Description of the task
+</ParamField>
+
+<ParamField body="agent_id" type="string" required>
+  ID of the agent to execute the task
+</ParamField>
+
+<ParamField body="runner_id" type="string" required>
+  ID of the runner to use
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Additional metadata for the task
+</ParamField>
+
+<ParamField body="parameters" type="object">
+  Task-specific parameters
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash Create Task icon="terminal"
+curl -X POST "https://api.kubiya.ai/api/v1/tasks" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Deploy Application",
+    "description": "Deploy application to production environment",
+    "agent_id": "agent-456",
+    "runner_id": "runner-789",
+    "metadata": {
+      "environment": "production",
+      "version": "1.2.0",
+      "priority": "high"
+    },
+    "parameters": {
+      "app_name": "my-app",
+      "deploy_strategy": "rolling"
+    }
+  }'
+```
+
+```bash Create with Response Processing icon="plus"
+curl -X POST "https://api.kubiya.ai/api/v1/tasks" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Deploy Application",
+    "description": "Deploy application to production environment",
+    "agent_id": "agent-456",
+    "runner_id": "runner-789",
+    "metadata": {
+      "environment": "production",
+      "version": "1.2.0"
+    }
+  }' | jq '.id'
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "id": "task-123",
+  "name": "Deploy Application",
+  "description": "Deploy application to production environment",
+  "status": "pending",
+  "progress": 0,
+  "created_at": "2023-01-01T00:00:00Z",
+  "updated_at": "2023-01-01T00:00:00Z",
+  "started_at": null,
+  "completed_at": null,
+  "agent_id": "agent-456",
+  "runner_id": "runner-789",
+  "metadata": {
+    "environment": "production",
+    "version": "1.2.0",
+    "priority": "high"
+  }
+}
+```
+
+## Cancel Task
+
+Cancel a running task.
+
+```http
+PUT /api/v1/tasks/{taskId}/cancel
+```
+
+### Path Parameters
+
+<ParamField path="taskId" type="string" required>
+  ID of the task to cancel
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Request
+
+<CodeGroup>
+
+```bash Cancel Task icon="terminal"
+curl -X PUT "https://api.kubiya.ai/api/v1/tasks/task-123/cancel" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Cancel with Confirmation icon="x"
+curl -X PUT "https://api.kubiya.ai/api/v1/tasks/task-123/cancel" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" | jq '.status'
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "id": "task-123",
+  "status": "cancelled",
+  "cancelled_at": "2023-01-01T00:30:00Z",
+  "cancelled_by": "user@example.com"
+}
+```
+
+## Get Task Logs
+
+Retrieve logs for a specific task.
+
+```http
+GET /api/v1/tasks/{taskId}/logs
+```
+
+### Path Parameters
+
+<ParamField path="taskId" type="string" required>
+  ID of the task
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="start_time" type="string">
+  Filter logs after this timestamp
+</ParamField>
+
+<ParamField query="end_time" type="string">
+  Filter logs before this timestamp
+</ParamField>
+
+<ParamField query="level" type="string">
+  Filter by log level (info, error, debug)
+</ParamField>
+
+<ParamField query="limit" type="integer">
+  Maximum number of log entries to return
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Request
+
+<CodeGroup>
+
+```bash Get Task Logs icon="terminal"
+curl -X GET "https://api.kubiya.ai/api/v1/tasks/task-123/logs" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Filter Error Logs icon="exclamation-triangle"
+curl -X GET "https://api.kubiya.ai/api/v1/tasks/task-123/logs?level=error" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Get Recent Logs icon="scroll"
+curl -X GET "https://api.kubiya.ai/api/v1/tasks/task-123/logs?limit=20" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" | jq '.logs[].message'
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "task_id": "task-123",
+  "logs": [
+    {
+      "timestamp": "2023-01-01T00:00:00Z",
+      "level": "info",
+      "message": "Task started",
+      "metadata": {
+        "component": "runner",
+        "step": "initialization"
+      }
+    },
+    {
+      "timestamp": "2023-01-01T00:15:00Z",
+      "level": "error",
+      "message": "Failed to connect to database",
+      "metadata": {
+        "component": "database",
+        "error_code": "DB001"
+      }
+    }
+  ]
+}
+```
+
+## Get Task Status
+
+Get the current status of a task.
+
+```http
+GET /api/v1/tasks/{taskId}/status
+```
+
+### Path Parameters
+
+<ParamField path="taskId" type="string" required>
+  ID of the task
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Request
+
+<CodeGroup>
+
+```bash Get Task Status icon="terminal"
+curl -X GET "https://api.kubiya.ai/api/v1/tasks/task-123/status" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Get Status with Progress icon="clock"
+curl -X GET "https://api.kubiya.ai/api/v1/tasks/task-123/status" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" | jq '.status, .progress'
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "id": "task-123",
+  "status": "running",
+  "progress": 75,
+  "started_at": "2023-01-01T00:00:00Z",
+  "updated_at": "2023-01-01T00:15:00Z",
+  "metadata": {
+    "current_step": "deploying",
+    "steps_completed": 3,
+    "total_steps": 4
+  }
+}
+```
+
+## List Tasks for Agent
+
+Retrieve all tasks associated with a specific agent.
+
+```http
+GET /api/v1/tasks/agent/{agentId}
+```
+
+### Path Parameters
+
+<ParamField path="agentId" type="string" required>
+  ID of the agent
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.kubiya.ai/api/v1/tasks/agent/agent-456" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+### Response
+
+```json
+[
+  {
+    "id": "task-123",
+    "name": "Deploy Application",
+    "status": "running",
+    "progress": 75,
+    "created_at": "2023-01-01T00:00:00Z",
+    "updated_at": "2023-01-01T00:15:00Z"
+  }
+]
+```
+
+## List Tasks for Runner
+
+Retrieve all tasks associated with a specific runner.
+
+```http
+GET /api/v1/tasks/runner/{runnerId}
+```
+
+### Path Parameters
+
+<ParamField path="runnerId" type="string" required>
+  ID of the runner
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.kubiya.ai/api/v1/tasks/runner/runner-789" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+### Response
+
+```json
+[
+  {
+    "id": "task-123",
+    "name": "Deploy Application",
+    "status": "running",
+    "progress": 75,
+    "created_at": "2023-01-01T00:00:00Z",
+    "updated_at": "2023-01-01T00:15:00Z"
+  }
+]
+```
+
+## Common Errors
+
+<CodeGroup>
+
+```json Task Not Found
+{
+  "error": {
+    "code": "not_found",
+    "message": "Task not found",
+    "details": {
+      "taskId": "task-123"
+    }
+  }
+}
+```
+
+```json Invalid Request
+{
+  "error": {
+    "code": "invalid_request",
+    "message": "Invalid request parameters",
+    "details": {
+      "name": "Name is required"
+    }
+  }
+}
+```
+
+```json Unauthorized
+{
+  "error": {
+    "code": "unauthorized",
+    "message": "Invalid API key"
+  }
+}
+```
+
+</CodeGroup>
+
+## Error Status Codes
+
+| HTTP Status | Description |
+|-------------|-------------|
+| 400 | Bad Request - Invalid request body or missing required fields |
+| 401 | Unauthorized - API key is missing or invalid |
+| 403 | Forbidden - The API key doesn't have permission to perform this action |
+| 404 | Not Found - The specified task was not found |
+| 409 | Conflict - Task is in an invalid state for the requested operation |
+| 500 | Internal Server Error - An unexpected error occurred on the server |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Agents API" icon="robot" href="/api-reference/platform/agents">
+    Configure agents to execute tasks
+  </Card>
+  <Card title="Runners API" icon="server" href="/api-reference/platform/runners">
+    Deploy and manage execution environments
+  </Card>
+  <Card title="Webhooks API" icon="webhook" href="/api-reference/platform/webhooks">
+    Set up notifications for task events
+  </Card>
+  <Card title="Sources API" icon="database" href="/api-reference/platform/sources">
+    Manage tool sources for task execution
+  </Card>
+</CardGroup> 

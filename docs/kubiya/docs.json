@@ -9,11 +9,7 @@
   "colors": {
     "primary": "#1f2937",
     "light": "#6b7280",
-    "dark": "#111827",
-    "anchors": {
-      "from": "#1f2937",
-      "to": "#374151"
-    }
+    "dark": "#111827"
   },
   "topbarLinks": [
     {
@@ -36,7 +32,7 @@
       "url": "/"
     },
     {
-      "name": "API Reference",
+      "name": "APIs",
       "url": "/api-reference"
     },
     {
@@ -64,6 +60,27 @@
       "url": "/changelog"
     }
   ],
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "chatgpt",
+      "claude"
+    ]
+  },
+  "api": {
+    "mdx": {
+      "server": ["https://api.kubiya.ai/api/v1", "http://localhost:8001"],
+      "auth": {
+        "method": "key",
+        "name": "Authorization",
+        "inputPrefix": "UserKey "
+      }
+    },
+    "playground": {
+      "mode": "show"
+    }
+  },
   "navigation": [
     {
       "group": "Introduction",
@@ -122,9 +139,26 @@
       ]
     },
     {
-      "group": "API Reference",
+      "group": "Agent Server APIs",
       "pages": [
-        "api-reference/compose"
+        "api-reference/agent-servers/overview",
+        "api-reference/agent-servers/compose",
+        "api-reference/agent-servers/discovery",
+        "api-reference/agent-servers/orchestration"
+      ]
+    },
+    {
+      "group": "Kubiya Platform APIs", 
+      "pages": [
+        "api-reference/platform/overview",
+        "api-reference/platform/authentication",
+        "api-reference/platform/agents",
+        "api-reference/platform/tasks",
+        "api-reference/platform/sources",
+        "api-reference/platform/runners",
+        "api-reference/platform/knowledge",
+        "api-reference/platform/webhooks",
+        "api-reference/platform/integrations"
       ]
     },
     {

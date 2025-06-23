@@ -1,0 +1,515 @@
+---
+title: "Authentication"
+sidebarTitle: "Authentication"
+description: API key authentication for Kubiya Platform APIs
+icon: key
+---
+
+# Authentication
+
+All Kubiya Platform API requests require authentication using API keys. This ensures secure access to your agents, workflows, and data.
+
+## API Key Format
+
+Kubiya Platform uses the `UserKey` authentication scheme:
+
+```bash
+Authorization: UserKey YOUR_API_KEY
+```
+
+<Warning>
+  Never share your API keys publicly or commit them to version control. Always use environment variables or secure secret management.
+</Warning>
+
+## Generating API Keys
+
+### Via Kubiya Web App
+
+1. Navigate to [app.kubiya.ai](https://app.kubiya.ai)
+2. Go to **Settings** → **API Keys**
+3. Click **Generate New Key**
+4. Give your key a descriptive name
+5. Copy the key immediately (it won't be shown again)
+
+### Via Kubiya CLI
+
+```bash
+# Install Kubiya CLI
+npm install -g @kubiya/cli
+
+# Login to your account
+kubiya auth login
+
+# Generate an API key
+kubiya keys create --name "my-integration-key"
+```
+
+### Programmatic Generation
+
+You can also generate API keys programmatically using an existing key:
+
+```bash
+curl -X POST https://api.kubiya.ai/api/v1/auth/keys \
+  -H "Authorization: UserKey $EXISTING_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "New Integration Key",
+    "description": "For production deployment automation",
+    "scopes": ["agents:read", "tasks:execute", "workflows:manage"]
+  }'
+```
+
+## API Key Scopes
+
+API keys can be created with specific scopes to limit access:
+
+| Scope | Description |
+|-------|-------------|
+| `agents:read` | Read agent configurations and status |
+| `agents:write` | Create, update, and delete agents |
+| `tasks:read` | View task history and status |
+| `tasks:execute` | Execute tasks and workflows |
+| `workflows:read` | View workflow definitions |
+| `workflows:manage` | Create, update, and manage workflows |
+| `knowledge:read` | Access knowledge base entries |
+| `knowledge:write` | Add and update knowledge entries |
+| `runners:read` | View runner status and configurations |
+| `runners:manage` | Deploy and manage runners |
+| `integrations:read` | View integration configurations |
+| `integrations:write` | Configure integrations and connections |
+| `webhooks:manage` | Create and manage webhooks |
+| `admin` | Full administrative access |
+
+## Making Authenticated Requests
+
+### cURL Examples
+
+```bash
+# List agents
+curl -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  https://api.kubiya.ai/api/v1/agents
+
+# Execute a task
+curl -X POST https://api.kubiya.ai/api/v1/tasks \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Deploy to staging",
+    "agent_id": "agent_123",
+    "parameters": {"environment": "staging"}
+  }'
+```
+
+### SDK Examples
+
+#### TypeScript
+
+```typescript
+import { KubiyaClient } from '@kubiya/sdk';
+
+const kubiya = new KubiyaClient({
+  apiKey: process.env.KUBIYA_API_KEY,
+  baseUrl: 'https://api.kubiya.ai/api/v1'
+});
+
+// All requests are automatically authenticated
+const agents = await kubiya.agents.list();
+```
+
+#### Python
+
+```python
+from kubiya_sdk import KubiyaClient
+
+client = KubiyaClient(
+    api_key=os.getenv('KUBIYA_API_KEY'),
+    base_url='https://api.kubiya.ai/api/v1'
+)
+
+# Authenticated request
+agents = client.agents.list()
+```
+
+#### JavaScript (Fetch)
+
+```javascript
+const apiKey = process.env.KUBIYA_API_KEY;
+
+const response = await fetch('https://api.kubiya.ai/api/v1/agents', {
+  headers: {
+    'Authorization': `UserKey ${apiKey}`,
+    'Content-Type': 'application/json'
+  }
+});
+
+const agents = await response.json();
+```
+
+## Environment Setup
+
+### Development
+
+```bash
+# .env file
+KUBIYA_API_KEY=uk_dev_1234567890abcdef
+KUBIYA_BASE_URL=https://api.kubiya.ai/api/v1
+```
+
+### Production
+
+For production environments, use secure secret management:
+
+#### Docker
+
+```bash
+docker run -e KUBIYA_API_KEY=$KUBIYA_API_KEY myapp:latest
+```
+
+#### Kubernetes
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kubiya-api-key
+type: Opaque
+stringData:
+  api-key: uk_prod_1234567890abcdef
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+spec:
+  template:
+    spec:
+      containers:
+      - name: app
+        image: myapp:latest
+        env:
+        - name: KUBIYA_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: kubiya-api-key
+              key: api-key
+```
+
+#### GitHub Actions
+
+```yaml
+name: Deploy with Kubiya
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Deploy via Kubiya
+      env:
+        KUBIYA_API_KEY: ${{ secrets.KUBIYA_API_KEY }}
+      run: |
+        curl -X POST https://api.kubiya.ai/api/v1/tasks \
+          -H "Authorization: UserKey $KUBIYA_API_KEY" \
+          -d '{"name": "Deploy", "agent_id": "deploy-agent"}'
+```
+
+## Authentication Errors
+
+### Common Error Responses
+
+#### Missing API Key
+
+```json
+{
+  "error": "Authentication Required",
+  "details": "API key is required for this endpoint",
+  "errorCode": "AUTH_REQUIRED",
+  "status": 401
+}
+```
+
+#### Invalid API Key
+
+```json
+{
+  "error": "Invalid API Key",
+  "details": "The provided API key is not valid or has been revoked",
+  "errorCode": "INVALID_API_KEY",
+  "status": 401
+}
+```
+
+#### Insufficient Permissions
+
+```json
+{
+  "error": "Insufficient Permissions",
+  "details": "API key does not have required scope: agents:write",
+  "errorCode": "INSUFFICIENT_SCOPE",
+  "status": 403
+}
+```
+
+#### Rate Limited
+
+```json
+{
+  "error": "Rate Limit Exceeded",
+  "details": "Too many requests. Please retry after 60 seconds",
+  "errorCode": "RATE_LIMITED",
+  "status": 429,
+  "retryAfter": 60
+}
+```
+
+## Best Practices
+
+### Security
+
+<CardGroup cols={2}>
+  <Card title="Environment Variables" icon="shield">
+    Always store API keys in environment variables, never in code
+  </Card>
+  <Card title="Minimal Scopes" icon="lock">
+    Use the minimal required scopes for each API key
+  </Card>
+  <Card title="Key Rotation" icon="refresh">
+    Rotate API keys regularly (every 90 days recommended)
+  </Card>
+  <Card title="Monitoring" icon="eye">
+    Monitor API key usage for suspicious activity
+  </Card>
+</CardGroup>
+
+### Error Handling
+
+```typescript
+class KubiyaAPIClient {
+  async makeRequest(endpoint: string, options: RequestInit = {}) {
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      ...options,
+      headers: {
+        'Authorization': `UserKey ${this.apiKey}`,
+        'Content-Type': 'application/json',
+        ...options.headers
+      }
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      
+      switch (response.status) {
+        case 401:
+          throw new AuthenticationError(error.details);
+        case 403:
+          throw new PermissionError(error.details);
+        case 429:
+          throw new RateLimitError(error.details, error.retryAfter);
+        default:
+          throw new APIError(error.details, response.status);
+      }
+    }
+
+    return response.json();
+  }
+}
+```
+
+### Retry Logic
+
+```python
+import time
+import random
+from typing import Optional
+
+class KubiyaClient:
+    def __init__(self, api_key: str, max_retries: int = 3):
+        self.api_key = api_key
+        self.max_retries = max_retries
+    
+    def request_with_retry(self, method: str, endpoint: str, **kwargs):
+        for attempt in range(self.max_retries + 1):
+            try:
+                response = self.session.request(
+                    method, 
+                    f"{self.base_url}{endpoint}",
+                    headers={'Authorization': f'UserKey {self.api_key}'},
+                    **kwargs
+                )
+                
+                if response.status_code == 429:
+                    # Rate limited - exponential backoff
+                    wait_time = (2 ** attempt) + random.uniform(0, 1)
+                    time.sleep(wait_time)
+                    continue
+                    
+                response.raise_for_status()
+                return response.json()
+                
+            except requests.exceptions.RequestException as e:
+                if attempt == self.max_retries:
+                    raise
+                time.sleep(2 ** attempt)
+```
+
+## API Key Management
+
+### Listing Keys
+
+```bash
+curl -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  https://api.kubiya.ai/api/v1/auth/keys
+```
+
+Response:
+```json
+{
+  "keys": [
+    {
+      "id": "key_123",
+      "name": "Production API Key",
+      "scopes": ["agents:read", "tasks:execute"],
+      "created_at": "2024-01-15T10:30:00Z",
+      "last_used": "2024-01-20T14:22:00Z",
+      "expires_at": null
+    },
+    {
+      "id": "key_456", 
+      "name": "Development Key",
+      "scopes": ["admin"],
+      "created_at": "2024-01-10T09:15:00Z",
+      "last_used": "2024-01-20T16:45:00Z",
+      "expires_at": "2024-04-10T09:15:00Z"
+    }
+  ]
+}
+```
+
+### Revoking Keys
+
+```bash
+curl -X DELETE https://api.kubiya.ai/api/v1/auth/keys/key_123 \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+### Key Expiration
+
+Set expiration dates for enhanced security:
+
+```bash
+curl -X POST https://api.kubiya.ai/api/v1/auth/keys \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Temporary Integration Key",
+    "scopes": ["tasks:execute"],
+    "expires_at": "2024-06-01T00:00:00Z"
+  }'
+```
+
+## Rate Limiting
+
+The Kubiya Platform implements rate limiting to ensure fair usage:
+
+- **100 requests per minute** per API key
+- **5,000 requests per day** per API key
+- **Burst allowance**: Up to 20 requests in 10 seconds
+
+Rate limit headers are included in responses:
+
+```http
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 95
+X-RateLimit-Reset: 1642694400
+X-RateLimit-Burst-Limit: 20
+X-RateLimit-Burst-Remaining: 18
+```
+
+When rate limited, implement exponential backoff:
+
+```typescript
+async function makeRequestWithBackoff(request: () => Promise<Response>, maxRetries = 3) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const response = await request();
+    
+    if (response.status !== 429) {
+      return response;
+    }
+    
+    if (attempt === maxRetries) {
+      throw new Error('Rate limit exceeded after max retries');
+    }
+    
+    const retryAfter = parseInt(response.headers.get('Retry-After') || '60');
+    const backoffTime = Math.min(retryAfter * 1000, 2 ** attempt * 1000);
+    
+    await new Promise(resolve => setTimeout(resolve, backoffTime));
+  }
+}
+```
+
+## Troubleshooting
+
+### Debug Authentication Issues
+
+```bash
+# Test API key validity
+curl -I -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  https://api.kubiya.ai/api/v1/auth/validate
+
+# Check API key scopes
+curl -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  https://api.kubiya.ai/api/v1/auth/me
+```
+
+### Common Issues
+
+<AccordionGroup>
+  <Accordion title="Invalid API Key Format" icon="warning">
+    Ensure you're using the correct format:
+    ```bash
+    # Correct
+    Authorization: UserKey uk_1234567890abcdef
+    
+    # Incorrect
+    Authorization: Bearer uk_1234567890abcdef
+    Authorization: ApiKey uk_1234567890abcdef
+    ```
+  </Accordion>
+  
+  <Accordion title="API Key Not Working" icon="key">
+    Check:
+    - Key is not expired
+    - Key has required scopes
+    - Key hasn't been revoked
+    - Using correct base URL
+  </Accordion>
+  
+  <Accordion title="Rate Limiting" icon="clock">
+    Implement proper backoff:
+    - Use exponential backoff
+    - Respect Retry-After headers
+    - Consider request batching
+    - Monitor usage patterns
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Agents API" icon="robot" href="/api-reference/platform/agents">
+    Manage AI agents with authenticated requests
+  </Card>
+  <Card title="Tasks API" icon="list-check" href="/api-reference/platform/tasks">
+    Execute workflows and monitor progress
+  </Card>
+  <Card title="SDK Documentation" icon="code" href="/sdk/overview">
+    Use official SDKs with built-in authentication
+  </Card>
+  <Card title="Security Guide" icon="shield" href="/security/api-keys">
+    Learn advanced security practices
+  </Card>
+</CardGroup> 

@@ -1,0 +1,723 @@
+---
+title: "Runners API"
+sidebarTitle: "Runners"
+description: API endpoints for managing Kubiya runners that execute tools
+icon: server
+api: "GET /api/v3/runners"
+---
+
+# Runners API
+
+Runners in Kubiya are the execution environments that run tools and provide capabilities to teammates. The Runners API allows you to create, manage, and monitor runner instances in your environment.
+
+## Base URL
+
+```
+https://api.kubiya.ai/api/v3/runners
+```
+
+All endpoints require authentication with a valid API key.
+
+## Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET    | `/api/v3/runners` | List all runners |
+| GET    | `/api/v3/runners/{runner}/describe` | Get runner details |
+| GET    | `/api/v3/runners/{runner}/health` | Get runner health |
+| DELETE | `/api/v3/runners/{runner}` | Delete a runner |
+| PUT    | `/api/v3/runners/description/{runner}` | Update runner description |
+| POST   | `/api/v3/runners/{runner}` | Create a new runner with a specific name |
+| GET    | `/api/v3/runners/helmchart/{runner}` | Get Helm chart for a runner |
+| GET    | `/api/v3/runners/helm/{runner}` | Get Helm YAML for a runner |
+| POST   | `/api/v3/runners/{runner}/ops` | Perform operations on a runner |
+
+## Common Response Status Codes
+
+| Status Code | Description |
+|-------------|-------------|
+| 200 | Success |
+| 400 | Bad Request - Invalid parameters or request body |
+| 401 | Unauthorized - Invalid or missing API key |
+| 403 | Forbidden - Insufficient permissions |
+| 404 | Not Found - Resource doesn't exist |
+| 500 | Internal Server Error |
+
+## Error Response Format
+
+```json
+{
+  "error": {
+    "code": "string",
+    "message": "string",
+    "details": {}
+  }
+}
+```
+
+## Runner Object
+
+<CodeGroup>
+
+```json Runner Object
+{
+  "name": "runner-prod",
+  "description": "Production runner for critical operations",
+  "type": "local",
+  "status": "active",
+  "created_at": "2023-10-15T14:30:00Z",
+  "updated_at": "2023-10-15T14:30:00Z",
+  "version": "2.0.0",
+  "health": {
+    "status": "healthy",
+    "last_check": "2023-10-15T14:30:00Z",
+    "components": {
+      "tool_manager": {
+        "status": "healthy",
+        "version": "2.0.0"
+      },
+      "agent_manager": {
+        "status": "healthy",
+        "version": "2.0.0"
+      }
+    }
+  },
+  "metadata": {
+    "namespace": "kubiya",
+    "gateway_url": "https://gateway.kubiya.ai",
+    "subject": "kubiya-ai.runnervrunner-prod.incoming"
+  }
+}
+```
+
+```json Runner Health Status
+{
+  "status": "healthy",
+  "last_check": "2023-10-15T14:30:00Z",
+  "components": {
+    "tool_manager": {
+      "status": "healthy",
+      "version": "2.0.0",
+      "metadata": {
+        "git_sha": "abcdef123456",
+        "release": "v2.0.0"
+      }
+    },
+    "agent_manager": {
+      "status": "healthy",
+      "version": "2.0.0",
+      "metadata": {
+        "git_sha": "abcdef123456",
+        "release": "v2.0.0"
+      }
+    }
+  }
+}
+```
+
+</CodeGroup>
+
+## List Runners
+
+Retrieve all runners in your organization.
+
+```http
+GET /api/v3/runners
+```
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash List All Runners icon="terminal"
+curl -X GET "https://api.kubiya.ai/api/v3/runners" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash List with Health Status icon="heart-pulse"
+curl -X GET "https://api.kubiya.ai/api/v3/runners" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" | jq '.[] | {name, status: .health.status}'
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+[
+  {
+    "name": "runner-prod",
+    "description": "Production runner for critical operations",
+    "type": "local",
+    "status": "active",
+    "created_at": "2023-10-15T14:30:00Z",
+    "updated_at": "2023-10-15T14:30:00Z",
+    "version": "2.0.0",
+    "health": {
+      "status": "healthy",
+      "last_check": "2023-10-15T14:30:00Z",
+      "components": {
+        "tool_manager": {
+          "status": "healthy",
+          "version": "2.0.0"
+        },
+        "agent_manager": {
+          "status": "healthy",
+          "version": "2.0.0"
+        }
+      }
+    },
+    "metadata": {
+      "namespace": "kubiya",
+      "gateway_url": "https://gateway.kubiya.ai",
+      "subject": "kubiya-ai.runnervrunner-prod.incoming"
+    }
+  }
+]
+```
+
+## Get Runner Details
+
+Retrieve detailed information about a specific runner.
+
+```http
+GET /api/v3/runners/{runner}/describe
+```
+
+### Path Parameters
+
+<ParamField path="runner" type="string" required>
+  Name of the runner
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash Get Runner Details icon="terminal"
+curl -X GET "https://api.kubiya.ai/api/v3/runners/runner-prod/describe" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Get Runner Metadata icon="info"
+curl -X GET "https://api.kubiya.ai/api/v3/runners/runner-prod/describe" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" | jq '.metadata'
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "name": "runner-prod",
+  "description": "Production runner for critical operations",
+  "type": "local",
+  "status": "active",
+  "created_at": "2023-10-15T14:30:00Z",
+  "updated_at": "2023-10-15T14:30:00Z",
+  "version": "2.0.0",
+  "health": {
+    "status": "healthy",
+    "last_check": "2023-10-15T14:30:00Z",
+    "components": {
+      "tool_manager": {
+        "status": "healthy",
+        "version": "2.0.0"
+      },
+      "agent_manager": {
+        "status": "healthy",
+        "version": "2.0.0"
+      }
+    }
+  },
+  "metadata": {
+    "namespace": "kubiya",
+    "gateway_url": "https://gateway.kubiya.ai",
+    "subject": "kubiya-ai.runnervrunner-prod.incoming"
+  }
+}
+```
+
+## Get Runner Health
+
+Check the health status of a runner and its components.
+
+```http
+GET /api/v3/runners/{runner}/health
+```
+
+### Path Parameters
+
+<ParamField path="runner" type="string" required>
+  Name of the runner
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash Check Runner Health icon="terminal"
+curl -X GET "https://api.kubiya.ai/api/v3/runners/runner-prod/health" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Check Component Status icon="stethoscope"
+curl -X GET "https://api.kubiya.ai/api/v3/runners/runner-prod/health" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" | jq '.components'
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "status": "healthy",
+  "last_check": "2023-10-15T14:30:00Z",
+  "components": {
+    "tool_manager": {
+      "status": "healthy",
+      "version": "2.0.0",
+      "metadata": {
+        "git_sha": "abcdef123456",
+        "release": "v2.0.0"
+      }
+    },
+    "agent_manager": {
+      "status": "healthy",
+      "version": "2.0.0",
+      "metadata": {
+        "git_sha": "abcdef123456",
+        "release": "v2.0.0"
+      }
+    }
+  }
+}
+```
+
+## Create Runner
+
+Create a new runner instance.
+
+```http
+POST /api/v3/runners/{runner}
+```
+
+### Path Parameters
+
+<ParamField path="runner" type="string" required>
+  Name for the new runner
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+<ParamField header="Content-Type" type="string" required>
+  application/json
+</ParamField>
+
+### Request Body
+
+<ParamField body="description" type="string">
+  Description of the runner
+</ParamField>
+
+<ParamField body="type" type="string" default="local">
+  Type of runner
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Runner metadata including namespace and gateway configuration
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash Create Runner icon="terminal"
+curl -X POST "https://api.kubiya.ai/api/v3/runners/runner-prod" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "Production runner for critical operations",
+    "type": "local",
+    "metadata": {
+      "namespace": "kubiya",
+      "gateway_url": "https://gateway.kubiya.ai"
+    }
+  }'
+```
+
+```bash Create with Response icon="plus"
+curl -X POST "https://api.kubiya.ai/api/v3/runners/staging-runner" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "Staging environment runner",
+    "type": "local"
+  }' | jq '.name, .status'
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "name": "runner-prod",
+  "description": "Production runner for critical operations",
+  "type": "local",
+  "status": "creating",
+  "created_at": "2023-10-15T14:30:00Z",
+  "updated_at": "2023-10-15T14:30:00Z",
+  "version": "2.0.0",
+  "metadata": {
+    "namespace": "kubiya",
+    "gateway_url": "https://gateway.kubiya.ai",
+    "subject": "kubiya-ai.runnervrunner-prod.incoming"
+  }
+}
+```
+
+## Update Runner Description
+
+Update the description of an existing runner.
+
+```http
+PUT /api/v3/runners/description/{runner}
+```
+
+### Path Parameters
+
+<ParamField path="runner" type="string" required>
+  Name of the runner to update
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+<ParamField header="Content-Type" type="string" required>
+  application/json
+</ParamField>
+
+### Request Body
+
+<ParamField body="description" type="string" required>
+  New description for the runner
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash Update Description icon="terminal"
+curl -X PUT "https://api.kubiya.ai/api/v3/runners/description/runner-prod" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "Updated production runner with enhanced monitoring"
+  }'
+```
+
+```bash Update with Confirmation icon="edit"
+curl -X PUT "https://api.kubiya.ai/api/v3/runners/description/runner-prod" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"description": "Updated description"}' | jq '.description'
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "name": "runner-prod",
+  "description": "Updated production runner with enhanced monitoring",
+  "type": "local",
+  "status": "active",
+  "created_at": "2023-10-15T14:30:00Z",
+  "updated_at": "2023-10-15T15:00:00Z",
+  "version": "2.0.0",
+  "metadata": {
+    "namespace": "kubiya",
+    "gateway_url": "https://gateway.kubiya.ai",
+    "subject": "kubiya-ai.runnervrunner-prod.incoming"
+  }
+}
+```
+
+## Delete Runner
+
+Delete a runner instance.
+
+```http
+DELETE /api/v3/runners/{runner}
+```
+
+### Path Parameters
+
+<ParamField path="runner" type="string" required>
+  Name of the runner to delete
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash Delete Runner icon="terminal"
+curl -X DELETE "https://api.kubiya.ai/api/v3/runners/runner-prod" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Delete with Status Check icon="trash"
+curl -X DELETE "https://api.kubiya.ai/api/v3/runners/old-runner" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  && echo "Runner deleted successfully"
+```
+
+</CodeGroup>
+
+### Response
+
+A successful delete operation returns an HTTP 200 status with no response body.
+
+## Get Runner Helm Chart
+
+Retrieve the Helm chart for deploying a runner.
+
+```http
+GET /api/v3/runners/helmchart/{runner}
+```
+
+### Path Parameters
+
+<ParamField path="runner" type="string" required>
+  Name of the runner
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.kubiya.ai/api/v3/runners/helmchart/runner-prod" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -o runner-prod-chart.tgz
+```
+
+### Response
+
+The response is a Helm chart archive file.
+
+## Get Runner Helm YAML
+
+Retrieve the Helm YAML manifest for a runner.
+
+```http
+GET /api/v3/runners/helm/{runner}
+```
+
+### Path Parameters
+
+<ParamField path="runner" type="string" required>
+  Name of the runner
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash Get Helm YAML icon="terminal"
+curl -X GET "https://api.kubiya.ai/api/v3/runners/helm/runner-prod" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Save Helm YAML icon="download"
+curl -X GET "https://api.kubiya.ai/api/v3/runners/helm/runner-prod" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -o runner-prod-helm.yaml
+```
+
+</CodeGroup>
+
+### Response
+
+The response is a YAML file containing the Helm manifest.
+
+## Perform Runner Operations
+
+Execute operations on a runner.
+
+```http
+POST /api/v3/runners/{runner}/ops
+```
+
+### Path Parameters
+
+<ParamField path="runner" type="string" required>
+  Name of the runner
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+<ParamField header="Content-Type" type="string" required>
+  application/json
+</ParamField>
+
+### Request Body
+
+<ParamField body="operation" type="string" required>
+  Operation to perform (e.g., "restart", "stop", "start")
+</ParamField>
+
+<ParamField body="parameters" type="object">
+  Operation-specific parameters
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash Restart Runner icon="terminal"
+curl -X POST "https://api.kubiya.ai/api/v3/runners/runner-prod/ops" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "restart",
+    "parameters": {
+      "component": "tool_manager"
+    }
+  }'
+```
+
+```bash Restart All Components icon="refresh"
+curl -X POST "https://api.kubiya.ai/api/v3/runners/runner-prod/ops" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"operation": "restart"}' | jq '.status'
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "operation": "restart",
+  "status": "success",
+  "message": "Runner component restarted successfully",
+  "timestamp": "2023-10-15T15:30:00Z"
+}
+```
+
+## Common Errors
+
+<CodeGroup>
+
+```json Runner Not Found
+{
+  "error": {
+    "code": "not_found",
+    "message": "Runner not found",
+    "details": {
+      "runner": "runner-invalid"
+    }
+  }
+}
+```
+
+```json Invalid Operation
+{
+  "error": {
+    "code": "invalid_request",
+    "message": "Invalid operation specified",
+    "details": {
+      "operation": "invalid_op"
+    }
+  }
+}
+```
+
+```json Unauthorized
+{
+  "error": {
+    "code": "unauthorized", 
+    "message": "Invalid API key"
+  }
+}
+```
+
+</CodeGroup>
+
+## Error Status Codes
+
+| HTTP Status | Description |
+|-------------|-------------|
+| 400 | Bad Request - Invalid request body or missing required fields |
+| 401 | Unauthorized - API key is missing or invalid |
+| 403 | Forbidden - The API key doesn't have permission to perform this action |
+| 404 | Not Found - The specified runner was not found |
+| 500 | Internal Server Error - An unexpected error occurred on the server |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Tasks API" icon="list-check" href="/api-reference/platform/tasks">
+    Execute tasks on your runners
+  </Card>
+  <Card title="Agents API" icon="robot" href="/api-reference/platform/agents">
+    Configure agents to use runners
+  </Card>
+  <Card title="Sources API" icon="database" href="/api-reference/platform/sources">
+    Load tool sources onto runners
+  </Card>
+  <Card title="Webhooks API" icon="webhook" href="/api-reference/platform/webhooks">
+    Monitor runner events and health
+  </Card>
+</CardGroup> 

@@ -1,0 +1,646 @@
+---
+title: "Agents API"
+sidebarTitle: "Agents"
+description: API endpoints for managing AI Agents in the Kubiya platform
+icon: robot
+api: "GET /api/v1/agents"
+---
+
+# Agents API
+
+The Agents API allows you to manage serverkess Agents in the Kubiya platform. These agents are serverless AI assistants that can be customized with specific tools, knowledge sources, and instructions to perform specialized tasks.
+
+## Base URL
+
+```
+https://api.kubiya.ai/api/v1/agents
+```
+
+All endpoints require authentication with a valid API key.
+
+## Endpoints
+
+### API v1
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET    | `/api/v1/agents` | List all agents |
+| GET    | `/api/v1/agents/{agentId}` | Get specific agent |
+| POST   | `/api/v1/agents` | Create agent |
+| PUT    | `/api/v1/agents/{agentId}` | Update agent |
+| DELETE | `/api/v1/agents/{agentId}` | Delete agent |
+| GET    | `/api/v1/agents/{agentId}/integrations` | Get agent integrations |
+| GET    | `/api/v1/agents/{agentId}/activate_integrations` | Activate agent integrations |
+
+### API v2
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET    | `/api/v2/agents` | List all agents (with name filtering) |
+| GET    | `/api/v2/agents/{agentId}` | Get specific agent |
+
+## Common Response Status Codes
+
+| Status Code | Description |
+|-------------|-------------|
+| 200 | Success |
+| 400 | Bad Request - Invalid parameters or request body |
+| 401 | Unauthorized - Invalid or missing API key |
+| 403 | Forbidden - Insufficient permissions |
+| 404 | Not Found - Resource doesn't exist |
+| 500 | Internal Server Error |
+
+## Error Response Format
+
+```json
+{
+  "error": {
+    "code": "string",
+    "message": "string",
+    "details": {}
+  }
+}
+```
+
+## Agent Object
+
+<CodeGroup>
+
+```json Real Agent Object
+{
+  "ai_instructions": "string",
+  "allowed_groups": ["string"],
+  "allowed_users": ["string"],
+  "avatar_url": "string",
+  "description": "string",
+  "environment_variables": {
+    "string": "string"
+  },
+  "id": "string",
+  "image": "string",
+  "instruction_type": "string",
+  "integrations": ["string"],
+  "is_debug_mode": false,
+  "links": [],
+  "llm_model": "string",
+  "managed_by": "string",
+  "metadata": {
+    "created_at": "string",
+    "last_updated": "string",
+    "user_created": "string",
+    "user_last_updated": "string"
+  },
+  "name": "string",
+  "owners": ["string"],
+  "runners": ["string"],
+  "secrets": ["string"],
+  "sources": ["string"],
+  "starters": [],
+  "tags": [],
+  "task_id": "string",
+  "tasks": [],
+  "tools": [],
+  "uuid": "string"
+}
+```
+
+```json Agent Response Fields
+{
+  "uuid": "agent-uuid-123",
+  "name": "devops-expert",
+  "description": "DevOps and infrastructure specialist",
+  "llm_model": "azure/gpt-4o",
+  "ai_instructions": "You are a DevOps specialist...",
+  "tools": ["aws-ec2", "kubernetes"],
+  "sources": ["source-id-456"],
+  "runners": ["runner-prod"],
+  "integrations": ["aws", "github", "slack"],
+  "metadata": {
+    "created_at": "2023-01-01T00:00:00Z",
+    "user_created": "user@example.com"
+  }
+}
+```
+
+</CodeGroup>
+
+## List Agents (v1)
+
+Retrieve all available agents in your organization.
+
+```http
+GET /api/v1/agents
+```
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+<ParamField header="Content-Type" type="string">
+  application/json
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash List All Agents icon="terminal"
+curl -X GET "https://api.kubiya.ai/api/v1/agents" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Get Agent Count icon="hash"
+curl -X GET "https://api.kubiya.ai/api/v1/agents" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" | jq 'length'
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+[
+  {
+    "ai_instructions": "string",
+    "allowed_groups": ["string"],
+    "allowed_users": ["string"],
+    "avatar_url": "string",
+    "description": "string",
+    "environment_variables": {
+      "string": "string"
+    },
+    "id": "string",
+    "image": "string",
+    "instruction_type": "string",
+    "integrations": ["string"],
+    "is_debug_mode": false,
+    "links": [],
+    "llm_model": "string",
+    "managed_by": "string",
+    "metadata": {
+      "created_at": "string",
+      "last_updated": "string",
+      "user_created": "string",
+      "user_last_updated": "string"
+    },
+    "name": "string",
+    "owners": ["string"],
+    "runners": ["string"],
+    "secrets": ["string"],
+    "sources": ["string"],
+    "starters": [],
+    "tags": [],
+    "task_id": "string",
+    "tasks": [],
+    "tools": [],
+    "uuid": "string"
+  }
+]
+```
+
+## List Agents (v2)
+
+Retrieve all available agents in your organization with optional name filtering.
+
+```http
+GET /api/v2/agents
+```
+
+### Query Parameters
+
+<ParamField query="name" type="string">
+  Filter agents by name
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash List All Agents (v2) icon="terminal"
+curl -X GET "https://api.kubiya.ai/api/v2/agents" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Filter by Name icon="filter"
+curl -X GET "https://api.kubiya.ai/api/v2/agents?name=devops" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+</CodeGroup>
+
+### Response
+
+Same format as v1 endpoint.
+
+## Get Agent Details (v1)
+
+Retrieve details for a specific agent.
+
+```http
+GET /api/v1/agents/{agentId}
+```
+
+### Path Parameters
+
+<ParamField path="agentId" type="string" required>
+  ID of the agent
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash Get Agent Details icon="terminal"
+curl -X GET "https://api.kubiya.ai/api/v1/agents/agent-uuid-123" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Get Agent Name icon="user"
+curl -X GET "https://api.kubiya.ai/api/v1/agents/agent-uuid-123" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" | jq '.name'
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "uuid": "agent-uuid-123",
+  "name": "devops-expert",
+  "description": "DevOps and infrastructure specialist",
+  "tools": ["aws-ec2", "kubernetes"],
+  "sources": ["source-id-456"]
+}
+```
+
+## Get Agent Details (v2)
+
+```http
+GET /api/v2/agents/{agentId}
+```
+
+### Path Parameters
+
+<ParamField path="agentId" type="string" required>
+  ID of the agent
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Response
+
+```json
+{
+  "uuid": "agent-uuid-123",
+  "name": "devops-expert",
+  "description": "DevOps and infrastructure specialist",
+  "tools": ["aws-ec2", "kubernetes"],
+  "sources": ["source-id-456"]
+}
+```
+
+## Create Agent
+
+Create a new agent.
+
+```http
+POST /api/v1/agents
+```
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+<ParamField header="Content-Type" type="string" required>
+  application/json
+</ParamField>
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  Name of the agent
+</ParamField>
+
+<ParamField body="description" type="string">
+  Description of the agent's capabilities
+</ParamField>
+
+<ParamField body="tools" type="array">
+  Array of tool IDs to assign to the agent
+</ParamField>
+
+<ParamField body="sources" type="array">
+  Array of source IDs to assign to the agent
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash Create Agent icon="terminal"
+curl -X POST "https://api.kubiya.ai/api/v1/agents" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "devops-expert",
+    "description": "DevOps and infrastructure specialist",
+    "tools": ["aws-ec2", "kubernetes"],
+    "sources": ["source-id-456"]
+  }'
+```
+
+```bash Create with Response icon="plus"
+curl -X POST "https://api.kubiya.ai/api/v1/agents" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "security-expert",
+    "description": "Security monitoring specialist"
+  }' | jq '.uuid'
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "uuid": "agent-uuid-123",
+  "name": "devops-expert",
+  "description": "DevOps and infrastructure specialist"
+}
+```
+
+## Update Agent
+
+Update an existing agent.
+
+```http
+PUT /api/v1/agents/{agentId}
+```
+
+### Path Parameters
+
+<ParamField path="agentId" type="string" required>
+  ID of the agent to update
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+<ParamField header="Content-Type" type="string" required>
+  application/json
+</ParamField>
+
+### Request Body
+
+<ParamField body="name" type="string">
+  Updated name for the agent
+</ParamField>
+
+<ParamField body="description" type="string">
+  Updated description
+</ParamField>
+
+<ParamField body="tools" type="array">
+  Updated array of tool IDs
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash Update Agent icon="terminal"
+curl -X PUT "https://api.kubiya.ai/api/v1/agents/agent-uuid-123" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "devops-expert",
+    "description": "Updated description",
+    "tools": ["aws-ec2", "kubernetes", "github"]
+  }'
+```
+
+```bash Update Description Only icon="edit"
+curl -X PUT "https://api.kubiya.ai/api/v1/agents/agent-uuid-123" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"description": "Enhanced DevOps specialist"}' | jq '.description'
+```
+
+</CodeGroup>
+
+### Response
+
+```json
+{
+  "uuid": "agent-uuid-123",
+  "name": "devops-expert",
+  "description": "Updated description"
+}
+```
+
+## Delete Agent
+
+Delete an agent.
+
+```http
+DELETE /api/v1/agents/{agentId}
+```
+
+### Path Parameters
+
+<ParamField path="agentId" type="string" required>
+  ID of the agent to delete
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Requests
+
+<CodeGroup>
+
+```bash Delete Agent icon="terminal"
+curl -X DELETE "https://api.kubiya.ai/api/v1/agents/agent-uuid-123" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```bash Delete with Confirmation icon="trash"
+curl -X DELETE "https://api.kubiya.ai/api/v1/agents/old-agent-id" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  && echo "Agent deleted successfully"
+```
+
+</CodeGroup>
+
+### Response
+
+A successful delete operation returns an HTTP 200 status with no response body.
+
+## Get Agent Integrations
+
+Retrieve all integrations for a specific agent.
+
+```http
+GET /api/v1/agents/{agentId}/integrations
+```
+
+### Path Parameters
+
+<ParamField path="agentId" type="string" required>
+  ID of the agent
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.kubiya.ai/api/v1/agents/agent-uuid-123/integrations" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+### Response
+
+```json
+[
+  {
+    "vendor": "github",
+    "status": "connected"
+  }
+]
+```
+
+## Activate Agent Integrations
+
+Activate integrations for a specific agent.
+
+```http
+GET /api/v1/agents/{agentId}/activate_integrations
+```
+
+### Path Parameters
+
+<ParamField path="agentId" type="string" required>
+  ID of the agent
+</ParamField>
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  UserKey YOUR_API_KEY
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.kubiya.ai/api/v1/agents/agent-uuid-123/activate_integrations" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+### Response
+
+```json
+{
+  "status": "activated"
+}
+```
+
+## Common Errors
+
+<CodeGroup>
+
+```json Agent Not Found
+{
+  "error": {
+    "code": "not_found",
+    "message": "Agent not found",
+    "details": {
+      "agentId": "agent-uuid-123"
+    }
+  }
+}
+```
+
+```json Invalid Request
+{
+  "error": {
+    "code": "invalid_request",
+    "message": "Invalid request parameters",
+    "details": {
+      "name": "Name is required"
+    }
+  }
+}
+```
+
+```json Unauthorized
+{
+  "error": {
+    "code": "unauthorized",
+    "message": "Invalid API key"
+  }
+}
+```
+
+</CodeGroup>
+
+## Error Status Codes
+
+| HTTP Status | Description |
+|-------------|-------------|
+| 400 | Bad Request - The request was invalid, often due to missing required fields |
+| 401 | Unauthorized - API key is missing or invalid |
+| 403 | Forbidden - The API key doesn't have permission to perform this action |
+| 404 | Not Found - The specified agent was not found |
+| 409 | Conflict - An agent with the same name already exists |
+| 500 | Internal Server Error - An unexpected error occurred on the server |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Sources API" icon="database" href="/api-reference/platform/sources">
+    Set up tool sources for your agents to use
+  </Card>
+  <Card title="Tasks API" icon="list-check" href="/api-reference/platform/tasks">
+    Execute tasks with your configured agents
+  </Card>
+  <Card title="Runners API" icon="server" href="/api-reference/platform/runners">
+    Deploy runners where agents can execute
+  </Card>
+  <Card title="Webhooks API" icon="webhook" href="/api-reference/platform/webhooks">
+    Handle events from your agents
+  </Card>
+</CardGroup> 

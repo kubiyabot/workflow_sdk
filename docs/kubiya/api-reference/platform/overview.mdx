@@ -1,0 +1,359 @@
+---
+title: "Platform APIs Overview"
+sidebarTitle: "Overview"
+description: Cloud-based REST APIs for managing the Kubiya platform resources
+icon: cloud
+---
+
+# Platform APIs Overview
+
+The Kubiya Platform APIs are cloud-based REST APIs that allow you to programmatically manage your Kubiya resources including agents (teammates), sources (tool collections), knowledge entries, tasks, and runners.
+
+<Info>
+These APIs are different from the [Agent Server APIs](/api-reference/agent-server/overview) which are exposed by orchestration servers for direct agent interactions.
+</Info>
+
+## Base URL
+
+All Platform APIs use the following base URL:
+
+```
+https://api.kubiya.ai
+```
+
+## Authentication
+
+All Platform API endpoints require authentication using a UserKey:
+
+```bash
+Authorization: UserKey YOUR_API_KEY
+```
+
+<CodeGroup>
+
+```bash Example Request
+curl -X GET "https://api.kubiya.ai/api/v1/agents" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```python Python Example
+import requests
+
+headers = {
+    "Authorization": f"UserKey {api_key}",
+    "Content-Type": "application/json"
+}
+
+response = requests.get(
+    "https://api.kubiya.ai/api/v1/agents",
+    headers=headers
+)
+```
+
+</CodeGroup>
+
+## Available APIs
+
+<CardGroup cols={2}>
+
+<Card title="Tasks API" icon="list-check" href="/api-reference/platform/tasks">
+  Execute and manage workflow tasks across your organization
+  
+  **Key endpoints:**
+  - `GET /api/v1/tasks` - List all tasks
+  - `POST /api/v1/tasks` - Create a new task
+  - `PUT /api/v1/tasks/{taskId}/cancel` - Cancel running tasks
+  - `GET /api/v1/tasks/{taskId}/logs` - View task execution logs
+</Card>
+
+<Card title="Runners API" icon="server" href="/api-reference/platform/runners">
+  Deploy and manage Kubernetes operators that execute workflows
+  
+  **Key endpoints:**
+  - `GET /api/v3/runners` - List all runners
+  - `POST /api/v3/runners/{runner}` - Restart a runner
+  - `GET /api/v3/runners/{runner}/health` - Check runner health
+  - `POST /api/v3/runners/{runner}/helm` - Manage Helm integrations
+</Card>
+
+<Card title="Agents API" icon="robot" href="/api-reference/platform/agents">
+  Create and manage AI teammates with custom tools and knowledge
+  
+  **Key endpoints:**
+  - `GET /api/v1/agents` - List all agents
+  - `POST /api/v1/agents` - Create a new agent
+  - `PUT /api/v1/agents/{agentId}` - Update agent configuration
+  - `GET /api/v1/agents/{agentId}/integrations` - Manage integrations
+</Card>
+
+<Card title="Sources API" icon="database" href="/api-reference/platform/sources">
+  Manage tool sources and repositories attached to agents
+  
+  **Key endpoints:**
+  - `GET /api/v1/sources` - List all sources
+  - `POST /api/v1/sources` - Create a new source
+  - `PUT /api/v1/sources/{sourceId}` - Sync source with repository
+  - `GET /api/v1/sources/load` - Discover and load external sources
+</Card>
+
+<Card title="Knowledge API" icon="brain" href="/api-reference/platform/knowledge">
+  Store and retrieve contextual information for enhanced agent performance
+  
+  **Key endpoints:**
+  - `GET /api/v1/knowledge` - List all knowledge entries
+  - `POST /api/v1/knowledge` - Create knowledge entry
+  - `GET /api/v1/knowledge/search` - Search knowledge base
+  - `GET /api/v1/knowledge/{id}/versions` - View version history
+</Card>
+
+</CardGroup>
+
+## Common Response Patterns
+
+### Success Responses
+
+All successful API responses return appropriate HTTP status codes:
+
+- `200` - Successful GET, PUT, DELETE operations
+- `201` - Successful POST operations (resource created)
+
+### Error Responses
+
+All APIs follow a consistent error response format:
+
+```json
+{
+  "error": {
+    "code": "string",
+    "message": "string", 
+    "details": {}
+  }
+}
+```
+
+Common HTTP error codes:
+- `400` - Bad Request (invalid parameters)
+- `401` - Unauthorized (invalid API key)
+- `403` - Forbidden (insufficient permissions)
+- `404` - Not Found (resource doesn't exist)
+- `500` - Internal Server Error
+
+### Pagination
+
+List endpoints that return large datasets use consistent pagination:
+
+```json
+{
+  "results": [...],
+  "total": 100,
+  "page": 1,
+  "limit": 50
+}
+```
+
+## Quick Start Example
+
+Here's a complete example of creating and executing a task:
+
+<CodeGroup>
+
+```bash Complete Workflow
+# 1. List available agents
+curl -X GET "https://api.kubiya.ai/api/v1/agents" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+
+# 2. Create a task
+TASK_ID=$(curl -X POST "https://api.kubiya.ai/api/v1/tasks" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "List all running pods in the default namespace",
+    "agent": "devops-agent",
+    "runner": "prod-runner"
+  }' | jq -r '.id')
+
+# 3. Monitor task status
+curl -X GET "https://api.kubiya.ai/api/v1/tasks/$TASK_ID" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+
+# 4. Get task logs
+curl -X GET "https://api.kubiya.ai/api/v1/tasks/$TASK_ID/logs" \
+  -H "Authorization: UserKey $KUBIYA_API_KEY"
+```
+
+```python Python Workflow
+import requests
+import time
+
+api_key = "your_api_key"
+headers = {
+    "Authorization": f"UserKey {api_key}",
+    "Content-Type": "application/json"
+}
+
+# Create a task
+task_data = {
+    "prompt": "Check system status and report any issues",
+    "agent": "monitoring-agent",
+    "runner": "prod-runner"
+}
+
+response = requests.post(
+    "https://api.kubiya.ai/api/v1/tasks",
+    json=task_data,
+    headers=headers
+)
+
+task_id = response.json()["id"]
+print(f"Created task: {task_id}")
+
+# Monitor task completion
+while True:
+    status_response = requests.get(
+        f"https://api.kubiya.ai/api/v1/tasks/{task_id}",
+        headers=headers
+    )
+    
+    status = status_response.json()["status"]
+    print(f"Task status: {status}")
+    
+    if status in ["completed", "failed", "cancelled"]:
+        break
+    
+    time.sleep(5)
+
+# Get final results
+logs_response = requests.get(
+    f"https://api.kubiya.ai/api/v1/tasks/{task_id}/logs",
+    headers=headers
+)
+
+print("Task logs:", logs_response.json())
+```
+
+</CodeGroup>
+
+## Rate Limits
+
+The Platform APIs have the following rate limits:
+
+| Operation Type | Limit |
+|----------------|-------|
+| Read operations (GET) | 1000 requests/minute |
+| Write operations (POST/PUT) | 200 requests/minute |
+| Delete operations | 50 requests/minute |
+| Task creation | 100 tasks/minute |
+| Search operations | 300 requests/minute |
+
+## API Versioning
+
+The Platform APIs use path-based versioning:
+
+- `/api/v1/` - Current stable version for most resources
+- `/api/v2/` - Enhanced version for specific resources (agents)
+- `/api/v3/` - Latest version for runners
+
+When breaking changes are introduced, a new version path is created while maintaining backward compatibility for existing versions.
+
+## Best Practices
+
+<CardGroup cols={2}>
+
+<Card title="Error Handling" icon="shield-check">
+Always implement proper error handling:
+
+```python
+try:
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    data = response.json()
+except requests.exceptions.HTTPError as e:
+    print(f"HTTP error: {e.response.status_code}")
+except requests.exceptions.RequestException as e:
+    print(f"Request failed: {e}")
+```
+</Card>
+
+<Card title="Rate Limiting" icon="clock">
+Implement exponential backoff for rate-limited requests:
+
+```python
+import time
+from random import uniform
+
+def api_call_with_backoff(func, max_retries=3):
+    for attempt in range(max_retries):
+        try:
+            return func()
+        except RateLimitError:
+            wait = (2 ** attempt) + uniform(0, 1)
+            time.sleep(wait)
+    raise Exception("Max retries exceeded")
+```
+</Card>
+
+<Card title="Pagination" icon="list">
+Handle paginated responses properly:
+
+```python
+def get_all_resources(endpoint):
+    all_items = []
+    page = 1
+    
+    while True:
+        response = requests.get(
+            f"{endpoint}?page={page}&limit=100",
+            headers=headers
+        )
+        data = response.json()
+        all_items.extend(data.get('results', []))
+        
+        if not data.get('has_more', False):
+            break
+        page += 1
+    
+    return all_items
+```
+</Card>
+
+<Card title="Security" icon="lock">
+Keep API keys secure:
+
+- Store in environment variables
+- Use secrets management systems
+- Rotate keys regularly
+- Monitor API usage logs
+
+```bash
+export KUBIYA_API_KEY="your_secret_key"
+# Never commit keys to version control
+```
+</Card>
+
+</CardGroup>
+
+## Need Help?
+
+<CardGroup cols={3}>
+
+<Card title="Agent Server APIs" icon="server" href="/api-reference/agent-server/overview">
+  Direct orchestration server interactions
+</Card>
+
+<Card title="SDK Documentation" icon="code" href="/sdk/overview">
+  Official SDKs for Python, TypeScript, and Go
+</Card>
+
+<Card title="Examples" icon="play" href="/examples/platform-apis">
+  Real-world usage examples and tutorials
+</Card>
+
+</CardGroup>
+
+## What's Next?
+
+1. **Set up authentication** - Get your API key from the Kubiya dashboard
+2. **Create your first agent** - Use the [Agents API](/api-reference/platform/agents) to create a teammate
+3. **Add knowledge** - Enhance your agent with the [Knowledge API](/api-reference/platform/knowledge)  
+4. **Execute tasks** - Run workflows using the [Tasks API](/api-reference/platform/tasks)
+5. **Monitor execution** - Track performance with the [Runners API](/api-reference/platform/runners) 

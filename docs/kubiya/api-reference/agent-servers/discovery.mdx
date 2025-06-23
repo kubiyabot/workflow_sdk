@@ -1,0 +1,411 @@
+---
+title: "Discovery API"
+sidebarTitle: "Discovery"
+description: Server discovery endpoint for automatic capability detection and configuration
+icon: magnifying-glass
+---
+
+<Note>
+  The Discovery API allows clients to automatically detect Agent Server capabilities, available models, and health status. This enables dynamic configuration and server selection in distributed environments.
+</Note>
+
+## Overview
+
+The Discovery API provides a standardized way for clients to:
+
+- **Detect** server capabilities and supported features
+- **Discover** available AI models and providers  
+- **Monitor** server health and operational status
+- **Configure** applications dynamically based on server capabilities
+
+## Endpoint
+
+```http
+GET /discover
+```
+
+No authentication required for the discovery endpoint.
+
+## Response Format
+
+The discovery endpoint returns comprehensive server information:
+
+```json
+{
+  "server": {
+    "id": "string",
+    "name": "string", 
+    "version": "string",
+    "provider": "string",
+    "endpoints": {
+      "health": "/health",
+      "discover": "/discover",
+      "compose": "/compose"
+    },
+    "capabilities": {
+      "streaming": true,
+      "modes": ["plan", "act"],
+      "formats": ["vercel", "sse"],
+      "authentication": ["bearer", "none"],
+      "orchestration": true,
+      "generation": true,
+      "execution": true,
+      "refinement": true,
+      "mcp_support": false
+    },
+    "limits": {
+      "maxConcurrentExecutions": 10,
+      "executionTimeout": 300000,
+      "keepAliveInterval": 30000
+    },
+    "features": {
+      "workflowGeneration": true,
+      "workflowExecution": true,
+      "workflowValidation": true,
+      "intelligentComposition": true,
+      "contextAware": true,
+      "sseStreaming": true
+    }
+  },
+  "models": [
+    {
+      "id": "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
+      "name": "Llama 3.1 70B Instruct Turbo",
+      "provider": "together",
+      "providerId": "together"
+    }
+  ],
+  "health": {
+    "status": "healthy",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "uptime": "running",
+    "active_executions": 2,
+    "max_executions": 10
+  },
+  "mcp_capabilities": {
+    "available": false,
+    "tools": [],
+    "prompts": [],
+    "resources": [],
+    "protocol_version": "2024-11-05"
+  },
+  "supported_protocols": ["orchestration"],
+  "discovery_version": "1.0"
+}
+```
+
+## Response Fields
+
+### Server Information
+
+<ParamField path="server.id" type="string">
+  Unique server identifier
+</ParamField>
+
+<ParamField path="server.name" type="string">
+  Human-readable server name
+</ParamField>
+
+<ParamField path="server.version" type="string">
+  Server version following semantic versioning
+</ParamField>
+
+<ParamField path="server.provider" type="string">
+  Primary orchestration provider (e.g., "adk", "mcp", "custom")
+</ParamField>
+
+### Capabilities
+
+<ParamField path="capabilities.streaming" type="boolean">
+  Whether the server supports Server-Sent Events (SSE) streaming
+</ParamField>
+
+<ParamField path="capabilities.modes" type="array">
+  Supported execution modes: `["plan", "act"]`
+</ParamField>
+
+<ParamField path="capabilities.orchestration" type="boolean">
+  Whether the server supports intelligent workflow orchestration
+</ParamField>
+
+<ParamField path="capabilities.mcp_support" type="boolean">
+  Whether the server supports Model Context Protocol (MCP)
+</ParamField>
+
+### Models
+
+<ParamField path="models" type="array">
+  Array of available AI models with their metadata
+</ParamField>
+
+<ParamField path="models[].id" type="string">
+  Model identifier (e.g., "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo")
+</ParamField>
+
+<ParamField path="models[].name" type="string">
+  Human-readable model name
+</ParamField>
+
+<ParamField path="models[].provider" type="string">
+  Model provider (e.g., "together", "openai", "anthropic")
+</ParamField>
+
+### Health Status
+
+<ParamField path="health.status" type="string">
+  Current server status: `"healthy"`, `"degraded"`, `"unhealthy"`
+</ParamField>
+
+<ParamField path="health.active_executions" type="number">
+  Number of currently running workflow executions
+</ParamField>
+
+<ParamField path="health.max_executions" type="number">
+  Maximum concurrent executions supported
+</ParamField>
+
+## Usage Examples
+
+### Basic Discovery
+
+```bash
+curl http://localhost:8001/discover
+```
+
+### TypeScript Client
+
+```typescript
+interface ServerDiscovery {
+  server: {
+    id: string;
+    name: string;
+    capabilities: {
+      streaming: boolean;
+      modes: string[];
+      orchestration: boolean;
+    };
+  };
+  models: Array<{
+    id: string;
+    name: string;
+    provider: string;
+  }>;
+  health: {
+    status: string;
+    active_executions: number;
+  };
+}
+
+export class AgentServerClient {
+  async discover(serverUrl: string): Promise<ServerDiscovery> {
+    const response = await fetch(`${serverUrl}/discover`);
+    
+    if (!response.ok) {
+      throw new Error(`Discovery failed: ${response.status}`);
+    }
+    
+    return response.json();
+  }
+  
+  async findHealthyServers(serverUrls: string[]): Promise<ServerDiscovery[]> {
+    const discoveries = await Promise.allSettled(
+      serverUrls.map(url => this.discover(url))
+    );
+    
+    return discoveries
+      .filter((result): result is PromiseFulfilledResult<ServerDiscovery> => 
+        result.status === 'fulfilled' && result.value.health.status === 'healthy'
+      )
+      .map(result => result.value);
+  }
+}
+```
+
+### Python Client
+
+```python
+import httpx
+from typing import Dict, List, Optional
+
+class AgentServerClient:
+    async def discover(self, server_url: str) -> Dict:
+        """Discover server capabilities."""
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{server_url}/discover")
+            response.raise_for_status()
+            return response.json()
+    
+    async def find_servers_with_capability(
+        self, 
+        server_urls: List[str], 
+        capability: str
+    ) -> List[Dict]:
+        """Find servers that support a specific capability."""
+        servers = []
+        
+        for url in server_urls:
+            try:
+                discovery = await self.discover(url)
+                if discovery["server"]["capabilities"].get(capability, False):
+                    servers.append({
+                        "url": url,
+                        "discovery": discovery
+                    })
+            except Exception as e:
+                print(f"Failed to discover {url}: {e}")
+        
+        return servers
+```
+
+### Multi-Server Discovery
+
+```typescript
+export class ServerDiscovery {
+  private servers: Map<string, ServerDiscovery> = new Map();
+  
+  async discoverServers(serverUrls: string[]): Promise<void> {
+    const discoveries = await Promise.allSettled(
+      serverUrls.map(async (url) => {
+        const discovery = await this.discover(url);
+        return { url, discovery };
+      })
+    );
+    
+    discoveries.forEach((result) => {
+      if (result.status === 'fulfilled') {
+        const { url, discovery } = result.value;
+        this.servers.set(url, discovery);
+      }
+    });
+  }
+  
+  getHealthyServers(): Array<{ url: string; discovery: ServerDiscovery }> {
+    return Array.from(this.servers.entries())
+      .filter(([_, discovery]) => discovery.health.status === 'healthy')
+      .map(([url, discovery]) => ({ url, discovery }));
+  }
+  
+  getServersWithCapability(capability: string): Array<{ url: string; discovery: ServerDiscovery }> {
+    return Array.from(this.servers.entries())
+      .filter(([_, discovery]) => discovery.server.capabilities[capability] === true)
+      .map(([url, discovery]) => ({ url, discovery }));
+  }
+}
+```
+
+## Integration Patterns
+
+### Dynamic Server Selection
+
+```typescript
+// Select the best server for a specific task
+async function selectOptimalServer(
+  servers: ServerDiscovery[],
+  requirements: {
+    needsExecution?: boolean;
+    preferredModel?: string;
+    maxLatency?: number;
+  }
+): Promise<ServerDiscovery | null> {
+  const candidates = servers.filter(server => {
+    // Filter by health
+    if (server.health.status !== 'healthy') return false;
+    
+    // Filter by execution capability
+    if (requirements.needsExecution && !server.server.capabilities.execution) {
+      return false;
+    }
+    
+    // Filter by model availability
+    if (requirements.preferredModel) {
+      const hasModel = server.models.some(m => m.id === requirements.preferredModel);
+      if (!hasModel) return false;
+    }
+    
+    return true;
+  });
+  
+  // Sort by load (active executions)
+  candidates.sort((a, b) => a.health.active_executions - b.health.active_executions);
+  
+  return candidates[0] || null;
+}
+```
+
+### Health Monitoring
+
+```typescript
+export class ServerHealthMonitor {
+  private servers: Map<string, ServerDiscovery> = new Map();
+  private healthCheckInterval: NodeJS.Timeout;
+  
+  constructor(private serverUrls: string[], private intervalMs: number = 30000) {
+    this.startHealthChecks();
+  }
+  
+  private async startHealthChecks() {
+    await this.checkAllServers();
+    
+    this.healthCheckInterval = setInterval(async () => {
+      await this.checkAllServers();
+    }, this.intervalMs);
+  }
+  
+  private async checkAllServers() {
+    const checks = this.serverUrls.map(async (url) => {
+      try {
+        const discovery = await this.discover(url);
+        this.servers.set(url, discovery);
+        console.log(`✅ ${url}: ${discovery.health.status}`);
+      } catch (error) {
+        console.log(`❌ ${url}: unreachable`);
+        this.servers.delete(url);
+      }
+    });
+    
+    await Promise.allSettled(checks);
+  }
+  
+  getHealthyServers(): ServerDiscovery[] {
+    return Array.from(this.servers.values())
+      .filter(server => server.health.status === 'healthy');
+  }
+}
+```
+
+## Error Handling
+
+| HTTP Status | Description | Handling |
+|-------------|-------------|----------|
+| 200 | Success | Process discovery response |
+| 404 | Endpoint not found | Server doesn't support discovery |
+| 500 | Server error | Server unhealthy, try again later |
+| Timeout | Network timeout | Server unreachable |
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Cache Results" icon="clock">
+    Cache discovery responses with appropriate TTL (5-10 minutes)
+  </Card>
+  <Card title="Handle Failures" icon="shield">
+    Gracefully handle discovery failures and implement retries
+  </Card>
+  <Card title="Monitor Health" icon="heart">
+    Regularly check server health for dynamic load balancing
+  </Card>
+  <Card title="Version Compatibility" icon="code-branch">
+    Check discovery_version for compatibility with your client
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Compose API" icon="wand-magic-sparkles" href="/api-reference/agent-servers/compose">
+    Use discovered servers for workflow composition
+  </Card>
+  <Card title="Orchestration API" icon="gears" href="/api-reference/agent-servers/orchestration">
+    Learn about advanced orchestration features
+  </Card>
+</CardGroup> 
