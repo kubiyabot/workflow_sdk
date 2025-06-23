@@ -1,127 +1,186 @@
 ---
-title: "Full Stack Agents Overview"
-description: "Build complete AI automation solutions from backend agent servers to frontend integrations"
-icon: "layer-plus"
+title: "Agent Servers & Providers"
+description: "Build AI-powered automation with agent servers and providers"
+icon: "server"
 ---
 
-# Full Stack Agents
+# Agent Servers & Providers
 
-Kubiya provides a complete stack for building AI-powered automation, from backend agent servers to frontend integrations. This section covers everything you need to create production-ready AI agents that can seamlessly integrate with your existing infrastructure and frameworks.
+Kubiya provides a complete ecosystem for building AI-powered automation through agent servers and providers. This architecture enables you to create sophisticated AI workflows while maintaining deterministic execution.
 
 ## Architecture Overview
 
 <CardGroup cols={2}>
   <Card title="Agent Servers" icon="server" href="/full-stack-agents/agent-servers">
-    Backend orchestration servers that provide AI capabilities through various providers like ADK and MCP
+    Backend orchestration servers that provide AI capabilities through standardized APIs
   </Card>
-  <Card title="Existing Frameworks" icon="puzzle-piece" href="/full-stack-agents/existing-frameworks/overview">
-    Integrate Kubiya with popular AI frameworks like LangGraph, LangChain, and CrewAI
+  <Card title="ADK Provider" icon="robot" href="/providers/adk/getting-started">
+    Agent Development Kit for natural language workflow generation
   </Card>
-  <Card title="Frontend Integration" icon="browser" href="/full-stack-agents/frontend/overview">
-    Connect your AI agents to web applications using frameworks like Vercel AI SDK
+  <Card title="MCP Providers" icon="plug" href="/mcp/overview">
+    Model Context Protocol integration for tool connectivity
   </Card>
-  <Card title="Custom Providers" icon="gear" href="/full-stack-agents/agent-servers/custom-providers">
-    Build your own agent server providers for specialized use cases
+  <Card title="Frontend Integration" icon="browser" href="/frontend">
+    Connect AI agents to web applications using modern frameworks
   </Card>
 </CardGroup>
 
-## Complete Stack Benefits
+## How It Works
 
-<AccordionGroup>
-  <Accordion title="🔄 End-to-End Workflow Integration" icon="rotate">
-    Connect AI agents from backend processing through to frontend user interfaces, creating seamless automation experiences.
-  </Accordion>
-  
-  <Accordion title="🏗️ Framework Flexibility" icon="building">
-    Use your existing AI frameworks (LangGraph, LangChain, CrewAI) while gaining Kubiya's orchestration and execution capabilities.
-  </Accordion>
-  
-  <Accordion title="🚀 Production-Ready Architecture" icon="rocket">
-    Deploy scalable agent servers with built-in streaming, error handling, and multi-provider support.
-  </Accordion>
-  
-  <Accordion title="🔌 Universal Connectivity" icon="plug">
-    Connect any backend agent server to any frontend framework through standardized APIs and protocols.
-  </Accordion>
-</AccordionGroup>
-
-## Quick Start Options
-
-Choose your integration path based on your existing setup:
-
-### Starting Fresh
-If you're building new AI automation from scratch:
-1. **[Set up Agent Servers](/full-stack-agents/agent-servers)** - Deploy ADK or MCP providers
-2. **[Build Frontend](/full-stack-agents/frontend/overview)** - Create user interfaces with Vercel AI SDK
-3. **[Connect Everything](/tutorials/full-stack-ai)** - Follow our end-to-end tutorial
-
-### Existing AI Framework
-If you already use LangGraph, LangChain, or CrewAI:
-1. **[Framework Integration](/full-stack-agents/existing-frameworks/overview)** - Connect your existing agents
-2. **[Enhance with Kubiya](/full-stack-agents/agent-servers)** - Add orchestration and execution layers
-3. **[Scale Production](/deployment/helm-chart)** - Deploy with enterprise features
-
-### Custom Requirements
-If you need specialized agent behavior:
-1. **[Custom Providers](/full-stack-agents/agent-servers/custom-providers)** - Build your own agent server
-2. **[Integration APIs](/api-reference/agent-servers/overview)** - Connect through standard interfaces
-3. **[Advanced Workflows](/workflows/advanced)** - Orchestrate complex automation
-
-## Integration Patterns
-
-<CodeGroup>
-```python Agent Server Integration
-from kubiya_workflow_sdk.providers import get_provider
-
-# Use any agent server provider
-adk = get_provider("adk")
-mcp = get_provider("mcp")
-
-# Compose AI-powered workflows
-result = await adk.compose(
-    task="Deploy application with health checks",
-    mode="act"
-)
+```mermaid
+graph TB
+    subgraph "Frontend Layer"
+        UI[Web UI/Chat Interface]
+        SDK[Vercel AI SDK]
+    end
+    
+    subgraph "Agent Server Layer"
+        AS[Agent Server]
+        ADK[ADK Provider]
+        MCP[MCP Provider]
+    end
+    
+    subgraph "Execution Layer"
+        WE[Workflow Engine]
+        Tools[Tools & Integrations]
+    end
+    
+    UI --> SDK
+    SDK --> AS
+    AS --> ADK
+    AS --> MCP
+    ADK --> WE
+    MCP --> Tools
+    WE --> Tools
+    
+    style ADK fill:#9C27B0,stroke:#333,stroke-width:2px,color:#fff
+    style AS fill:#2196F3,stroke:#333,stroke-width:2px,color:#fff
 ```
 
-```typescript Frontend Integration
+## Key Components
+
+### 1. Agent Servers
+Agent servers act as the orchestration layer that:
+- Receive requests from frontend applications
+- Route to appropriate providers (ADK, MCP, custom)
+- Handle streaming responses
+- Manage authentication and sessions
+
+### 2. Providers
+
+#### ADK (Agent Development Kit)
+- **Purpose**: Generate workflows from natural language
+- **Streaming**: Real-time workflow generation and execution
+- **Models**: Supports multiple LLMs (GPT-4, Claude, Gemini)
+- **Use Case**: "Deploy my app with health checks" → Complete workflow
+
+#### FastMCP Provider
+- **Purpose**: Connect to MCP-compatible tools
+- **Protocol**: Model Context Protocol standard
+- **Tools**: File system, GitHub, databases, etc.
+- **Use Case**: Direct tool execution within workflows
+
+### 3. Frontend Integration
+- **Vercel AI SDK**: Stream AI responses to React applications
+- **Real-time Updates**: WebSocket/SSE for live workflow execution
+- **Universal Compatibility**: Works with any frontend framework
+
+## Quick Start Examples
+
+### Setting Up an Agent Server
+
+```python
+# 1. Install the SDK
+pip install kubiya-workflow-sdk
+
+# 2. Start ADK orchestration server
+python -m kubiya_workflow_sdk.providers.adk.provider
+
+# 3. Server runs on http://localhost:8001
+```
+
+### Using ADK Provider
+
+```python
+from kubiya_workflow_sdk.providers import get_provider
+
+# Initialize ADK provider
+adk = get_provider(
+    "adk",
+    api_key="YOUR_API_KEY",
+    model="gemini-1.5-pro"
+)
+
+# Generate and execute workflow
+result = await adk.compose(
+    task="Create a backup of PostgreSQL database and upload to S3",
+    mode="act",  # 'plan' to just generate, 'act' to execute
+    stream=True
+)
+
+# Stream results
+async for event in result:
+    print(f"Event: {event}")
+```
+
+### Streaming with Frontend
+
+```typescript
+// Frontend using Vercel AI SDK
 import { streamText } from 'ai';
 import { kubiya } from '@kubiya/vercel-ai';
 
-// Stream AI responses to frontend
 const { textStream } = await streamText({
-  model: kubiya('orchestration-server'),
-  prompt: 'Analyze system metrics and suggest optimizations',
+  model: kubiya('http://localhost:8001'),
+  prompt: 'Check system health and report issues',
 });
+
+// Display streaming results
+for await (const text of textStream) {
+  console.log(text);
+}
 ```
 
-```python Framework Integration
-import langgraph
-from kubiya_workflow_sdk import workflow, step
+## Provider Comparison
 
-@workflow
-def langgraph_integration():
-    # Use LangGraph agents within Kubiya workflows
-    result = step("langgraph_analysis").python(
-        code="""
-        # Your existing LangGraph code
-        graph = create_langgraph_agent()
-        return graph.invoke({"query": "${INPUT}"})
-        """
-    )
-```
-</CodeGroup>
+| Feature | ADK Provider | FastMCP Provider | Custom Provider |
+|---------|--------------|------------------|-----------------|
+| **Natural Language** | ✅ Workflow generation | ❌ Tool calls only | Depends |
+| **Streaming** | ✅ Full support | ✅ Full support | Implement yourself |
+| **Tools** | ✅ Any Docker tool | ✅ MCP tools | Your implementation |
+| **Models** | Multiple LLMs | N/A | Your choice |
+| **Use Case** | Complex workflows | Tool execution | Specialized needs |
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use ADK for Complex Workflows" icon="brain">
+    When you need to generate multi-step workflows from natural language, ADK is your best choice. It understands context and creates complete automation flows.
+  </Accordion>
+  
+  <Accordion title="Use MCP for Direct Tool Access" icon="toolbox">
+    For direct tool execution without workflow generation, MCP providers offer standardized access to various tools and services.
+  </Accordion>
+  
+  <Accordion title="Enable Streaming for Better UX" icon="stream">
+    Always enable streaming when building user-facing applications. Users see progress in real-time rather than waiting for complete execution.
+  </Accordion>
+  
+  <Accordion title="Handle Errors Gracefully" icon="shield-exclamation">
+    Implement proper error handling in your agent servers. Stream error events to the frontend for transparent user communication.
+  </Accordion>
+</AccordionGroup>
 
 ## Next Steps
 
 <CardGroup cols={3}>
-  <Card title="Agent Servers" icon="server" href="/full-stack-agents/agent-servers">
-    Learn about backend orchestration with ADK and MCP providers
+  <Card title="ADK Deep Dive" icon="robot" href="/providers/adk/getting-started">
+    Master the Agent Development Kit
   </Card>
-  <Card title="Framework Integration" icon="puzzle-piece" href="/full-stack-agents/existing-frameworks/overview">
-    Connect your existing LangGraph, LangChain, or CrewAI setup
+  <Card title="Streaming Guide" icon="stream" href="/providers/adk/streaming">
+    Implement real-time streaming
   </Card>
-  <Card title="Production Deployment" icon="rocket" href="/deployment/helm-chart">
-    Deploy scalable agent infrastructure
+  <Card title="Build Frontend" icon="browser" href="/frontend/vercel-ai-sdk">
+    Create AI-powered UIs
   </Card>
 </CardGroup> 

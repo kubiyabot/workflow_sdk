@@ -1,21 +1,54 @@
 ---
-title: "Streaming Responses"
+title: "ADK Streaming"
 sidebarTitle: "Streaming"
-description: Real-time streaming for workflow generation and execution
+description: Real-time streaming for AI workflow generation and execution
 icon: stream
 ---
 
+# ADK Streaming
+
 <Note>
-  Streaming enables real-time feedback during workflow generation and execution, providing a better user experience and enabling reactive applications.
+  Streaming is a core feature of ADK that enables real-time feedback during workflow generation and execution. This creates responsive AI applications where users see progress as it happens.
 </Note>
 
-## Overview
+## Why Streaming Matters
 
-The ADK provider supports streaming at multiple levels:
+When using ADK to generate and execute workflows, operations can take time:
+- **AI Generation**: The LLM needs time to analyze and create workflows
+- **Execution**: Workflows may have multiple steps that run sequentially
+- **Tool Calls**: Context gathering and tool execution add latency
 
-1. **Generation Streaming**: See the AI's thought process as it generates workflows
-2. **Execution Streaming**: Monitor workflow execution in real-time
-3. **Combined Streaming**: Both generation and execution in one stream
+Streaming solves this by providing immediate feedback at every stage, creating a better user experience.
+
+## Architecture Overview
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant AgentServer
+    participant ADK
+    participant Workflow
+    
+    User->>Frontend: Request workflow
+    Frontend->>AgentServer: Stream request
+    AgentServer->>ADK: compose(stream=True)
+    
+    loop Generation Phase
+        ADK-->>AgentServer: Text chunks
+        AgentServer-->>Frontend: SSE events
+        Frontend-->>User: Show progress
+    end
+    
+    ADK->>Workflow: Execute
+    
+    loop Execution Phase
+        Workflow-->>ADK: Step events
+        ADK-->>AgentServer: Execution events
+        AgentServer-->>Frontend: SSE events
+        Frontend-->>User: Show results
+    end
+```
 
 ## Streaming Formats
 

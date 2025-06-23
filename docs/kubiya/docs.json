@@ -18,7 +18,7 @@
     },
     {
       "name": "GitHub",
-      "url": "https://github.com/kubiya-sandbox/workflows"
+      "url": "https://github.com/kubiyabot/workflow_sdk"
     }
   ],
   "topbarCtaButton": {
@@ -102,26 +102,43 @@
             ]
           },
           {
-            "group": "Full Stack Agents",
+            "group": "Agent Servers & Providers",
             "pages": [
               "full-stack-agents/overview",
-              "full-stack-agents/agent-servers",
-              "providers/agent-servers/adk",
-              "providers/fastmcp",
-              "providers/adk/getting-started",
-              "providers/adk/agents",
-              "providers/adk/streaming",
-              "full-stack-agents/existing-frameworks/overview",
-              "full-stack-agents/existing-frameworks/langgraph",
-              "frontend",
-              "frontend/vercel-ai-sdk"
+              "full-stack-agents/agent-servers"
             ]
           },
           {
-            "group": "Integrations",
+            "group": "ADK (Agent Development Kit)",
             "pages": [
+              "providers/adk/getting-started",
+              "providers/adk/agents",
+              "providers/adk/streaming",
+              "providers/agent-servers/adk"
+            ]
+          },
+          {
+            "group": "MCP & Tool Providers",
+            "pages": [
+              "providers/overview",
               "mcp/overview",
+              "providers/fastmcp",
               "servers/overview"
+            ]
+          },
+          {
+            "group": "Frontend Integration",
+            "pages": [
+              "frontend",
+              "frontend/vercel-ai-sdk",
+              "servers/overview"
+            ]
+          },
+          {
+            "group": "Framework Examples",
+            "pages": [
+              "full-stack-agents/existing-frameworks/overview",
+              "full-stack-agents/existing-frameworks/langgraph"
             ]
           },
           {
@@ -226,19 +243,23 @@
   "redirects": [
     {
       "source": "/providers/adk",
-      "destination": "/full-stack-agents/agent-servers/adk"
-    },
-    {
-      "source": "/providers/agent-servers",
-      "destination": "/full-stack-agents/agent-servers"
-    },
-    {
-      "source": "/providers/fastmcp",
-      "destination": "/full-stack-agents/agent-servers/fastmcp"
+      "destination": "/providers/adk/getting-started"
     },
     {
       "source": "/api",
-      "destination": "/api-reference/compose"
+      "destination": "/api-reference/agent-servers/overview"
+    },
+    {
+      "source": "/full-stack-agents",
+      "destination": "/full-stack-agents/overview"
+    },
+    {
+      "source": "/agent-servers",
+      "destination": "/full-stack-agents/agent-servers"
+    },
+    {
+      "source": "/streaming",
+      "destination": "/providers/adk/streaming"
     }
   ]
 }
