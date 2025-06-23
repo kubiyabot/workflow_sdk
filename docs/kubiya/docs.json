@@ -102,12 +102,19 @@
             ]
           },
           {
-            "group": "AI & Automation",
+            "group": "Full Stack Agents",
             "pages": [
-              "providers/overview",
+              "full-stack-agents/overview",
+              "full-stack-agents/agent-servers",
+              "providers/agent-servers/adk",
+              "providers/fastmcp",
               "providers/adk/getting-started",
               "providers/adk/agents",
-              "providers/adk/streaming"
+              "providers/adk/streaming",
+              "full-stack-agents/existing-frameworks/overview",
+              "full-stack-agents/existing-frameworks/langgraph",
+              "frontend",
+              "frontend/vercel-ai-sdk"
             ]
           },
           {
@@ -126,7 +133,8 @@
           {
             "group": "Tutorials",
             "pages": [
-              "tutorials/ai-powered-automation"
+              "tutorials/ai-powered-automation",
+              "tutorials/full-stack-ai"
             ]
           },
           {
@@ -218,7 +226,15 @@
   "redirects": [
     {
       "source": "/providers/adk",
-      "destination": "/providers/adk/getting-started"
+      "destination": "/full-stack-agents/agent-servers/adk"
+    },
+    {
+      "source": "/providers/agent-servers",
+      "destination": "/full-stack-agents/agent-servers"
+    },
+    {
+      "source": "/providers/fastmcp",
+      "destination": "/full-stack-agents/agent-servers/fastmcp"
     },
     {
       "source": "/api",

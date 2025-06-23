@@ -9,41 +9,30 @@ icon: "download"
 
 Get started with the Kubiya Workflow SDK in minutes. This guide covers installation, configuration, and basic usage.
 
-## Prerequisites
+## Requirements
 
-<CardGroup cols={2}>
-  <Card title="Python 3.8+" icon="python">
-    Kubiya SDK requires Python 3.8 or higher
-  </Card>
-  <Card title="Docker (Optional)" icon="docker">
-    For local workflow testing and development
-  </Card>
-</CardGroup>
+- Python 3.8 or higher
+- pip package manager
+- Kubiya API key (get one at [app.kubiya.ai](https://app.kubiya.ai))
 
-## Quick Install
+## Install via pip
 
 <Tabs>
-  <Tab title="pip">
+  <Tab title="Latest Stable">
     ```bash
     pip install kubiya-workflow-sdk
     ```
   </Tab>
   
-  <Tab title="poetry">
+  <Tab title="Development Version">
     ```bash
-    poetry add kubiya-workflow-sdk
+    pip install git+https://github.com/kubiyabot/workflow_sdk.git
     ```
   </Tab>
   
-  <Tab title="pipenv">
+  <Tab title="Specific Version">
     ```bash
-    pipenv install kubiya-workflow-sdk
-    ```
-  </Tab>
-  
-  <Tab title="conda">
-    ```bash
-    conda install -c conda-forge kubiya-workflow-sdk
+    pip install kubiya-workflow-sdk==0.0.5
     ```
   </Tab>
 </Tabs>
@@ -51,11 +40,63 @@ Get started with the Kubiya Workflow SDK in minutes. This guide covers installat
 ## Verify Installation
 
 ```bash
-# Check version
 python -c "import kubiya_workflow_sdk; print(kubiya_workflow_sdk.__version__)"
+```
 
-# Check CLI
-kubiya --version
+## Set up Authentication
+
+Set your API key as an environment variable:
+
+```bash
+export KUBIYA_API_KEY="your-api-key-here"
+```
+
+Or create a `.env` file in your project:
+
+```env
+KUBIYA_API_KEY=your-api-key-here
+KUBIYA_API_URL=https://api.kubiya.ai  # Optional, defaults to production
+```
+
+## Optional Dependencies
+
+### For AI Providers
+
+```bash
+# For ADK provider
+pip install kubiya-workflow-sdk[adk]
+
+# For FastMCP provider
+pip install kubiya-workflow-sdk[mcp]
+
+# All providers
+pip install kubiya-workflow-sdk[all]
+```
+
+### For Development
+
+```bash
+# Install with development dependencies
+pip install kubiya-workflow-sdk[dev]
+```
+
+## Docker Installation
+
+If you prefer using Docker:
+
+```dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install SDK
+RUN pip install kubiya-workflow-sdk
+
+# Copy your workflow files
+COPY . .
+
+# Run your workflow
+CMD ["python", "workflow.py"]
 ```
 
 ## SDK Capabilities

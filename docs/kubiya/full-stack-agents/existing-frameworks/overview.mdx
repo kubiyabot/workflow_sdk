@@ -1,0 +1,361 @@
+---
+title: "Integrating with Existing AI Frameworks"
+description: "Connect Kubiya to your existing LangGraph, LangChain, CrewAI, and other AI frameworks"
+icon: "puzzle-piece"
+---
+
+# Integrating with Existing AI Frameworks
+
+Kubiya seamlessly integrates with popular AI frameworks, allowing you to enhance your existing agent systems with production-grade orchestration, execution, and scaling capabilities. Instead of replacing your current setup, Kubiya acts as an execution layer that brings deterministic workflows and enterprise features to your AI agents.
+
+## Why Integrate with Kubiya?
+
+<AccordionGroup>
+  <Accordion title="🚀 Production-Ready Execution" icon="rocket">
+    Transform your experimental AI agents into production-ready systems with containerized execution, error handling, and automatic scaling.
+  </Accordion>
+  
+  <Accordion title="🔒 Enterprise Security & Compliance" icon="shield-check">
+    Add enterprise-grade security, audit trails, and compliance features to your existing AI workflows without changing your core logic.
+  </Accordion>
+  
+  <Accordion title="🌊 Streaming & Real-time Updates" icon="wave">
+    Enable real-time streaming of agent execution to frontend applications using standard protocols like SSE and Vercel AI SDK.
+  </Accordion>
+  
+  <Accordion title="⚖️ Deterministic & Reliable" icon="balance-scale">
+    Unlike free-roaming agent frameworks, Kubiya provides rails and boundaries that ensure predictable execution paths.
+  </Accordion>
+</AccordionGroup>
+
+## Supported Frameworks
+
+<CardGroup cols={2}>
+  <Card title="LangGraph" icon="share-nodes" href="/full-stack-agents/existing-frameworks/langgraph">
+    **Multi-agent workflows with state management**
+    
+    - Graph-based agent orchestration
+    - Stateful conversations
+    - Human-in-the-loop patterns
+    - Complex routing logic
+  </Card>
+  
+  <Card title="LangChain" icon="link" href="/full-stack-agents/existing-frameworks/langchain">
+    **Chain-based agent pipelines**
+    
+    - Sequential processing chains
+    - RAG and retrieval patterns
+    - Tool integration
+    - Memory management
+  </Card>
+  
+  <Card title="CrewAI" icon="users" href="/full-stack-agents/existing-frameworks/crewai">
+    **Multi-agent collaboration**
+    
+    - Role-based agent teams
+    - Collaborative task solving
+    - Agent coordination
+    - Hierarchical workflows
+  </Card>
+  
+  <Card title="Custom Frameworks" icon="code" href="/full-stack-agents/agent-servers/custom-providers">
+    **Your own AI framework**
+    
+    - Any Python-based framework
+    - Custom agent implementations
+    - Proprietary AI systems
+    - Legacy integrations
+  </Card>
+</CardGroup>
+
+## Integration Patterns
+
+There are three main patterns for integrating existing AI frameworks with Kubiya:
+
+### 1. Workflow Wrapping Pattern
+Wrap your existing agent code within Kubiya workflows for execution orchestration:
+
+<CodeGroup>
+```python LangGraph Integration
+from kubiya_workflow_sdk import workflow, step
+
+@workflow
+def langgraph_agent_workflow():
+    # Your existing LangGraph code
+    result = step("langgraph_execution").python(
+        code="""
+import langgraph
+from your_existing_code import create_agent_graph
+
+# Your existing LangGraph setup
+graph = create_agent_graph()
+result = graph.invoke({"messages": [{"role": "user", "content": "${INPUT}"}]})
+return result
+        """,
+        requirements=["langgraph", "langchain"]
+    )
+    
+    return result
+```
+
+```python CrewAI Integration
+from kubiya_workflow_sdk import workflow, step
+
+@workflow
+def crewai_team_workflow():
+    # Your existing CrewAI code
+    result = step("crewai_execution").python(
+        code="""
+from crewai import Agent, Task, Crew
+from your_existing_code import create_crew
+
+# Your existing CrewAI setup
+crew = create_crew()
+result = crew.kickoff(inputs={"task": "${INPUT}"})
+return result
+        """,
+        requirements=["crewai"]
+    )
+    
+    return result
+```
+</CodeGroup>
+
+### 2. Agent Server Integration
+Deploy your framework as a custom agent server provider:
+
+```python
+from kubiya_workflow_sdk.providers import BaseProvider
+
+class LangGraphProvider(BaseProvider):
+    def __init__(self):
+        self.graph = self.create_langgraph_agent()
+    
+    async def compose(self, task: str, mode: str = "act"):
+        # Your existing LangGraph logic
+        result = await self.graph.ainvoke({
+            "messages": [{"role": "user", "content": task}]
+        })
+        return result
+    
+    def create_langgraph_agent(self):
+        # Your existing agent creation code
+        from langgraph import StateGraph
+        # ... your graph setup
+        return compiled_graph
+```
+
+### 3. Hybrid Architecture
+Combine Kubiya's orchestration with your framework's agent logic:
+
+```python
+from kubiya_workflow_sdk import workflow, step
+
+@workflow
+def hybrid_ai_pipeline():
+    # Use Kubiya's ADK for planning
+    plan = step("planning").adk_compose(
+        task="Create a plan for: ${INPUT}",
+        mode="plan"
+    )
+    
+    # Use your existing framework for execution
+    execution = step("crewai_execution").python(
+        code="""
+from your_existing_code import execute_plan_with_crewai
+result = execute_plan_with_crewai("${plan.strategy}")
+return result
+        """,
+        requirements=["crewai"]
+    ).depends("planning")
+    
+    # Use Kubiya for monitoring and reporting
+    report = step("reporting").adk_compose(
+        task="Generate report for execution: ${execution}",
+        mode="act"
+    ).depends("crewai_execution")
+```
+
+## Key Integration Benefits
+
+<Tabs>
+  <Tab title="Scalability">
+    **Kubernetes-Native Scaling**
+    
+    Your existing AI agents automatically gain:
+    - Horizontal pod autoscaling
+    - Resource management and limits
+    - Load balancing across replicas
+    - Multi-zone deployments
+    
+    ```yaml
+    # Your LangGraph agents now scale automatically
+    apiVersion: autoscaling/v2
+    kind: HorizontalPodAutoscaler
+    metadata:
+      name: langgraph-agent-hpa
+    spec:
+      scaleTargetRef:
+        apiVersion: apps/v1
+        kind: Deployment
+        name: langgraph-agent
+      minReplicas: 2
+      maxReplicas: 20
+      metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 70
+    ```
+  </Tab>
+  
+  <Tab title="Monitoring">
+    **Built-in Observability**
+    
+    Gain visibility into your AI agents:
+    - Execution traces and logs
+    - Performance metrics
+    - Error tracking and alerting
+    - Cost analysis
+    
+    ```python
+    # Automatic tracing for your existing agents
+    from kubiya_workflow_sdk.observability import trace_agent
+    
+    @trace_agent
+    def your_existing_langgraph_function():
+        # Your existing code gets automatic tracing
+        graph = create_agent_graph()
+        return graph.invoke(input_data)
+    ```
+  </Tab>
+  
+  <Tab title="Security">
+    **Enterprise Security Layer**
+    
+    Add security without code changes:
+    - Network policies and segmentation
+    - Secret management
+    - Audit logging
+    - Compliance reporting
+    
+    ```yaml
+    # Automatic security policies
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: langgraph-agent-policy
+    spec:
+      podSelector:
+        matchLabels:
+          app: langgraph-agent
+      policyTypes:
+      - Ingress
+      - Egress
+      ingress:
+      - from:
+        - namespaceSelector:
+            matchLabels:
+              name: kubiya-system
+    ```
+  </Tab>
+</Tabs>
+
+## Migration Strategies
+
+### Gradual Migration
+<Steps>
+  <Step title="Start with Workflow Wrapping">
+    Begin by wrapping your existing agents in Kubiya workflows without changing core logic
+  </Step>
+  <Step title="Add Orchestration Features">
+    Gradually add streaming, monitoring, and error handling capabilities
+  </Step>
+  <Step title="Optimize for Production">
+    Refactor critical paths to use native Kubiya features for better performance
+  </Step>
+  <Step title="Full Integration">
+    Move to custom providers or hybrid architectures for maximum benefit
+  </Step>
+</Steps>
+
+### Parallel Development
+<Steps>
+  <Step title="Deploy Side by Side">
+    Run your existing system alongside Kubiya-integrated versions
+  </Step>
+  <Step title="A/B Testing">
+    Compare performance and reliability between implementations
+  </Step>
+  <Step title="Gradual Traffic Shift">
+    Slowly move traffic from legacy to Kubiya-integrated agents
+  </Step>
+  <Step title="Sunset Legacy">
+    Retire old implementation once migration is complete
+  </Step>
+</Steps>
+
+## Common Integration Scenarios
+
+<AccordionGroup>
+  <Accordion title="🔍 Research & Analysis Agents" icon="magnifying-glass">
+    **Scenario**: You have LangGraph agents doing research and analysis
+    
+    **Integration**: Wrap in Kubiya workflows to add streaming results, automatic retries, and result caching
+    
+    **Benefit**: Research agents become production-ready with real-time progress updates
+  </Accordion>
+  
+  <Accordion title="👥 Multi-Agent Teams" icon="users">
+    **Scenario**: CrewAI teams handling complex business processes
+    
+    **Integration**: Use Kubiya's orchestration for team coordination and result aggregation
+    
+    **Benefit**: Better coordination, fault tolerance, and scalability across agent teams
+  </Accordion>
+  
+  <Accordion title="🔗 Chain-Based Processing" icon="link">
+    **Scenario**: LangChain pipelines for document processing or RAG
+    
+    **Integration**: Add Kubiya's execution layer for parallel processing and error recovery
+    
+    **Benefit**: Faster processing through parallelization and better error handling
+  </Accordion>
+  
+  <Accordion title="🤝 Human-in-the-Loop" icon="hand-holding">
+    **Scenario**: Agents requiring human approval or intervention
+    
+    **Integration**: Use Kubiya's workflow pausing and resumption capabilities
+    
+    **Benefit**: Seamless human-AI collaboration with proper state management
+  </Accordion>
+</AccordionGroup>
+
+## Getting Started
+
+Choose your framework and follow the specific integration guide:
+
+<CardGroup cols={3}>
+  <Card title="LangGraph Integration" icon="share-nodes" href="/full-stack-agents/existing-frameworks/langgraph">
+    Connect stateful multi-agent graphs
+  </Card>
+  <Card title="LangChain Integration" icon="link" href="/full-stack-agents/existing-frameworks/langchain">
+    Enhance chain-based workflows
+  </Card>
+  <Card title="CrewAI Integration" icon="users" href="/full-stack-agents/existing-frameworks/crewai">
+    Scale multi-agent teams
+  </Card>
+</CardGroup>
+
+## Support & Community
+
+<CardGroup cols={2}>
+  <Card title="Discord Community" icon="discord" href="https://discord.gg/kubiya">
+    Join our community for integration help and best practices
+  </Card>
+  <Card title="GitHub Examples" icon="github" href="https://github.com/kubiya-sandbox/workflows">
+    Browse real-world integration examples and templates
+  </Card>
+</CardGroup> 

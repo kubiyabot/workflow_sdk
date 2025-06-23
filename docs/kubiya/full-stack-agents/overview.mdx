@@ -1,0 +1,127 @@
+---
+title: "Full Stack Agents Overview"
+description: "Build complete AI automation solutions from backend agent servers to frontend integrations"
+icon: "layer-plus"
+---
+
+# Full Stack Agents
+
+Kubiya provides a complete stack for building AI-powered automation, from backend agent servers to frontend integrations. This section covers everything you need to create production-ready AI agents that can seamlessly integrate with your existing infrastructure and frameworks.
+
+## Architecture Overview
+
+<CardGroup cols={2}>
+  <Card title="Agent Servers" icon="server" href="/full-stack-agents/agent-servers">
+    Backend orchestration servers that provide AI capabilities through various providers like ADK and MCP
+  </Card>
+  <Card title="Existing Frameworks" icon="puzzle-piece" href="/full-stack-agents/existing-frameworks/overview">
+    Integrate Kubiya with popular AI frameworks like LangGraph, LangChain, and CrewAI
+  </Card>
+  <Card title="Frontend Integration" icon="browser" href="/full-stack-agents/frontend/overview">
+    Connect your AI agents to web applications using frameworks like Vercel AI SDK
+  </Card>
+  <Card title="Custom Providers" icon="gear" href="/full-stack-agents/agent-servers/custom-providers">
+    Build your own agent server providers for specialized use cases
+  </Card>
+</CardGroup>
+
+## Complete Stack Benefits
+
+<AccordionGroup>
+  <Accordion title="🔄 End-to-End Workflow Integration" icon="rotate">
+    Connect AI agents from backend processing through to frontend user interfaces, creating seamless automation experiences.
+  </Accordion>
+  
+  <Accordion title="🏗️ Framework Flexibility" icon="building">
+    Use your existing AI frameworks (LangGraph, LangChain, CrewAI) while gaining Kubiya's orchestration and execution capabilities.
+  </Accordion>
+  
+  <Accordion title="🚀 Production-Ready Architecture" icon="rocket">
+    Deploy scalable agent servers with built-in streaming, error handling, and multi-provider support.
+  </Accordion>
+  
+  <Accordion title="🔌 Universal Connectivity" icon="plug">
+    Connect any backend agent server to any frontend framework through standardized APIs and protocols.
+  </Accordion>
+</AccordionGroup>
+
+## Quick Start Options
+
+Choose your integration path based on your existing setup:
+
+### Starting Fresh
+If you're building new AI automation from scratch:
+1. **[Set up Agent Servers](/full-stack-agents/agent-servers)** - Deploy ADK or MCP providers
+2. **[Build Frontend](/full-stack-agents/frontend/overview)** - Create user interfaces with Vercel AI SDK
+3. **[Connect Everything](/tutorials/full-stack-ai)** - Follow our end-to-end tutorial
+
+### Existing AI Framework
+If you already use LangGraph, LangChain, or CrewAI:
+1. **[Framework Integration](/full-stack-agents/existing-frameworks/overview)** - Connect your existing agents
+2. **[Enhance with Kubiya](/full-stack-agents/agent-servers)** - Add orchestration and execution layers
+3. **[Scale Production](/deployment/helm-chart)** - Deploy with enterprise features
+
+### Custom Requirements
+If you need specialized agent behavior:
+1. **[Custom Providers](/full-stack-agents/agent-servers/custom-providers)** - Build your own agent server
+2. **[Integration APIs](/api-reference/agent-servers/overview)** - Connect through standard interfaces
+3. **[Advanced Workflows](/workflows/advanced)** - Orchestrate complex automation
+
+## Integration Patterns
+
+<CodeGroup>
+```python Agent Server Integration
+from kubiya_workflow_sdk.providers import get_provider
+
+# Use any agent server provider
+adk = get_provider("adk")
+mcp = get_provider("mcp")
+
+# Compose AI-powered workflows
+result = await adk.compose(
+    task="Deploy application with health checks",
+    mode="act"
+)
+```
+
+```typescript Frontend Integration
+import { streamText } from 'ai';
+import { kubiya } from '@kubiya/vercel-ai';
+
+// Stream AI responses to frontend
+const { textStream } = await streamText({
+  model: kubiya('orchestration-server'),
+  prompt: 'Analyze system metrics and suggest optimizations',
+});
+```
+
+```python Framework Integration
+import langgraph
+from kubiya_workflow_sdk import workflow, step
+
+@workflow
+def langgraph_integration():
+    # Use LangGraph agents within Kubiya workflows
+    result = step("langgraph_analysis").python(
+        code="""
+        # Your existing LangGraph code
+        graph = create_langgraph_agent()
+        return graph.invoke({"query": "${INPUT}"})
+        """
+    )
+```
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="Agent Servers" icon="server" href="/full-stack-agents/agent-servers">
+    Learn about backend orchestration with ADK and MCP providers
+  </Card>
+  <Card title="Framework Integration" icon="puzzle-piece" href="/full-stack-agents/existing-frameworks/overview">
+    Connect your existing LangGraph, LangChain, or CrewAI setup
+  </Card>
+  <Card title="Production Deployment" icon="rocket" href="/deployment/helm-chart">
+    Deploy scalable agent infrastructure
+  </Card>
+</CardGroup> 
