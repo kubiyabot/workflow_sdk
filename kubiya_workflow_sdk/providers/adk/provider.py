@@ -39,6 +39,26 @@ try:
     ADK_AVAILABLE = True
 except ImportError:
     ADK_AVAILABLE = False
+    # Mock types for when ADK is not installed
+    class Runner:
+        pass
+    class Event:
+        pass
+    class EventActions:
+        pass
+    class InMemorySessionService:
+        pass
+    class InMemoryArtifactService:
+        pass
+    class GcsArtifactService:
+        pass
+    class LlmResponse:
+        pass
+    class types:
+        class Content:
+            pass
+        class Part:
+            pass
 
 from ...core.exceptions import ProviderError
 from ..base import BaseProvider
@@ -101,7 +121,7 @@ class ADKProvider(BaseProvider):
         if not ADK_AVAILABLE or not AGENTS_AVAILABLE:
             raise ImportError(
                 "Google ADK is required for this provider. "
-                "Install with: pip install google-adk"
+                "Install with: pip install kubiya-workflow-sdk[adk]"
             )
         
         super().__init__(client, **kwargs)

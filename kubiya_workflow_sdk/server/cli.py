@@ -9,7 +9,6 @@ from typing import Optional
 import uvicorn
 
 from .app import create_server
-from .orchestration_server import create_orchestration_server
 
 
 def main(argv: Optional[list] = None) -> int:
@@ -57,9 +56,8 @@ def main(argv: Optional[list] = None) -> int:
     
     args = parser.parse_args(argv)
     
-    # Create the orchestration server and get the FastAPI app
-    server = create_orchestration_server()
-    app = server.app
+    # Create the app
+    app = create_server()
     
     # Run the server
     try:

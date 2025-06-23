@@ -21,7 +21,7 @@ from enum import Enum
 
 from .app import WorkflowServer
 from .models import BaseRequest, BaseResponse
-from ..providers import get_provider
+from ..providers import get_provider, ProviderType
 from ..providers.adk import ADKProvider, ADKConfig
 from ..client import KubiyaClient
 
@@ -104,14 +104,8 @@ class OrchestrationServer(WorkflowServer):
         # Initialize ADK provider if not provided
         if ProviderMode.ADK not in self.providers:
             try:
-                import os
-                # Get API key from environment
-                api_key = os.getenv("KUBIYA_API_KEY") or os.getenv("KUBIYA_AUTH_TOKEN")
-                if not api_key:
-                    raise ValueError("KUBIYA_API_KEY or KUBIYA_AUTH_TOKEN environment variable required")
-                
-                # Create Kubiya client with API key
-                client = KubiyaClient(api_key=api_key)
+                # Create Kubiya client
+                client = KubiyaClient()
                 
                 # Create ADK config
                 config = ADKConfig(
@@ -125,7 +119,7 @@ class OrchestrationServer(WorkflowServer):
                     client=client,
                     config=config
                 )
-                logger.info("Initialized ADK provider successfully")
+                logger.info("Initialized ADK provider")
             except Exception as e:
                 logger.warning(f"Failed to initialize ADK provider: {e}")
     
@@ -454,139 +448,6 @@ class OrchestrationServer(WorkflowServer):
             result["execution"] = execution_result
         
         return result
-    
-    async def _get_discovery_info(self) -> Dict[str, Any]:
-        """Get orchestration server discovery information including capabilities and models."""
-        # Get available models from providers
-        available_models = []
-        
-        # Try to get models from ADK provider
-        if ProviderMode.ADK in self.providers:
-            adk_provider = self.providers[ProviderMode.ADK]
-            if hasattr(adk_provider, 'get_available_models'):
-                try:
-                    provider_models = adk_provider.get_available_models()
-                    if provider_models:
-                        available_models.extend(provider_models)
-                except Exception as e:
-                    logger.warning(f"Could not get models from ADK provider: {e}")
-        
-        # Default models if none found
-        if not available_models:
-            available_models = [
-                {
-                    "id": "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
-                    "name": "Llama 3.1 70B Instruct Turbo",
-                    "provider": "together",
-                    "providerId": "together"
-                },
-                {
-                    "id": "deepseek-ai/DeepSeek-V3",
-                    "name": "DeepSeek V3",
-                    "provider": "together", 
-                    "providerId": "together"
-                },
-                {
-                    "id": "claude-3-5-sonnet-latest",
-                    "name": "Claude 3.5 Sonnet",
-                    "provider": "anthropic",
-                    "providerId": "anthropic"
-                }
-            ]
-        
-        # Get available providers
-        provider_info = {}
-        for mode, provider in self.providers.items():
-            provider_info[mode] = {
-                "name": provider.__class__.__name__,
-                "available": True,
-                "features": {
-                    "generation": True,
-                    "execution": hasattr(provider, 'execute_workflow'),
-                    "refinement": hasattr(provider, 'refine_workflow'),
-                    "streaming": True,
-                    "compose": hasattr(provider, 'compose')
-                }
-            }
-        
-        # Server configuration
-        server_config = {
-            "id": "orchestration-server",
-            "name": self.title,
-            "version": self.version,
-            "provider": "orchestration",
-            "providerVersion": self.version,
-            "defaultMode": self.default_mode,
-            "endpoints": {
-                "health": f"{self.api_prefix}/health",
-                "discover": f"{self.api_prefix}/discover",
-                "compose": f"{self.api_prefix}/compose",
-                "generate": f"{self.api_prefix}/generate",
-                "execute": f"{self.api_prefix}/execute",
-                "refine": f"{self.api_prefix}/refine",
-                "providers": f"{self.api_prefix}/providers"
-            },
-            "capabilities": {
-                "streaming": True,
-                "modes": ["plan", "act"],
-                "formats": ["vercel", "sse"],
-                "authentication": ["bearer"],
-                "orchestration": True,
-                "generation": True,
-                "execution": any(hasattr(p, 'execute_workflow') for p in self.providers.values()),
-                "refinement": any(hasattr(p, 'refine_workflow') for p in self.providers.values()),
-                "compose": any(hasattr(p, 'compose') for p in self.providers.values())
-            },
-            "limits": {
-                "maxConcurrentExecutions": self.max_concurrent_executions,
-                "executionTimeout": self.execution_timeout,
-                "keepAliveInterval": self.keep_alive_interval
-            },
-            "features": {
-                "workflowGeneration": True,
-                "workflowExecution": True,
-                "workflowValidation": True,
-                "workflowRefinement": True,
-                "intelligentComposition": True,
-                "multiProvider": len(self.providers) > 1,
-                "contextAware": True,
-                "sseStreaming": True
-            },
-            "providers": provider_info
-        }
-        
-        return {
-            "server": server_config,
-            "models": available_models,
-            "health": {
-                "status": "healthy",
-                "timestamp": datetime.utcnow().isoformat(),
-                "uptime": "running",
-                "active_executions": self.execution_manager.active_count if hasattr(self, 'execution_manager') else 0,
-                "max_executions": self.max_concurrent_executions,
-                "provider_status": {
-                    mode: "connected" if provider else "disconnected" 
-                    for mode, provider in self.providers.items()
-                }
-            },
-            "discovery_version": "1.0"
-        }
-    
-    async def _get_available_models(self) -> Optional[List[Dict[str, Any]]]:
-        """Get available models from orchestration providers."""
-        models = []
-        
-        # Get models from all providers
-        for mode, provider in self.providers.items():
-            if hasattr(provider, 'get_available_models'):
-                try:
-                    provider_models = provider.get_available_models()
-                    if provider_models:
-                        models.extend(provider_models)
-                except Exception as e:
-                    logger.warning(f"Could not get models from {mode} provider: {e}")
-        
-        return models if models else None
 
 
 def create_orchestration_server(**kwargs) -> OrchestrationServer:
