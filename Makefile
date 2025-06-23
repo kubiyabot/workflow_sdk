@@ -151,15 +151,15 @@ release-major: ## Release major version (1.0.0 -> 2.0.0)
 	python scripts/release.py major
 
 build: ## Build distribution packages
-	python -m build
+	uv build
 	@echo "$(GREEN)✓ Built distribution packages$(NC)"
 
-publish-test: ## Publish to Test PyPI
-	python -m twine upload --repository testpypi dist/*
+publish-test: ## Publish to Test PyPI  
+	uv publish --repository testpypi
 	@echo "$(GREEN)✓ Published to Test PyPI$(NC)"
 
 publish: ## Publish to PyPI (use with caution)
-	python -m twine upload dist/*
+	uv publish
 	@echo "$(GREEN)✓ Published to PyPI$(NC)"
 
 version: ## Show current version

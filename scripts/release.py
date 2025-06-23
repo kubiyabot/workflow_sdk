@@ -18,13 +18,16 @@ from pathlib import Path
 
 
 def get_current_version():
-    """Get current version from __version__.py"""
-    version_file = Path("kubiya_workflow_sdk/__version__.py")
-    content = version_file.read_text()
-    match = re.search(r'__version__ = ["\']([^"\']+)["\']', content)
-    if not match:
-        raise ValueError("Could not find version in __version__.py")
-    return match.group(1)
+    """Get current version from pyproject.toml"""
+    import tomli
+    
+    pyproject_file = Path("pyproject.toml")
+    try:
+        with open(pyproject_file, "rb") as f:
+            data = tomli.load(f)
+        return data["project"]["version"]
+    except Exception as e:
+        raise ValueError(f"Could not find version in pyproject.toml: {e}")
 
 
 def parse_version(version_str):
@@ -52,18 +55,31 @@ def bump_version(current_version, bump_type):
 
 
 def update_version_file(new_version):
-    """Update version in __version__.py"""
-    version_file = Path("kubiya_workflow_sdk/__version__.py")
-    content = version_file.read_text()
+    """Update version in pyproject.toml and __version__.py"""
+    # Update pyproject.toml
+    pyproject_file = Path("pyproject.toml")
+    content = pyproject_file.read_text()
     
     new_content = re.sub(
-        r'__version__ = ["\'][^"\']+["\']',
-        f'__version__ = "{new_version}"',
+        r'version = "[^"]+"',
+        f'version = "{new_version}"',
         content
     )
     
-    version_file.write_text(new_content)
-    print(f"Updated __version__.py to {new_version}")
+    pyproject_file.write_text(new_content)
+    print(f"Updated pyproject.toml to {new_version}")
+    
+    # Update __version__.py for backward compatibility
+    version_file = Path("kubiya_workflow_sdk/__version__.py")
+    if version_file.exists():
+        content = version_file.read_text()
+        new_content = re.sub(
+            r'__version__ = ["\'][^"\']+["\']',
+            f'__version__ = "{new_version}"',
+            content
+        )
+        version_file.write_text(new_content)
+        print(f"Updated __version__.py to {new_version}")
 
 
 def run_command(cmd, check=True):
@@ -145,7 +161,7 @@ def main():
     update_version_file(new_version)
     
     # Commit changes
-    run_command(f'git add kubiya_workflow_sdk/__version__.py')
+    run_command(f'git add pyproject.toml kubiya_workflow_sdk/__version__.py')
     run_command(f'git commit -m "Bump version to {new_version}"')
     
     # Create tag
