@@ -2,6 +2,13 @@
 
 This directory contains comprehensive Jupyter notebooks demonstrating all features of the Kubiya Workflow SDK. Each notebook is designed to be self-contained and includes real execution examples with outputs.
 
+## 📋 Requirements
+
+- **Python 3.8 or higher** (3.9+ recommended)
+- pip package manager
+- Internet connection for API access
+- Jupyter Notebook or JupyterLab
+
 ## 📚 Notebook Overview
 
 ### 00. Test Setup (`00_test_setup.ipynb`)
@@ -79,22 +86,51 @@ This directory contains comprehensive Jupyter notebooks demonstrating all featur
 
 ## 🚀 Getting Started
 
-1. **Install the SDK**:
+### Quick Setup (Recommended)
+
+1. **Create and activate a virtual environment**:
    ```bash
-   pip install kubiya-workflow-sdk
+   # Create virtual environment
+   python -m venv kubiya_env
+   
+   # Activate it
+   # On macOS/Linux:
+   source kubiya_env/bin/activate
+   # On Windows:
+   # kubiya_env\Scripts\activate
    ```
 
-2. **Set up environment**:
+2. **Install dependencies**:
+   ```bash
+   # Install everything from requirements.txt
+   pip install -r requirements.txt
+   
+   # Or install individually:
+   pip install kubiya-workflow-sdk jupyter python-dotenv
+   ```
+
+3. **Set up environment variables**:
    ```bash
    # Create .env file
    echo "KUBIYA_API_KEY=your-api-key" > .env
    echo "TOGETHER_API_KEY=your-together-key" >> .env  # Optional, for AI features
    ```
 
-3. **Start with notebook 00**:
+4. **Launch Jupyter and start with setup notebook**:
    ```bash
    jupyter notebook 00_test_setup.ipynb
    ```
+
+### Alternative: Use the Setup Notebook
+
+The `00_test_setup.ipynb` notebook provides a guided setup process that:
+- Checks Python version compatibility
+- Installs all required dependencies
+- Creates .env file template
+- Verifies API connectivity
+- Tests workflow execution
+
+This is recommended for first-time users or troubleshooting.
 
 ## 🔧 Configuration
 
