@@ -26,23 +26,8 @@
     "url": "https://app.kubiya.ai",
     "style": "roundedRectangle"
   },
-  "tabs": [
-    {
-      "name": "Documentation",
-      "url": "/"
-    },
-    {
-      "name": "APIs",
-      "url": "/api-reference"
-    },
-    {
-      "name": "SDK",
-      "url": "/sdk"
-    }
-  ],
-  "primaryTab": {
-    "name": "Documentation"
-  },
+
+
   "anchors": [
     {
       "name": "Community",
@@ -81,107 +66,122 @@
       "mode": "show"
     }
   },
-  "navigation": [
-    {
-      "group": "Introduction",
-      "pages": [
-        "getting-started/welcome",
-        "getting-started/installation", 
-        "getting-started/quickstart"
-      ]
-    },
-    {
-      "group": "Core Concepts",
-      "pages": [
-        "concepts/platform-overview",
-        "concepts/workflows",
-        "concepts/runners",
-        "concepts/integrations",
-        "concepts/deterministic-workflows",
-        "concepts/why-kubiya",
-        "concepts/agent-frameworks-comparison"
-      ]
-    },
-    {
-      "group": "Workflows",
-      "pages": [
-        "workflows/overview",
-        "workflows/architecture",
-        "workflows/dsl-reference",
-        "workflows/examples",
-        "workflows/advanced"
-      ]
-    },
-    {
-      "group": "AI & Automation",
-      "pages": [
-        "providers/overview",
-        "providers/adk/getting-started",
-        "providers/adk/agents",
-        "providers/adk/streaming"
-      ]
-    },
-    {
-      "group": "Integrations",
-      "pages": [
-        "mcp/overview",
-        "servers/overview"
-      ]
-    },
-    {
-      "group": "SDK Reference",
-      "pages": [
-        "sdk/overview",
-        "sdk/api-reference",
-        "sdk/examples",
-        "sdk/contributing",
-        "sdk/changelog"
-      ]
-    },
-    {
-      "group": "Agent Server APIs",
-      "pages": [
-        "api-reference/agent-servers/overview",
-        "api-reference/agent-servers/compose",
-        "api-reference/agent-servers/discovery",
-        "api-reference/agent-servers/orchestration"
-      ]
-    },
-    {
-      "group": "Kubiya Platform APIs", 
-      "pages": [
-        "api-reference/platform/overview",
-        "api-reference/platform/authentication",
-        "api-reference/platform/agents",
-        "api-reference/platform/tasks",
-        "api-reference/platform/sources",
-        "api-reference/platform/runners",
-        "api-reference/platform/knowledge",
-        "api-reference/platform/webhooks",
-        "api-reference/platform/integrations"
-      ]
-    },
-    {
-      "group": "Deployment",
-      "pages": [
-        "deployment/helm-chart"
-      ]
-    },
-    {
-      "group": "Tutorials",
-      "pages": [
-        "tutorials/ai-powered-automation"
-      ]
-    },
-    {
-      "group": "Resources",
-      "pages": [
-        "changelog",
-        "migration-guide",
-        "updates"
-      ]
-    }
-  ],
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Introduction",
+            "pages": [
+              "getting-started/welcome",
+              "getting-started/installation", 
+              "getting-started/quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/platform-overview",
+              "concepts/workflows",
+              "concepts/runners",
+              "concepts/integrations",
+              "concepts/deterministic-workflows",
+              "concepts/why-kubiya",
+              "concepts/agent-frameworks-comparison"
+            ]
+          },
+          {
+            "group": "Workflows",
+            "pages": [
+              "workflows/overview",
+              "workflows/architecture",
+              "workflows/dsl-reference",
+              "workflows/examples",
+              "workflows/advanced"
+            ]
+          },
+          {
+            "group": "AI & Automation",
+            "pages": [
+              "providers/overview",
+              "providers/adk/getting-started",
+              "providers/adk/agents",
+              "providers/adk/streaming"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "mcp/overview",
+              "servers/overview"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/helm-chart"
+            ]
+          },
+          {
+            "group": "Tutorials",
+            "pages": [
+              "tutorials/ai-powered-automation"
+            ]
+          },
+          {
+            "group": "Resources",
+            "pages": [
+              "changelog",
+              "migration-guide",
+              "updates"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "APIs",
+        "groups": [
+          {
+            "group": "Agent Server APIs",
+            "pages": [
+              "api-reference/agent-servers/overview",
+              "api-reference/agent-servers/compose",
+              "api-reference/agent-servers/discovery",
+              "api-reference/agent-servers/orchestration"
+            ]
+          },
+          {
+            "group": "Kubiya Platform APIs",
+            "pages": [
+              "api-reference/platform/overview",
+              "api-reference/platform/authentication",
+              "api-reference/platform/agents",
+              "api-reference/platform/tasks",
+              "api-reference/platform/sources",
+              "api-reference/platform/runners",
+              "api-reference/platform/knowledge"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "SDK",
+        "groups": [
+          {
+            "group": "SDK Reference",
+            "pages": [
+              "sdk/overview",
+              "sdk/api-reference",
+              "sdk/examples",
+              "sdk/contributing",
+              "sdk/changelog"
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "footerSocials": {
     "github": "https://github.com/kubiyabot",
     "linkedin": "https://www.linkedin.com/company/kubiya-ai",
