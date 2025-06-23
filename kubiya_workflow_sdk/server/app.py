@@ -27,9 +27,9 @@ import aiofiles
 from sse_starlette.sse import EventSourceResponse
 
 from ..core.types import WorkflowStatus, ExecutionResult
-from ..client_v2 import StreamingKubiyaClient
-from ..dsl_v2 import FlowWorkflow
-from ..validation import validate_workflow as validate_workflow_func
+from ..client import KubiyaClient as StreamingKubiyaClient
+from ..dsl import Workflow as FlowWorkflow
+from ..execution import validate_workflow_definition as validate_workflow_func
 from .models import (
     WorkflowExecutionRequest,
     WorkflowExecutionResponse,
@@ -134,6 +134,11 @@ class WorkflowServer:
                 active_executions=self.execution_manager.active_count,
                 max_executions=self.max_concurrent_executions
             )
+        
+        @app.get(f"{self.api_prefix}/discover")
+        async def discover():
+            """Discover endpoint - returns server capabilities, models, and configuration."""
+            return await self._get_discovery_info()
         
         @app.get(f"{self.api_prefix}/config", response_model=ServerConfigResponse)
         async def get_config(api_token: Optional[str] = Depends(auth)):
@@ -540,6 +545,88 @@ class WorkflowServer:
                 })
             }
     
+    async def _get_discovery_info(self) -> Dict[str, Any]:
+        """Get server discovery information including capabilities and models."""
+        # Default models - subclasses can override this
+        default_models = [
+            {
+                "id": "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
+                "name": "Llama 3.1 70B Instruct Turbo",
+                "provider": "together",
+                "providerId": "together"
+            },
+            {
+                "id": "deepseek-ai/DeepSeek-V3",
+                "name": "DeepSeek V3",
+                "provider": "together", 
+                "providerId": "together"
+            },
+            {
+                "id": "claude-3-5-sonnet-latest",
+                "name": "Claude 3.5 Sonnet",
+                "provider": "anthropic",
+                "providerId": "anthropic"
+            }
+        ]
+        
+        # Get available models (override this in subclasses)
+        available_models = await self._get_available_models() or default_models
+        
+        # Server configuration
+        server_config = {
+            "id": "workflow-server",
+            "name": self.title,
+            "version": self.version,
+            "provider": "kubiya-sdk",
+            "providerVersion": self.version,
+            "endpoints": {
+                "health": f"{self.api_prefix}/health",
+                "discover": f"{self.api_prefix}/discover",
+                "execute": f"{self.api_prefix}/workflows/execute",
+                "validate": f"{self.api_prefix}/workflows/validate",
+                "python": f"{self.api_prefix}/python/execute"
+            },
+            "capabilities": {
+                "streaming": True,
+                "modes": ["execute", "validate"],
+                "formats": ["sse", "json"],
+                "authentication": ["bearer", "none"],
+                "execution": True,
+                "validation": True,
+                "python": True
+            },
+            "limits": {
+                "maxConcurrentExecutions": self.max_concurrent_executions,
+                "executionTimeout": self.execution_timeout,
+                "keepAliveInterval": self.keep_alive_interval
+            },
+            "features": {
+                "workflowExecution": True,
+                "workflowValidation": True,
+                "pythonExecution": True,
+                "sseStreaming": True,
+                "asyncExecution": True,
+                "executionHistory": True
+            }
+        }
+        
+        return {
+            "server": server_config,
+            "models": available_models,
+            "health": {
+                "status": "healthy",
+                "timestamp": datetime.utcnow().isoformat(),
+                "uptime": "running",
+                "active_executions": self.execution_manager.active_count,
+                "max_executions": self.max_concurrent_executions
+            },
+            "discovery_version": "1.0"
+        }
+    
+    async def _get_available_models(self) -> Optional[List[Dict[str, Any]]]:
+        """Get available models - override in subclasses."""
+        return None
+
     def run(self, host: str = "0.0.0.0", port: int = 8000, **kwargs):
         """Run the server."""
         import uvicorn

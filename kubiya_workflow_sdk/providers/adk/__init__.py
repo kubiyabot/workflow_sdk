@@ -1,48 +1,31 @@
 """
-Google ADK Provider for Kubiya Workflow SDK.
+ADK Provider for Kubiya Workflow SDK.
 
-This provider uses Google's Agent Development Kit with Together AI models
-to generate intelligent workflows using the SDK's Python API.
+This provider uses AI agents to generate Kubiya workflows.
 """
 
-# Import and check ADK availability
-try:
-    from google.adk import agents
-    ADK_AVAILABLE = True
-except ImportError:
-    ADK_AVAILABLE = False
+# Always make these available
+from .config import ADKConfig
 
-# Only import if ADK is available
-if ADK_AVAILABLE:
+# Check if we can import the provider
+try:
     from .provider import ADKProvider
-    from .config import ADKConfig, ModelProvider
-    from .agents import (
-        create_workflow_generator_agent,
-        create_compiler_agent,
-        create_refinement_agent,
-        create_orchestrator_agent
-    )
-    from .tools import KubiyaContextTools
-    from .streaming import StreamHandler, SSEFormatter, VercelAIFormatter
+    ADK_AVAILABLE = True
+except ImportError as e:
+    import logging
+    logging.warning(f"ADK provider import failed: {e}")
+    ADK_AVAILABLE = False
+    ADKProvider = None
+
+__all__ = ["ADKConfig", "ADKProvider", "ADK_AVAILABLE"]
+
+# Export convenience functions
+def create_adk_provider(client=None, config=None):
+    """Create an ADK provider instance."""
+    if not ADK_AVAILABLE:
+        raise ImportError("ADK provider is not available. Check dependencies.")
     
-    __all__ = [
-        "ADKProvider",
-        "ADKConfig",
-        "ModelProvider",
-        "KubiyaContextTools",
-        "StreamHandler",
-        "SSEFormatter",
-        "VercelAIFormatter",
-        "create_orchestrator_agent",
-        "ADK_AVAILABLE"
-    ]
-else:
-    # Provide dummy class for type hints
-    class ADKProvider:
-        def __init__(self, *args, **kwargs):
-            raise ImportError(
-                "Google ADK is required for this provider. "
-                "Install with: pip install kubiya-workflow-sdk[adk]"
-            )
+    if config is None:
+        config = ADKConfig()
     
-    __all__ = ["ADKProvider", "ADK_AVAILABLE"] 
+    return ADKProvider(client=client, config=config) 

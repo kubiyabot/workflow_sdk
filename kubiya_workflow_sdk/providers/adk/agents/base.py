@@ -54,13 +54,7 @@ except ImportError:
         pass
     class FunctionTool:
         pass
-    class types:
-        class Part:
-            @staticmethod
-            def from_bytes(data, mime_type):
-                pass
-        class Content:
-            pass
+
     class GenerateContentConfig:
         pass
     ADK_AVAILABLE = False

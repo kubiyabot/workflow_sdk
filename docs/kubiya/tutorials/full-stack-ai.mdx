@@ -1,0 +1,897 @@
+---
+title: "Full-Stack AI Tutorial"
+description: "Complete guide: Local development to production deployment with Kubiya orchestration"
+icon: "book"
+---
+
+# Full-Stack AI Development with Kubiya
+
+This comprehensive tutorial walks you through building a complete AI-powered application from local development to production deployment, integrating agent servers, MCP providers, and modern frontend frameworks.
+
+## What You'll Build
+
+By the end of this tutorial, you'll have:
+
+- **Local development environment** with orchestration servers
+- **Backend agent server** (Google ADK or MCP)
+- **Frontend chatbot** with Vercel AI SDK
+- **Production deployment** on cloud infrastructure
+- **End-to-end workflow execution** capabilities
+
+## Architecture Overview
+
+```mermaid
+graph TD
+    subgraph "Local Development"
+        LD[Local Agent Server]
+        LF[Local Frontend]
+        DB[Local Database]
+    end
+    
+    subgraph "Production"
+        PS[Production Servers]
+        PF[Production Frontend]
+        CD[Cloud Database]
+    end
+    
+    subgraph "AI Integration"
+        CL[Claude Desktop]
+        CU[Cursor IDE]
+        WA[Web App]
+    end
+    
+    LD --> LF
+    LD --> DB
+    
+    PS --> PF
+    PS --> CD
+    
+    CL --> LD
+    CL --> PS
+    CU --> LD
+    WA --> PS
+    
+    style LD fill:#0088ff,stroke:#0066cc,stroke-width:2px
+    style PS fill:#00dd88,stroke:#00aa66,stroke-width:2px
+```
+
+## Phase 1: Local Development Setup
+
+### Prerequisites
+
+```bash
+# Required software
+- Node.js 18+
+- Python 3.10+
+- Docker & Docker Compose
+- Google Cloud CLI (for ADK)
+- Git
+
+# Create project directory
+mkdir kubiya-fullstack && cd kubiya-fullstack
+```
+
+### 1.1 Environment Setup
+
+```bash
+# Create directory structure
+mkdir -p {backend,frontend,docker,docs}
+
+# Set up environment variables
+cat > .env << EOF
+# Google Cloud (for ADK)
+GOOGLE_CLOUD_PROJECT=your-project-id
+GOOGLE_CLOUD_LOCATION=us-central1
+
+# API Keys
+KUBIYA_API_KEY=your-kubiya-api-key
+TOGETHER_API_KEY=your-together-api-key
+OPENAI_API_KEY=your-openai-api-key
+
+# Local ports
+ADK_PORT=8001
+MCP_PORT=8002
+FRONTEND_PORT=3000
+
+# Database
+DATABASE_URL=postgresql://postgres:password@localhost:5432/kubiya_dev
+EOF
+```
+
+### 1.2 Backend: ADK Orchestration Server
+
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # or `venv\Scripts\activate` on Windows
+pip install google-adk kubiya-workflow-sdk
+```
+
+```python
+# backend/adk_server.py
+import os
+from google.adk.agents import Agent
+from kubiya_workflow_sdk.server.orchestration_server import create_orchestration_server
+
+def deploy_app(app_name: str, environment: str = "staging") -> dict:
+    """Deploy application to specified environment"""
+    return {
+        "status": "success",
+        "message": f"Deploying {app_name} to {environment}",
+        "deployment_id": f"deploy-{app_name}-{environment}-123"
+    }
+
+def check_deployment(deployment_id: str) -> dict:
+    """Check deployment status"""
+    return {
+        "deployment_id": deployment_id,
+        "status": "completed",
+        "health": "healthy"
+    }
+
+# Create deployment agent
+deployment_agent = Agent(
+    name="deployment_assistant",
+    model="gemini-2.0-flash",
+    description="Helps with application deployment and management",
+    instruction="You assist with deploying applications and managing infrastructure.",
+    tools=[deploy_app, check_deployment]
+)
+
+# Create orchestration server
+server = create_orchestration_server(
+    name="Local ADK Server",
+    agents=[deployment_agent],
+    port=int(os.getenv("ADK_PORT", 8001))
+)
+
+if __name__ == "__main__":
+    print("🚀 Starting ADK Orchestration Server...")
+    server.run()
+```
+
+### 1.3 Frontend: Next.js with Vercel AI SDK
+
+```bash
+cd ../frontend
+npx create-next-app@latest . --typescript --tailwind --app
+npm install ai @ai-sdk/openai react-markdown lucide-react
+```
+
+```typescript
+// frontend/lib/orchestration-client.ts
+export class OrchestrationClient {
+  constructor(private baseUrl: string, private apiKey: string) {}
+  
+  async discoverServers(): Promise<any[]> {
+    const response = await fetch(`${this.baseUrl}/discover`);
+    return response.json();
+  }
+  
+  async executeWorkflow(message: string, mode: 'plan' | 'act' = 'plan') {
+    const response = await fetch(`${this.baseUrl}/compose`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.apiKey}`
+      },
+      body: JSON.stringify({ message, mode })
+    });
+    return response.json();
+  }
+}
+```
+
+```typescript
+// frontend/app/api/chat/route.ts
+import { streamText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { OrchestrationClient } from '@/lib/orchestration-client';
+
+const orchestrationClient = new OrchestrationClient(
+  'http://localhost:8001',
+  process.env.KUBIYA_API_KEY!
+);
+
+export async function POST(request: Request) {
+  const { messages, workflowMode } = await request.json();
+  const latestMessage = messages[messages.length - 1];
+  
+  // Check if this is a workflow request
+  const isWorkflowRequest = latestMessage.content.toLowerCase().includes('deploy') ||
+                           latestMessage.content.toLowerCase().includes('workflow');
+  
+  if (isWorkflowRequest) {
+    try {
+      const result = await orchestrationClient.executeWorkflow(
+        latestMessage.content,
+        workflowMode || 'plan'
+      );
+      
+      return Response.json({
+        content: `## Workflow Execution\n\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\``,
+        role: 'assistant'
+      });
+    } catch (error) {
+      return Response.json({
+        content: `❌ Workflow failed: ${error.message}`,
+        role: 'assistant'
+      });
+    }
+  }
+  
+  // Regular AI chat
+  const result = await streamText({
+    model: openai('gpt-4'),
+    messages,
+    system: 'You are an AI assistant that helps with deployments and workflows.'
+  });
+  
+  return result.toAIStreamResponse();
+}
+```
+
+### 1.4 Docker Compose for Local Development
+
+```yaml
+# docker/docker-compose.dev.yml
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: kubiya_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+  
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+  
+  adk-server:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8001:8001"
+    environment:
+      - KUBIYA_API_KEY=${KUBIYA_API_KEY}
+      - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}
+      - DATABASE_URL=${DATABASE_URL}
+    volumes:
+      - ../backend:/app
+    depends_on:
+      - postgres
+      - redis
+  
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - KUBIYA_API_KEY=${KUBIYA_API_KEY}
+    volumes:
+      - ../frontend:/app
+    depends_on:
+      - adk-server
+
+volumes:
+  postgres_data:
+```
+
+### 1.5 Start Local Development
+
+```bash
+# Terminal 1: Start infrastructure
+cd docker
+docker-compose -f docker-compose.dev.yml up postgres redis
+
+# Terminal 2: Start backend
+cd backend
+source venv/bin/activate
+export $(cat ../.env | xargs)
+python adk_server.py
+
+# Terminal 3: Start frontend
+cd frontend
+npm run dev
+
+# Test the integration
+curl http://localhost:8001/discover
+curl http://localhost:3000
+```
+
+## Phase 2: MCP Integration
+
+### 2.1 Add FastMCP Server
+
+```python
+# backend/mcp_server.py
+from fastmcp import FastMCP
+from kubiya_workflow_sdk import KubiyaClient
+
+mcp = FastMCP("Kubiya MCP Server")
+kubiya = KubiyaClient(api_key=os.getenv("KUBIYA_API_KEY"))
+
+@mcp.tool()
+def deploy_with_mcp(app_name: str, environment: str = "staging") -> dict:
+    """Deploy application via MCP protocol"""
+    return {
+        "success": True,
+        "deployment_id": f"mcp-deploy-{app_name}-{environment}",
+        "message": f"MCP deployment of {app_name} to {environment} initiated"
+    }
+
+@mcp.tool()
+def get_deployment_logs(deployment_id: str) -> dict:
+    """Get deployment logs via MCP"""
+    return {
+        "deployment_id": deployment_id,
+        "logs": [
+            "Starting deployment...",
+            "Building application...",
+            "Deploying to cluster...",
+            "Deployment successful!"
+        ]
+    }
+
+if __name__ == "__main__":
+    mcp.run(host="0.0.0.0", port=8002)
+```
+
+### 2.2 Claude Desktop Integration
+
+```json
+// ~/.config/claude/claude_desktop_config.json
+{
+  "mcpServers": {
+    "kubiya-local": {
+      "command": "python",
+      "args": ["/path/to/your/backend/mcp_server.py"],
+      "env": {
+        "KUBIYA_API_KEY": "your-api-key"
+      }
+    }
+  }
+}
+```
+
+### 2.3 Multi-Server Frontend Support
+
+```typescript
+// frontend/components/server-manager.tsx
+'use client';
+import { useState, useEffect } from 'react';
+
+interface Server {
+  id: string;
+  name: string;
+  url: string;
+  type: 'adk' | 'mcp';
+  status: 'online' | 'offline';
+}
+
+export function ServerManager() {
+  const [servers, setServers] = useState<Server[]>([]);
+  const [selectedServer, setSelectedServer] = useState<string>('');
+  
+  useEffect(() => {
+    // Discover available servers
+    const discoverServers = async () => {
+      const serverUrls = [
+        'http://localhost:8001',
+        'http://localhost:8002'
+      ];
+      
+      const discovered = [];
+      for (const url of serverUrls) {
+        try {
+          const response = await fetch(`${url}/discover`);
+          const data = await response.json();
+          discovered.push({
+            id: data.server.id,
+            name: data.server.name,
+            url,
+            type: data.server.provider,
+            status: 'online'
+          });
+        } catch {
+          // Server offline
+        }
+      }
+      setServers(discovered);
+    };
+    
+    discoverServers();
+  }, []);
+  
+  return (
+    <div className="p-4 bg-gray-50 rounded-lg">
+      <h3 className="font-medium mb-2">Available Servers</h3>
+      <div className="space-y-2">
+        {servers.map(server => (
+          <div key={server.id} className="flex items-center justify-between">
+            <div>
+              <span className="font-medium">{server.name}</span>
+              <span className="text-sm text-gray-500 ml-2">({server.type})</span>
+            </div>
+            <button
+              onClick={() => setSelectedServer(server.id)}
+              className={`px-3 py-1 rounded text-sm ${
+                selectedServer === server.id
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-200 text-gray-700'
+              }`}
+            >
+              {selectedServer === server.id ? 'Selected' : 'Select'}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+## Phase 3: Production Deployment
+
+### 3.1 Cloud Infrastructure Setup
+
+```yaml
+# infrastructure/terraform/main.tf
+terraform {
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 4.0"
+    }
+  }
+}
+
+provider "google" {
+  project = var.project_id
+  region  = var.region
+}
+
+# Cloud Run service for ADK server
+resource "google_cloud_run_service" "adk_server" {
+  name     = "kubiya-adk-server"
+  location = var.region
+
+  template {
+    spec {
+      containers {
+        image = "gcr.io/${var.project_id}/kubiya-adk-server:latest"
+        ports {
+          container_port = 8001
+        }
+        env {
+          name  = "KUBIYA_API_KEY"
+          value_from {
+            secret_key_ref {
+              name = "kubiya-secrets"
+              key  = "api-key"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+# Cloud SQL instance
+resource "google_sql_database_instance" "main" {
+  name             = "kubiya-db"
+  database_version = "POSTGRES_15"
+  region           = var.region
+
+  settings {
+    tier = "db-f1-micro"
+  }
+}
+```
+
+### 3.2 Backend Production Configuration
+
+```dockerfile
+# backend/Dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8001/health || exit 1
+
+EXPOSE 8001
+
+CMD ["python", "adk_server.py"]
+```
+
+```python
+# backend/production_server.py
+import os
+import logging
+from google.adk.agents import Agent
+from kubiya_workflow_sdk.server.orchestration_server import create_orchestration_server
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def deploy_production_app(app_name: str, environment: str, version: str) -> dict:
+    """Production deployment with proper error handling"""
+    try:
+        logger.info(f"Starting deployment: {app_name} v{version} to {environment}")
+        
+        # Simulate deployment logic
+        deployment_id = f"prod-{app_name}-{version}-{environment}"
+        
+        return {
+            "status": "success",
+            "deployment_id": deployment_id,
+            "app_name": app_name,
+            "version": version,
+            "environment": environment,
+            "estimated_completion": "5 minutes"
+        }
+    except Exception as e:
+        logger.error(f"Deployment failed: {str(e)}")
+        return {
+            "status": "error",
+            "error": str(e),
+            "app_name": app_name
+        }
+
+# Production agent with enhanced capabilities
+production_agent = Agent(
+    name="production_deployment_agent",
+    model="gemini-2.0-flash",
+    description="Production-grade deployment agent",
+    instruction="""You are a production deployment specialist. You help deploy applications safely to production environments with proper monitoring and rollback capabilities.""",
+    tools=[deploy_production_app]
+)
+
+# Create production server
+server = create_orchestration_server(
+    name="Kubiya Production Server",
+    agents=[production_agent],
+    port=int(os.getenv("PORT", 8001)),
+    enable_cors=True,
+    enable_monitoring=True
+)
+
+if __name__ == "__main__":
+    logger.info("🚀 Starting Production ADK Server...")
+    server.run()
+```
+
+### 3.3 Frontend Production Deployment
+
+```dockerfile
+# frontend/Dockerfile
+FROM node:18-alpine AS base
+
+# Install dependencies
+FROM base AS deps
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+# Build application
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npm run build
+
+# Production runtime
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV production
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 3000
+
+ENV PORT 3000
+
+CMD ["node", "server.js"]
+```
+
+### 3.4 Production Docker Compose
+
+```yaml
+# docker/docker-compose.prod.yml
+version: '3.8'
+services:
+  traefik:
+    image: traefik:v2.9
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: kubiya_prod
+    volumes:
+      - postgres_prod:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+
+  adk-server:
+    image: kubiya/adk-server:latest
+    environment:
+      - KUBIYA_API_KEY=${KUBIYA_API_KEY}
+      - DATABASE_URL=${DATABASE_URL}
+      - ENVIRONMENT=production
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.adk.rule=Host(`api.yourdomain.com`)"
+      - "traefik.http.services.adk.loadbalancer.server.port=8001"
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  frontend:
+    image: kubiya/frontend:latest
+    environment:
+      - KUBIYA_API_URL=https://api.yourdomain.com
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`yourdomain.com`)"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+    depends_on:
+      - adk-server
+    restart: unless-stopped
+
+volumes:
+  postgres_prod:
+```
+
+### 3.5 CI/CD Pipeline
+
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        
+    - name: Setup Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.11'
+    
+    - name: Build Backend
+      run: |
+        cd backend
+        pip install -r requirements.txt
+        docker build -t kubiya/adk-server:latest .
+    
+    - name: Build Frontend
+      run: |
+        cd frontend
+        npm ci
+        npm run build
+        docker build -t kubiya/frontend:latest .
+    
+    - name: Deploy to Production
+      env:
+        KUBIYA_API_KEY: ${{ secrets.KUBIYA_API_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        docker-compose -f docker/docker-compose.prod.yml up -d
+```
+
+## Phase 4: Testing & Monitoring
+
+### 4.1 End-to-End Testing
+
+```typescript
+// tests/e2e/workflow-execution.test.ts
+import { test, expect } from '@playwright/test';
+
+test.describe('Workflow Execution', () => {
+  test('should execute deployment workflow', async ({ page }) => {
+    await page.goto('http://localhost:3000');
+    
+    // Select server
+    await page.selectOption('select[data-testid="server-selector"]', 'local-adk');
+    
+    // Set workflow mode
+    await page.selectOption('select[data-testid="mode-selector"]', 'act');
+    
+    // Type deployment request
+    await page.fill('input[data-testid="chat-input"]', 'Deploy my app to staging');
+    await page.click('button[data-testid="send-button"]');
+    
+    // Wait for response
+    await expect(page.locator('[data-testid="chat-messages"]')).toContainText('Workflow Execution');
+    await expect(page.locator('[data-testid="chat-messages"]')).toContainText('deployment_id');
+  });
+});
+```
+
+### 4.2 Monitoring Setup
+
+```python
+# backend/monitoring.py
+import logging
+import time
+from prometheus_client import Counter, Histogram, start_http_server
+
+# Metrics
+workflow_executions = Counter('workflow_executions_total', 'Total workflow executions', ['status'])
+workflow_duration = Histogram('workflow_duration_seconds', 'Workflow execution duration')
+
+class MonitoringMiddleware:
+    def __init__(self, app):
+        self.app = app
+    
+    def __call__(self, environ, start_response):
+        start_time = time.time()
+        
+        def monitoring_start_response(status, headers, exc_info=None):
+            duration = time.time() - start_time
+            workflow_duration.observe(duration)
+            
+            if status.startswith('2'):
+                workflow_executions.labels(status='success').inc()
+            else:
+                workflow_executions.labels(status='error').inc()
+            
+            return start_response(status, headers, exc_info)
+        
+        return self.app(environ, monitoring_start_response)
+
+# Start metrics server
+start_http_server(8000)
+```
+
+## Phase 5: Advanced Features
+
+### 5.1 Multi-Tenant Support
+
+```python
+# backend/tenant_manager.py
+class TenantManager:
+    def __init__(self):
+        self.tenants = {}
+    
+    def create_tenant_agent(self, tenant_id: str, config: dict):
+        """Create isolated agent for tenant"""
+        agent = Agent(
+            name=f"tenant_{tenant_id}_agent",
+            model=config.get('model', 'gemini-2.0-flash'),
+            description=f"Agent for tenant {tenant_id}",
+            tools=config.get('tools', [])
+        )
+        
+        self.tenants[tenant_id] = {
+            'agent': agent,
+            'config': config,
+            'created_at': time.time()
+        }
+        
+        return agent
+    
+    def get_tenant_agent(self, tenant_id: str):
+        return self.tenants.get(tenant_id, {}).get('agent')
+```
+
+### 5.2 Workflow Templates
+
+```typescript
+// frontend/lib/workflow-templates.ts
+export const workflowTemplates = {
+  deployment: {
+    name: "Application Deployment",
+    description: "Deploy applications to various environments",
+    template: "Deploy {app_name} version {version} to {environment}",
+    parameters: [
+      { name: "app_name", type: "string", required: true },
+      { name: "version", type: "string", required: true },
+      { name: "environment", type: "select", options: ["staging", "production"] }
+    ]
+  },
+  
+  backup: {
+    name: "Database Backup",
+    description: "Create database backups",
+    template: "Create backup of {database} and store in {storage_location}",
+    parameters: [
+      { name: "database", type: "string", required: true },
+      { name: "storage_location", type: "string", required: true }
+    ]
+  }
+};
+```
+
+## Conclusion
+
+You now have a complete full-stack AI application with:
+
+✅ **Local development environment** with hot reloading  
+✅ **Multiple orchestration providers** (ADK + MCP)  
+✅ **AI-powered frontend** with chatbot interface  
+✅ **Production deployment** with monitoring  
+✅ **CI/CD pipeline** for automated deployments  
+✅ **End-to-end testing** capabilities  
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="🔄 Advanced Workflows" href="/tutorials/advanced-workflows" icon="cog">
+    Build complex multi-step workflows with error handling
+  </Card>
+  
+  <Card title="📊 Analytics & Insights" href="/tutorials/analytics" icon="chart-bar">
+    Add analytics and insights to your workflow platform
+  </Card>
+  
+  <Card title="🔒 Security & Compliance" href="/tutorials/security" icon="shield">
+    Implement security best practices and compliance
+  </Card>
+  
+  <Card title="🚀 Scaling & Optimization" href="/tutorials/scaling" icon="trending-up">
+    Scale your application for enterprise use
+  </Card>
+</CardGroup>
+
+## Resources
+
+- [Example Repository](https://github.com/kubiya-ai/full-stack-example)
+- [Deployment Templates](https://github.com/kubiya-ai/deployment-templates)
+- [Community Discord](https://discord.gg/kubiya)
+- [Support Documentation](https://support.kubiya.ai) 

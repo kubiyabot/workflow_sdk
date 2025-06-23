@@ -70,6 +70,17 @@ try:
 except ImportError as e:
     logger.debug(f"ADK provider not available: {e}")
 
+# Register FastMCP provider
+try:
+    from .fastmcp import FastMCPProvider, FASTMCP_AVAILABLE
+    if FASTMCP_AVAILABLE:
+        register_provider("fastmcp", FastMCPProvider)
+        register_provider("mcp", FastMCPProvider)  # Alias
+    else:
+        logger.debug("FastMCP provider not registered - dependencies not available")
+except ImportError as e:
+    logger.debug(f"FastMCP provider not available: {e}")
+
 # Re-export for convenience
 __all__ = [
     "BaseProvider",
@@ -78,9 +89,15 @@ __all__ = [
     "list_providers",
 ]
 
-# Export ADK provider if available
+# Export providers if available
 try:
     from .adk import ADKProvider
     __all__.append("ADKProvider")
+except ImportError:
+    pass
+
+try:
+    from .fastmcp import FastMCPProvider
+    __all__.extend(["FastMCPProvider"])
 except ImportError:
     pass 

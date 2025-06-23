@@ -1,0 +1,925 @@
+---
+title: "Vercel AI SDK Chatbot"
+description: "Build AI-powered chatbots that integrate with Kubiya workflow orchestration"
+icon: "message-circle"
+---
+
+# Vercel AI SDK Integration
+
+Build AI-powered chatbots that can discover and execute workflows through natural language using the Vercel AI SDK and Kubiya's ADK orchestration servers.
+
+## What You'll Build
+
+A working chatbot that can:
+- 🔍 **Automatically discover** running ADK orchestration servers
+- 💬 **Chat with AI models** for general questions
+- 🚀 **Execute workflows** through natural language
+- 📊 **Stream real-time responses** from workflow execution
+
+## Quick Setup (5 minutes)
+
+### 1. Create Next.js Project
+
+```bash
+npx create-next-app@latest kubiya-chatbot --typescript --tailwind --app
+cd kubiya-chatbot
+npm install ai @ai-sdk/openai lucide-react
+```
+
+### 2. Environment Variables
+
+```bash
+# .env.local
+OPENAI_API_KEY=your_openai_api_key
+KUBIYA_API_KEY=your_kubiya_api_key
+ORCHESTRATION_SERVER_URL=http://localhost:8001
+```
+
+### 3. Server Discovery Client
+
+```typescript
+// lib/server-discovery.ts
+export interface OrchestrationServer {
+  id: string;
+  name: string;
+  endpoint: string;
+  provider: string;
+  isHealthy: boolean;
+  capabilities: {
+    streaming: boolean;
+    modes: string[];
+    orchestration: boolean;
+    mcp_support: boolean;
+  };
+  models: Array<{
+    id: string;
+    name: string;
+    provider: string;
+  }>;
+}
+
+export class ServerDiscovery {
+  private servers: OrchestrationServer[] = [];
+  
+  async discoverServers(serverUrls: string[]): Promise<OrchestrationServer[]> {
+    const discovered: OrchestrationServer[] = [];
+    
+    for (const url of serverUrls) {
+      try {
+        console.log(`🔍 Discovering server at ${url}`);
+        const response = await fetch(`${url}/discover`);
+        
+        if (!response.ok) {
+          console.warn(`❌ Server at ${url} returned ${response.status}`);
+          continue;
+        }
+        
+        const data = await response.json();
+        
+        const server: OrchestrationServer = {
+          id: data.server.id,
+          name: data.server.name,
+          endpoint: url,
+          provider: data.server.provider,
+          isHealthy: data.health.status === 'healthy',
+          capabilities: data.server.capabilities,
+          models: data.models || []
+        };
+        
+        discovered.push(server);
+        console.log(`✅ Discovered ${server.name} (${server.provider})`);
+        
+      } catch (error) {
+        console.warn(`❌ Failed to discover server at ${url}:`, error);
+      }
+    }
+    
+    this.servers = discovered;
+    return discovered;
+  }
+  
+  getHealthyServers(): OrchestrationServer[] {
+    return this.servers.filter(s => s.isHealthy);
+  }
+  
+  getServer(id: string): OrchestrationServer | undefined {
+    return this.servers.find(s => s.id === id);
+  }
+}
+```
+
+### 4. Chat API Route
+
+```typescript
+// app/api/chat/route.ts
+import { streamText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+
+interface ChatRequest {
+  messages: Array<{
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+  }>;
+  selectedServer?: string;
+  workflowMode?: 'plan' | 'act';
+}
+
+// Initialize server discovery
+const serverUrls = [
+  process.env.ORCHESTRATION_SERVER_URL || 'http://localhost:8001',
+  'http://localhost:8002' // Add more servers as needed
+];
+
+async function executeWorkflow(
+  serverUrl: string, 
+  message: string, 
+  mode: 'plan' | 'act' = 'plan'
+) {
+  const response = await fetch(`${serverUrl}/compose`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${process.env.KUBIYA_API_KEY}`
+    },
+    body: JSON.stringify({
+      messages: [{ role: 'user', content: message }],
+      prompt: message,
+      mode,
+      conversationId: `chat-${Date.now()}`,
+      model: 'deepseek-ai/DeepSeek-V3'
+    })
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Workflow execution failed: ${response.statusText}`);
+  }
+  
+  return response;
+}
+
+export async function POST(request: Request) {
+  try {
+    const { messages, selectedServer, workflowMode }: ChatRequest = await request.json();
+    const latestMessage = messages[messages.length - 1];
+    
+    // Check if this is a workflow request
+    const isWorkflowRequest = selectedServer && (
+      latestMessage.content.toLowerCase().includes('workflow') ||
+      latestMessage.content.toLowerCase().includes('create') ||
+      latestMessage.content.toLowerCase().includes('execute') ||
+      latestMessage.content.toLowerCase().includes('deploy') ||
+      workflowMode
+    );
+    
+    if (isWorkflowRequest) {
+      console.log(`🚀 Executing workflow on server: ${selectedServer}`);
+      
+      try {
+        // Find the server URL
+        const serverUrl = serverUrls.find(url => url.includes('8001')) || serverUrls[0];
+        
+        // Execute workflow and return streaming response
+        const workflowResponse = await executeWorkflow(
+          serverUrl,
+          latestMessage.content,
+          workflowMode || 'plan'
+        );
+        
+        // Return the streaming response directly
+        return new Response(workflowResponse.body, {
+          headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive'
+          }
+        });
+        
+      } catch (error: any) {
+        console.error('❌ Workflow execution failed:', error);
+        
+        // Return error as streaming response
+        const errorStream = new ReadableStream({
+          start(controller) {
+            const encoder = new TextEncoder();
+            const errorMessage = `❌ **Workflow failed:** ${error.message}`;
+            controller.enqueue(encoder.encode(`0:"${errorMessage}"\n`));
+            controller.close();
+          }
+        });
+        
+        return new Response(errorStream, {
+          headers: {
+            'Content-Type': 'text/event-stream'
+          }
+        });
+      }
+    }
+    
+    // Regular AI chat
+    const result = await streamText({
+      model: openai('gpt-4'),
+      messages,
+      system: `You are an AI assistant that can help with various tasks including workflow orchestration.
+
+When users ask about workflows, automation, deployments, or task execution, suggest they select an orchestration server and set the workflow mode to execute their requests.
+
+Available workflow modes:
+- **plan**: Generate a workflow without executing it
+- **act**: Generate and execute the workflow
+
+Be helpful and suggest specific workflow requests like:
+- "Create a deployment workflow"
+- "Set up a backup process" 
+- "Deploy my application to staging"`
+    });
+    
+    return result.toAIStreamResponse();
+    
+  } catch (error) {
+    console.error('💥 Chat API error:', error);
+    return new Response(
+      JSON.stringify({ error: 'Internal server error' }),
+      { 
+        status: 500, 
+        headers: { 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+}
+```
+
+### 5. Chat Interface Component
+
+```typescript
+// components/chat-interface.tsx
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useChat } from 'ai/react';
+import { Send, Server, Zap, RefreshCw } from 'lucide-react';
+
+interface ServerOption {
+  id: string;
+  name: string;
+  provider: string;
+  isHealthy: boolean;
+}
+
+export function ChatInterface() {
+  const [servers, setServers] = useState<ServerOption[]>([]);
+  const [selectedServer, setSelectedServer] = useState<string>('');
+  const [workflowMode, setWorkflowMode] = useState<'plan' | 'act'>('plan');
+  const [isDiscovering, setIsDiscovering] = useState(false);
+  
+  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+    api: '/api/chat',
+    body: {
+      selectedServer,
+      workflowMode
+    }
+  });
+  
+  // Discover servers on component mount
+  const discoverServers = async () => {
+    setIsDiscovering(true);
+    try {
+      // In a real app, you'd call your server discovery API
+      // For this example, we'll simulate discovering the local ADK server
+      const serverUrls = ['http://localhost:8001', 'http://localhost:8002'];
+      const discovered: ServerOption[] = [];
+      
+      for (const url of serverUrls) {
+        try {
+          const response = await fetch(`${url}/discover`);
+          if (response.ok) {
+            const data = await response.json();
+            discovered.push({
+              id: data.server.id,
+              name: data.server.name,
+              provider: data.server.provider,
+              isHealthy: data.health.status === 'healthy'
+            });
+          }
+        } catch {
+          // Server not available
+        }
+      }
+      
+      setServers(discovered);
+      
+      // Auto-select first healthy server
+      const healthy = discovered.find(s => s.isHealthy);
+      if (healthy && !selectedServer) {
+        setSelectedServer(healthy.id);
+      }
+      
+    } catch (error) {
+      console.error('Discovery failed:', error);
+    } finally {
+      setIsDiscovering(false);
+    }
+  };
+  
+  useEffect(() => {
+    discoverServers();
+  }, []);
+  
+  return (
+    <div className="flex flex-col h-screen bg-gray-50">
+      {/* Header with Server Selection */}
+      <div className="bg-white border-b border-gray-200 p-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900">
+                Kubiya Workflow Assistant
+              </h1>
+              <p className="text-sm text-gray-600">
+                Chat with AI or execute workflows through orchestration servers
+              </p>
+            </div>
+            
+            <button
+              onClick={discoverServers}
+              disabled={isDiscovering}
+              className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${isDiscovering ? 'animate-spin' : ''}`} />
+              {isDiscovering ? 'Discovering...' : 'Refresh Servers'}
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Server Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Orchestration Server
+              </label>
+              <select
+                value={selectedServer}
+                onChange={(e) => setSelectedServer(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">None (AI Chat Only)</option>
+                {servers.map(server => (
+                  <option key={server.id} value={server.id}>
+                    {server.name} ({server.provider}) 
+                    {server.isHealthy ? ' ✅' : ' ❌'}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Workflow Mode */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Workflow Mode
+              </label>
+              <select
+                value={workflowMode}
+                onChange={(e) => setWorkflowMode(e.target.value as 'plan' | 'act')}
+                disabled={!selectedServer}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              >
+                <option value="plan">Plan (Generate Only)</option>
+                <option value="act">Act (Generate & Execute)</option>
+              </select>
+            </div>
+            
+            {/* Status */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Status
+              </label>
+              <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-md">
+                {selectedServer ? (
+                  <>
+                    <Zap className="w-4 h-4 text-green-500" />
+                    <span className="text-sm">Workflow Mode: {workflowMode}</span>
+                  </>
+                ) : (
+                  <>
+                    <Server className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-500">AI Chat Mode</span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          {servers.length === 0 && !isDiscovering && (
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+              <p className="text-yellow-800 text-sm">
+                ⚠️ No orchestration servers found. Make sure your ADK server is running on port 8001.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="max-w-4xl mx-auto space-y-4">
+          {messages.length === 0 && (
+            <div className="text-center text-gray-500 mt-8">
+              <div className="mb-4">
+                <Zap className="w-12 h-12 mx-auto text-blue-500" />
+              </div>
+              <h3 className="text-lg font-medium mb-2">
+                Welcome to Kubiya Workflow Assistant
+              </h3>
+              <p className="text-sm mb-4">
+                Ask questions or describe workflows you'd like to create
+              </p>
+              
+              {servers.length > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
+                  <p className="text-blue-800 text-sm font-medium mb-2">
+                    🚀 {servers.filter(s => s.isHealthy).length} server(s) available!
+                  </p>
+                  <p className="text-blue-700 text-sm">
+                    Try: "Create a hello world workflow" or "Deploy my application"
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div
+                className={`max-w-3xl px-4 py-2 rounded-lg ${
+                  message.role === 'user'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white border border-gray-200 shadow-sm'
+                }`}
+              >
+                <div className="whitespace-pre-wrap">{message.content}</div>
+              </div>
+            </div>
+          ))}
+          
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="bg-white border border-gray-200 rounded-lg px-4 py-2 shadow-sm">
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full" />
+                  <span className="text-gray-600">
+                    {selectedServer ? 'Executing workflow...' : 'Thinking...'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Input */}
+      <div className="bg-white border-t border-gray-200 p-4">
+        <div className="max-w-4xl mx-auto">
+          <form onSubmit={handleSubmit} className="flex space-x-2">
+            <input
+              value={input}
+              onChange={handleInputChange}
+              placeholder={
+                selectedServer 
+                  ? `Describe a workflow to ${workflowMode}...`
+                  : "Ask me anything..."
+              }
+              className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={isLoading}
+            />
+            
+            <button
+              type="submit"
+              disabled={isLoading || !input.trim()}
+              className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
+            >
+              <Send className="w-5 h-5" />
+            </button>
+          </form>
+          
+          {selectedServer && (
+            <p className="text-xs text-gray-500 mt-2 text-center">
+              Connected to {servers.find(s => s.id === selectedServer)?.name} - 
+              workflows will be {workflowMode === 'plan' ? 'generated' : 'executed'} automatically
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+### 6. Main Page
+
+```typescript
+// app/page.tsx
+import { ChatInterface } from '@/components/chat-interface';
+
+export default function HomePage() {
+  return (
+    <main className="h-screen">
+      <ChatInterface />
+    </main>
+  );
+}
+```
+
+## How It Works
+
+### 1. Server Discovery
+- Frontend automatically discovers running ADK servers on startup
+- Uses the `/discover` endpoint to get server capabilities and models
+- Shows healthy/unhealthy status for each server
+
+### 2. Chat Integration
+- Regular messages go to OpenAI's GPT-4 for general conversation
+- When a server is selected and workflow keywords are detected, requests go to the ADK server
+- ADK server returns streaming responses compatible with Vercel AI SDK
+
+### 3. Workflow Execution
+- **Plan mode**: Generates workflow code without executing
+- **Act mode**: Generates and executes the workflow
+- Real-time streaming shows the generation and execution progress
+
+## Example Conversations
+
+### AI Chat Mode (No Server Selected)
+```
+User: "How do I deploy an application?"
+
+AI: "To deploy an application, you typically need to:
+1. Select an orchestration server above
+2. Set mode to 'act' for execution
+3. Ask me to 'Create a deployment workflow for my app'
+
+This will generate and execute a real workflow!"
+```
+
+### Workflow Mode (Server Selected)
+```
+User: "Create a simple hello world workflow"
+
+ADK Server: (Streaming response)
+```python
+from kubiya_workflow_sdk import workflow
+
+@workflow
+def hello_world_workflow():
+    """Create a simple hello world workflow"""
+    print("Hello, World! This is a Kubiya workflow.")
+    return {"status": "completed", "message": "Hello World workflow executed successfully"}
+```
+
+**Executing workflow...**
+- Initializing workflow environment...
+- Loading required dependencies...
+- Executing workflow logic...
+- Workflow completed successfully!
+
+**Execution Result:**
+```json
+{
+  "status": "completed",
+  "message": "Hello World workflow executed successfully"
+}
+```
+```
+
+### Deployment Workflow Example
+```
+User: "Deploy my Node.js application to staging"
+
+ADK Server: (Streaming response)
+```python
+from kubiya_workflow_sdk import workflow
+
+@workflow
+def deploy_nodejs_app():
+    """Deploy Node.js application to staging environment"""
+    
+    # Build step
+    print("Building Node.js application...")
+    
+    # Test step
+    print("Running tests...")
+    
+    # Deploy step
+    print("Deploying to staging environment...")
+    
+    return {
+        "status": "deployed",
+        "environment": "staging",
+        "url": "https://my-app-staging.example.com"
+    }
+```
+
+**Executing workflow...**
+- Building Node.js application...
+- Running tests...
+- Deploying to staging environment...
+- Deployment completed successfully!
+```
+
+## Testing Your Setup
+
+### 1. Start ADK Server
+
+```bash
+# In terminal 1 - Start ADK server
+cd /path/to/your/kubiya-project
+source venv/bin/activate
+export TOGETHER_API_KEY="your-together-api-key"
+export KUBIYA_API_KEY="your-kubiya-api-key"
+export PORT=8001
+python3 workflow_sdk/adk_orchestration_server.py
+```
+
+### 2. Start Frontend
+
+```bash
+# In terminal 2 - Start Next.js app
+cd kubiya-chatbot
+npm run dev
+```
+
+### 3. Test Discovery
+
+```bash
+# Test server discovery
+curl http://localhost:8001/discover
+
+# Should return server info with capabilities
+```
+
+### 4. Test Integration
+
+1. Open http://localhost:3000
+2. Click "Refresh Servers" - should discover your ADK server
+3. Select the "Local ADK Orchestrator" 
+4. Set mode to "plan" and try: "Create a hello world workflow"
+5. Set mode to "act" and try: "Deploy a simple web app"
+
+## Troubleshooting
+
+### Server Not Discovered
+
+**Problem**: "No orchestration servers found" warning
+
+**Solutions**:
+```bash
+# 1. Check if ADK server is running
+curl http://localhost:8001/health
+
+# 2. Check server logs for errors
+# Look for "Uvicorn running on http://0.0.0.0:8001"
+
+# 3. Verify environment variables
+echo $KUBIYA_API_KEY
+echo $TOGETHER_API_KEY
+
+# 4. Check for port conflicts
+lsof -i :8001
+```
+
+### CORS Errors
+
+**Problem**: Cross-origin request blocked
+
+**Solution**: ADK server already includes CORS middleware, but if you see issues:
+
+```python
+# In adk_orchestration_server.py
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Add your frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+### Streaming Not Working
+
+**Problem**: Messages appear all at once instead of streaming
+
+**Solutions**:
+1. Check browser dev tools Network tab for SSE connection
+2. Verify ADK server is returning `text/event-stream` content type
+3. Check if response is properly formatted for Vercel AI SDK
+
+### Authentication Errors
+
+**Problem**: "No idToken provided" errors
+
+**Solution**: Ensure your Kubiya API key is set correctly:
+
+```bash
+# Check API key is set
+echo $KUBIYA_API_KEY
+
+# Restart servers after setting environment variables
+```
+
+## Production Deployment
+
+### Environment Variables
+
+```bash
+# .env.production
+OPENAI_API_KEY=your_production_openai_key
+KUBIYA_API_KEY=your_production_kubiya_key
+ORCHESTRATION_SERVER_URL=https://your-adk-server.com
+```
+
+### Deployment Options
+
+**Vercel (Recommended)**:
+```bash
+npm install -g vercel
+vercel
+# Follow prompts and set environment variables
+```
+
+**Docker**:
+```dockerfile
+# Dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+EXPOSE 3000
+CMD ["npm", "start"]
+```
+
+**Self-hosted**:
+```bash
+npm run build
+npm start
+```
+
+## Advanced Features
+
+### Multiple Server Support
+
+```typescript
+// Add multiple servers in the discovery
+const serverUrls = [
+  'http://localhost:8001',  // Local ADK
+  'http://localhost:8002',  // Local MCP
+  'https://prod-adk.company.com',  // Production ADK
+];
+```
+
+### Custom Models
+
+```typescript
+// In your chat API route, support model selection
+export async function POST(request: Request) {
+  const { messages, selectedServer, workflowMode, selectedModel } = await request.json();
+  
+  // Pass model to ADK server
+  body: JSON.stringify({
+    messages: [{ role: 'user', content: message }],
+    prompt: message,
+    mode,
+    model: selectedModel || 'deepseek-ai/DeepSeek-V3',
+    conversationId: `chat-${Date.now()}`
+  })
+}
+```
+
+### Workflow History
+
+```typescript
+// Add to your component state
+const [workflowHistory, setWorkflowHistory] = useState([]);
+
+// Save executed workflows
+const saveWorkflow = (workflow) => {
+  setWorkflowHistory(prev => [workflow, ...prev.slice(0, 9)]); // Keep last 10
+};
+```
+
+## Security Considerations
+
+### API Key Management
+
+```typescript
+// Never expose API keys in frontend
+// Always use environment variables
+// Use different keys for development/production
+```
+
+### CORS Configuration
+
+```python
+# Restrict CORS in production
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://yourdomain.com"],  # Specific domains only
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+```
+
+### Rate Limiting
+
+```typescript
+// Add rate limiting to your API routes
+import rateLimit from 'express-rate-limit';
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+});
+```
+
+## Performance Tips
+
+### 1. Server Discovery Caching
+
+```typescript
+// Cache discovery results
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+let discoveryCache = null;
+let cacheTime = 0;
+
+const getCachedServers = () => {
+  if (Date.now() - cacheTime < CACHE_TTL && discoveryCache) {
+    return discoveryCache;
+  }
+  return null;
+};
+```
+
+### 2. Connection Pooling
+
+```typescript
+// Reuse connections for the same server
+const connections = new Map();
+
+const getConnection = (serverUrl) => {
+  if (!connections.has(serverUrl)) {
+    connections.set(serverUrl, fetch); // Use appropriate connection pooling
+  }
+  return connections.get(serverUrl);
+};
+```
+
+### 3. Error Recovery
+
+```typescript
+// Implement exponential backoff for failed requests
+const retryWithBackoff = async (fn, maxRetries = 3) => {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+    }
+  }
+};
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="🔧 Multi-Server Setup" href="/frontend/multi-server" icon="server">
+    Set up multiple orchestration servers with load balancing
+  </Card>
+  
+  <Card title="📊 Workflow Dashboard" href="/frontend/dashboard-templates" icon="chart-bar">
+    Build a comprehensive workflow management dashboard
+  </Card>
+  
+  <Card title="🔌 MCP Integration" href="/providers/fastmcp" icon="plug">
+    Add Model Context Protocol support for Claude Desktop
+  </Card>
+  
+  <Card title="📚 Full Tutorial" href="/tutorials/full-stack-ai" icon="book">
+    Complete end-to-end development tutorial
+  </Card>
+</CardGroup>
+
+## Resources
+
+- [Vercel AI SDK Documentation](https://sdk.vercel.ai/docs)
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Kubiya Workflow SDK](https://github.com/kubiya-ai/workflow-sdk)
+- [Example Repository](https://github.com/kubiya-ai/vercel-ai-example)
+
+## Community
+
+- [GitHub Discussions](https://github.com/kubiya-ai/workflow-sdk/discussions)
+- [Discord Community](https://discord.gg/kubiya)
+- [Stack Overflow](https://stackoverflow.com/questions/tagged/kubiya)

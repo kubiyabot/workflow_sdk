@@ -1,17 +1,152 @@
 ---
 title: "Providers Overview"
-description: "Understanding Kubiya's workflow orchestration architecture"
+description: "Understanding Kubiya's workflow orchestration providers and integration options"
 icon: "microchip"
 ---
 
-# Workflow Orchestration with ADK
+# Providers Overview
 
-Kubiya SDK currently leverages **ADK (Agent Development Kit)** as its orchestration provider for workflow execution. ADK brings powerful AI capabilities to workflow automation, enabling intelligent orchestration and decision-making.
+Kubiya Workflow SDK supports multiple types of providers to enable flexible workflow orchestration and integration with various AI systems. This section covers two main categories of providers:
 
-## Serverless, Containerized Execution
+## Provider Categories
 
-<Card title="🚀 Run Any Software, Anywhere" icon="docker">
-  Every workflow and step in Kubiya runs as an independent, serverless Docker container. This means:
+<CardGroup cols={2}>
+  <Card title="🤖 Agent Servers" href="/providers/agent-servers" icon="robot">
+    Full-featured orchestration engines that provide complete workflow management, execution, and AI-powered automation
+  </Card>
+  
+  <Card title="🔌 MCP Providers" href="/providers/fastmcp" icon="plug">
+    Model Context Protocol providers that enable integration with AI assistants like Claude Desktop, Cursor, and custom agents
+  </Card>
+</CardGroup>
+
+## Agent Servers
+
+Agent servers are complete orchestration engines that handle the full lifecycle of workflow execution. They provide:
+
+### Core Capabilities
+- **Workflow Generation**: AI-powered creation of workflows from natural language
+- **Intelligent Execution**: Context-aware step-by-step execution with error handling
+- **Multi-Agent Orchestration**: Coordination of specialized agents for complex tasks
+- **Real-time Streaming**: Live feedback and progress updates during execution
+
+### Available Agent Servers
+
+<Card title="Google Agent Development Kit (ADK)" href="/providers/agent-servers/adk" icon="google">
+  Google's comprehensive agent framework providing intelligent workflow orchestration, multi-agent coordination, and seamless integration with Google Cloud services.
+</Card>
+
+### Architecture Overview
+
+```mermaid
+graph TD
+    subgraph "Agent Server"
+        AS[Agent Server Instance]
+        WG[Workflow Generator]
+        EE[Execution Engine]
+        MA[Multi-Agent System]
+    end
+    
+    subgraph "Frontend Applications"
+        WA[Web Application]
+        CLI[CLI Interface]
+        API[API Clients]
+    end
+    
+    subgraph "Execution Environment"
+        DC[Docker Containers]
+        K8S[Kubernetes Pods]
+        CR[Cloud Run]
+    end
+    
+    WA --> AS
+    CLI --> AS
+    API --> AS
+    
+    AS --> WG
+    AS --> EE
+    AS --> MA
+    
+    EE --> DC
+    EE --> K8S
+    EE --> CR
+    
+    style AS fill:#0088ff,stroke:#0066cc,stroke-width:3px
+```
+
+## MCP Providers
+
+MCP (Model Context Protocol) providers enable integration with AI assistants and development tools. They bridge the gap between external AI systems and Kubiya's workflow capabilities.
+
+### What is MCP?
+
+The Model Context Protocol is an open protocol that standardizes how AI assistants connect to external tools and data sources. It enables:
+
+- **Tool Discovery**: AI agents discover available workflow capabilities
+- **Context Sharing**: Share relevant workflow context with AI assistants
+- **Action Execution**: AI can trigger and monitor workflow executions
+- **Real-time Integration**: Stream workflow results back to AI interfaces
+
+### Available MCP Providers
+
+<Card title="FastMCP" href="/providers/fastmcp" icon="zap">
+  Native Python implementation of the Model Context Protocol, providing seamless integration with Claude Desktop, Cursor, and other MCP-compatible tools.
+</Card>
+
+### MCP Integration Flow
+
+```mermaid
+graph LR
+    subgraph "AI Assistants"
+        CD[Claude Desktop]
+        CU[Cursor IDE]
+        CA[Custom Agents]
+    end
+    
+    subgraph "MCP Server"
+        MS[Kubiya MCP Server]
+        TD[Tool Discovery]
+        WE[Workflow Execution]
+    end
+    
+    subgraph "Kubiya Platform"
+        API[Workflow API]
+        WF[Workflows]
+        RN[Execution Runners]
+    end
+    
+    CD <--> MS
+    CU <--> MS
+    CA <--> MS
+    
+    MS --> TD
+    MS --> WE
+    WE --> API
+    API --> WF
+    WF --> RN
+    
+    style MS fill:#ff8800,stroke:#cc6600,stroke-width:3px
+```
+
+## Choosing the Right Provider
+
+| Use Case | Recommended Provider | Why |
+|----------|---------------------|-----|
+| **Full AI Automation Platform** | Agent Servers (ADK) | Complete workflow lifecycle management |
+| **AI Assistant Integration** | MCP Providers (FastMCP) | Seamless integration with existing AI tools |
+| **Enterprise Orchestration** | Agent Servers (ADK) | Advanced multi-agent coordination |
+| **Developer Tool Integration** | MCP Providers (FastMCP) | IDE and development workflow integration |
+| **Google Cloud Integration** | Agent Servers (ADK) | Native Google services integration |
+| **Cross-Platform AI Tools** | MCP Providers (FastMCP) | Protocol standardization |
+
+## Execution Models
+
+### Serverless Containerized Execution
+
+Both provider types leverage Kubiya's containerized execution model:
+
+<Card title="🐳 Universal Container Runtime" icon="docker">
+  Every workflow step runs in its own Docker container, providing:
   
   - **Complete Software Freedom**: Install and run any software, library, or tool
   - **Language Agnostic**: Python, Node.js, Go, Rust, Java - use any language
@@ -20,202 +155,79 @@ Kubiya SDK currently leverages **ADK (Agent Development Kit)** as its orchestrat
   - **Resource Isolation**: Each step runs in its own secure environment
 </Card>
 
-## Why Containerized Execution?
-
-### 1. **Universal Compatibility**
-```python
-# Your workflow can use ANY software
-workflow = Workflow(
-    name="multi-language-pipeline",
-    runner="kubiya-hosted"
-)
-
-# Run Python data processing
-workflow.add_step(
-    name="process-data",
-    image="python:3.11",
-    code="""
-    import pandas as pd
-    df = pd.read_csv('data.csv')
-    # Process with any Python library
-    """
-)
-
-# Then run Node.js API calls
-workflow.add_step(
-    name="call-apis",
-    image="node:20",
-    code="""
-    const axios = require('axios');
-    // Use any npm package
-    """
-)
-
-# Even compile and run Go code
-workflow.add_step(
-    name="high-performance",
-    image="golang:1.21",
-    code="""
-    package main
-    // Write high-performance Go code
-    """
-)
-```
-
-### 2. **True Statelessness**
-
-Each workflow execution is completely independent:
-
-- No shared state between executions
-- No side effects from previous runs
-- Predictable, reproducible results
-- Perfect for event-driven architectures
-
-### 3. **Security & Isolation**
-
-- Each step runs in its own container
-- Network isolation between steps
-- Resource limits prevent runaway processes
-- Clean environment for each execution
-
-## ADK: The AI-Powered Orchestrator
-
-ADK serves as the intelligent orchestration layer that:
-
-### **Multi-Agent Architecture**
-- Specialized agents for different tasks
-- Context-aware decision making
-- Intelligent error handling and recovery
-
-### **Natural Language Processing**
-- Generate workflows from descriptions
-- Understand complex requirements
-- Adapt execution based on context
-
-### **Streaming Capabilities**
-- Real-time execution feedback
-- Progress updates as workflows run
-- Interactive debugging support
-
-## Execution Flow
-
-```mermaid
-graph TD
-    A[Workflow Definition] --> B[ADK Orchestrator]
-    B --> C[Step 1: Docker Container]
-    C --> D[Step 2: Docker Container]
-    D --> E[Step 3: Docker Container]
-    E --> F[Results]
-    
-    B -.->|Monitors| C
-    B -.->|Monitors| D
-    B -.->|Monitors| E
-    
-    style B fill:#f9f,stroke:#333,stroke-width:4px
-    style C fill:#bbf,stroke:#333,stroke-width:2px
-    style D fill:#bbf,stroke:#333,stroke-width:2px
-    style E fill:#bbf,stroke:#333,stroke-width:2px
-```
-
-## Practical Example: Multi-Tool Pipeline
-
-Here's a real-world example leveraging the containerized architecture:
+### Example: Multi-Language Pipeline
 
 ```python
 from kubiya_workflow_sdk import Workflow, Step
 
-# Create a data processing pipeline that uses multiple tools
+# Create a workflow that uses multiple technologies
 workflow = Workflow(
-    name="etl-pipeline",
+    name="multi-tech-pipeline",
     runner="kubiya-hosted"
 )
 
-# Extract: Use Python with specialized libraries
+# Data extraction with Python
 workflow.add_step(Step(
     name="extract-data",
-    image="python:3.11-slim",
-    packages=["requests", "beautifulsoup4"],
+    image="python:3.11",
+    packages=["requests", "pandas"],
     code="""
     import requests
-    from bs4 import BeautifulSoup
+    import pandas as pd
     
-    # Scrape data from websites
-    response = requests.get('https://example.com/data')
-    soup = BeautifulSoup(response.text, 'html.parser')
-    data = extract_tables(soup)
+    # Extract data from API
+    response = requests.get('https://api.example.com/data')
+    df = pd.DataFrame(response.json())
+    df.to_csv('extracted_data.csv')
     """
 ))
 
-# Transform: Use R for statistical analysis
+# Analysis with R
 workflow.add_step(Step(
-    name="analyze-data",
+    name="statistical-analysis",
     image="r-base:latest",
     code="""
     library(tidyverse)
-    library(forecast)
     
-    # Perform time series analysis
-    data <- read.csv('input.csv')
-    model <- auto.arima(data$values)
-    forecast <- predict(model, n.ahead=30)
+    # Perform statistical analysis
+    data <- read.csv('extracted_data.csv')
+    analysis <- summary(lm(y ~ x, data))
+    write.csv(analysis$coefficients, 'analysis_results.csv')
     """
 ))
 
-# Load: Use Go for high-performance database operations
+# Visualization with Node.js
 workflow.add_step(Step(
-    name="load-to-db",
-    image="golang:1.21",
+    name="create-dashboard",
+    image="node:20",
+    packages=["d3", "express"],
     code="""
-    package main
+    const express = require('express');
+    const d3 = require('d3');
     
-    import (
-        "database/sql"
-        _ "github.com/lib/pq"
-    )
-    
-    func main() {
-        // High-performance bulk insert
-        db, _ := sql.Open("postgres", connStr)
-        // Efficient data loading
-    }
+    // Create interactive dashboard
+    const app = express();
+    // Build visualization from analysis results
     """
 ))
 ```
 
-## Key Benefits
-
-<CardGroup cols={2}>
-  <Card title="🔧 Use Any Tool" icon="wrench">
-    Install and use any software package, library, or tool within your workflows
-  </Card>
-  
-  <Card title="🔒 Secure Isolation" icon="shield">
-    Each step runs in its own container with resource limits and network isolation
-  </Card>
-  
-  <Card title="📈 Infinite Scale" icon="chart-line">
-    Serverless execution scales automatically based on demand
-  </Card>
-  
-  <Card title="🎯 Predictable Results" icon="bullseye">
-    Stateless execution ensures consistent, reproducible outcomes
-  </Card>
-</CardGroup>
-
-## Coming Soon
-
-While ADK is currently the sole orchestration provider, the Kubiya SDK architecture is designed to support multiple providers in the future, allowing you to choose the orchestration engine that best fits your needs.
-
 ## Next Steps
 
-<Card title="Get Started with ADK" href="/providers/adk/getting-started" icon="rocket">
-  Learn how to create your first AI-powered workflow with ADK
-</Card>
-
-<Card title="Explore Streaming" href="/providers/adk/streaming" icon="broadcast">
-  Understand real-time execution feedback and monitoring
-</Card>
-
-<Card title="Multi-Agent Architecture" href="/providers/adk/agents" icon="users">
-  Dive deep into ADK's intelligent agent system
-</Card> 
+<CardGroup cols={2}>
+  <Card title="🤖 Agent Servers Guide" href="/providers/agent-servers" icon="robot">
+    Learn about full-featured orchestration with Google ADK and other agent servers
+  </Card>
+  
+  <Card title="🔌 MCP Integration" href="/providers/fastmcp" icon="plug">
+    Integrate workflows with AI assistants using FastMCP
+  </Card>
+  
+  <Card title="🚀 Frontend Integration" href="/frontend" icon="code">
+    Build web applications that consume workflow providers
+  </Card>
+  
+  <Card title="📚 End-to-End Tutorial" href="/tutorials/full-stack-ai" icon="book">
+    Complete tutorial: Local development to production deployment
+  </Card>
+</CardGroup> 
