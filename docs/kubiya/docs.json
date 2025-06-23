@@ -102,35 +102,29 @@
             ]
           },
           {
-            "group": "Agent Servers & Providers",
+            "group": "Full Stack Agents",
             "pages": [
               "full-stack-agents/overview",
-              "full-stack-agents/agent-servers"
-            ]
-          },
-          {
-            "group": "ADK (Agent Development Kit)",
-            "pages": [
+              "full-stack-agents/agent-servers",
               "providers/adk/getting-started",
               "providers/adk/agents",
               "providers/adk/streaming",
-              "providers/agent-servers/adk"
-            ]
-          },
-          {
-            "group": "MCP & Tool Providers",
-            "pages": [
-              "providers/overview",
-              "mcp/overview",
               "providers/fastmcp",
-              "servers/overview"
+              "full-stack-agents/existing-frameworks/overview",
+              "full-stack-agents/existing-frameworks/langgraph"
             ]
           },
           {
-            "group": "Frontend Integration",
+            "group": "Frontend & UI",
             "pages": [
               "frontend",
-              "frontend/vercel-ai-sdk",
+              "frontend/vercel-ai-sdk"
+            ]
+          },
+          {
+            "group": "Platform & Tools",
+            "pages": [
+              "mcp/overview",
               "servers/overview"
             ]
           },

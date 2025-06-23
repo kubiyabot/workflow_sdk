@@ -1,186 +1,151 @@
 ---
-title: "Agent Servers & Providers"
-description: "Build AI-powered automation with agent servers and providers"
-icon: "server"
+title: "Full Stack Agents"
+description: "Build AI-powered applications using Kubiya workflows with different providers"
+icon: "layer-group"
 ---
 
-# Agent Servers & Providers
+# Full Stack Agents
 
-Kubiya provides a complete ecosystem for building AI-powered automation through agent servers and providers. This architecture enables you to create sophisticated AI workflows while maintaining deterministic execution.
+Full Stack Agents combine Kubiya's deterministic workflow engine with AI providers to create powerful automation solutions. You can choose from different providers based on your needs.
 
-## Architecture Overview
+## Available Providers
 
 <CardGroup cols={2}>
-  <Card title="Agent Servers" icon="server" href="/full-stack-agents/agent-servers">
-    Backend orchestration servers that provide AI capabilities through standardized APIs
-  </Card>
   <Card title="ADK Provider" icon="robot" href="/providers/adk/getting-started">
-    Agent Development Kit for natural language workflow generation
+    **Natural language to workflow generation**
+    
+    Use ADK when you want to:
+    - Generate workflows from plain English
+    - Let AI plan and execute complex tasks
+    - Stream real-time progress to users
+    
+    ```python
+    adk = get_provider("adk")
+    result = await adk.compose("Deploy my app with health checks")
+    ```
   </Card>
-  <Card title="MCP Providers" icon="plug" href="/mcp/overview">
-    Model Context Protocol integration for tool connectivity
-  </Card>
-  <Card title="Frontend Integration" icon="browser" href="/frontend">
-    Connect AI agents to web applications using modern frameworks
+  
+  <Card title="FastMCP Provider" icon="plug" href="/providers/fastmcp">
+    **Direct tool execution via MCP protocol**
+    
+    Use FastMCP when you want to:
+    - Connect existing MCP-compatible tools
+    - Execute specific tools directly
+    - Build on standardized protocols
+    
+    ```python
+    mcp = get_provider("fastmcp")
+    result = await mcp.execute_tool("database_query", params)
+    ```
   </Card>
 </CardGroup>
 
 ## How It Works
 
+Both providers integrate with Kubiya workflows:
+
 ```mermaid
 graph TB
-    subgraph "Frontend Layer"
-        UI[Web UI/Chat Interface]
-        SDK[Vercel AI SDK]
+    subgraph "Your Application"
+        UI[Frontend/CLI]
     end
     
-    subgraph "Agent Server Layer"
-        AS[Agent Server]
+    subgraph "Kubiya Full Stack Agents"
+        Provider[Provider Layer]
         ADK[ADK Provider]
-        MCP[MCP Provider]
+        MCP[FastMCP Provider]
+        WF[Workflow Engine]
     end
     
-    subgraph "Execution Layer"
-        WE[Workflow Engine]
-        Tools[Tools & Integrations]
-    end
+    UI --> Provider
+    Provider --> ADK
+    Provider --> MCP
+    ADK --> WF
+    MCP --> WF
+    WF --> Execution[Deterministic Execution]
     
-    UI --> SDK
-    SDK --> AS
-    AS --> ADK
-    AS --> MCP
-    ADK --> WE
-    MCP --> Tools
-    WE --> Tools
-    
-    style ADK fill:#9C27B0,stroke:#333,stroke-width:2px,color:#fff
-    style AS fill:#2196F3,stroke:#333,stroke-width:2px,color:#fff
+    style ADK fill:#9C27B0
+    style MCP fill:#2196F3
 ```
 
-## Key Components
-
-### 1. Agent Servers
-Agent servers act as the orchestration layer that:
-- Receive requests from frontend applications
-- Route to appropriate providers (ADK, MCP, custom)
-- Handle streaming responses
-- Manage authentication and sessions
-
-### 2. Providers
-
-#### ADK (Agent Development Kit)
-- **Purpose**: Generate workflows from natural language
-- **Streaming**: Real-time workflow generation and execution
-- **Models**: Supports multiple LLMs (GPT-4, Claude, Gemini)
-- **Use Case**: "Deploy my app with health checks" → Complete workflow
-
-#### FastMCP Provider
-- **Purpose**: Connect to MCP-compatible tools
-- **Protocol**: Model Context Protocol standard
-- **Tools**: File system, GitHub, databases, etc.
-- **Use Case**: Direct tool execution within workflows
-
-### 3. Frontend Integration
-- **Vercel AI SDK**: Stream AI responses to React applications
-- **Real-time Updates**: WebSocket/SSE for live workflow execution
-- **Universal Compatibility**: Works with any frontend framework
-
-## Quick Start Examples
-
-### Setting Up an Agent Server
-
-```python
-# 1. Install the SDK
-pip install kubiya-workflow-sdk
-
-# 2. Start ADK orchestration server
-python -m kubiya_workflow_sdk.providers.adk.provider
-
-# 3. Server runs on http://localhost:8001
-```
-
-### Using ADK Provider
+## Quick Example: Using ADK
 
 ```python
 from kubiya_workflow_sdk.providers import get_provider
 
-# Initialize ADK provider
-adk = get_provider(
-    "adk",
-    api_key="YOUR_API_KEY",
-    model="gemini-1.5-pro"
-)
+# 1. Get the ADK provider
+adk = get_provider("adk", api_key="YOUR_KEY")
 
-# Generate and execute workflow
+# 2. Generate and execute a workflow
 result = await adk.compose(
-    task="Create a backup of PostgreSQL database and upload to S3",
-    mode="act",  # 'plan' to just generate, 'act' to execute
-    stream=True
+    task="Create a Python script that analyzes CSV files",
+    mode="act",  # Execute immediately
+    stream=True  # Stream progress
 )
 
-# Stream results
+# 3. Handle streaming results
 async for event in result:
-    print(f"Event: {event}")
+    print(event)  # Real-time updates
 ```
 
-### Streaming with Frontend
+## Quick Example: Using FastMCP
 
-```typescript
-// Frontend using Vercel AI SDK
-import { streamText } from 'ai';
-import { kubiya } from '@kubiya/vercel-ai';
+```python
+from kubiya_workflow_sdk.providers import get_provider
 
-const { textStream } = await streamText({
-  model: kubiya('http://localhost:8001'),
-  prompt: 'Check system health and report issues',
-});
+# 1. Get the FastMCP provider
+mcp = get_provider("fastmcp", server_path="/path/to/mcp/server")
 
-// Display streaming results
-for await (const text of textStream) {
-  console.log(text);
-}
+# 2. Execute a tool directly
+result = await mcp.execute_tool(
+    tool_name="file_operations",
+    arguments={"action": "read", "path": "/data/report.csv"}
+)
+
+print(result)  # Tool execution result
 ```
 
-## Provider Comparison
+## Building Full Stack Applications
 
-| Feature | ADK Provider | FastMCP Provider | Custom Provider |
-|---------|--------------|------------------|-----------------|
-| **Natural Language** | ✅ Workflow generation | ❌ Tool calls only | Depends |
-| **Streaming** | ✅ Full support | ✅ Full support | Implement yourself |
-| **Tools** | ✅ Any Docker tool | ✅ MCP tools | Your implementation |
-| **Models** | Multiple LLMs | N/A | Your choice |
-| **Use Case** | Complex workflows | Tool execution | Specialized needs |
+### 1. Choose Your Provider
+- **ADK**: For natural language interfaces and complex automation
+- **FastMCP**: For direct tool integration and MCP compatibility
 
-## Best Practices
+### 2. Add Frontend
+Use the [Vercel AI SDK](/frontend/vercel-ai-sdk) or any frontend framework to create user interfaces.
 
-<AccordionGroup>
-  <Accordion title="Use ADK for Complex Workflows" icon="brain">
-    When you need to generate multi-step workflows from natural language, ADK is your best choice. It understands context and creates complete automation flows.
-  </Accordion>
-  
-  <Accordion title="Use MCP for Direct Tool Access" icon="toolbox">
-    For direct tool execution without workflow generation, MCP providers offer standardized access to various tools and services.
-  </Accordion>
-  
-  <Accordion title="Enable Streaming for Better UX" icon="stream">
-    Always enable streaming when building user-facing applications. Users see progress in real-time rather than waiting for complete execution.
-  </Accordion>
-  
-  <Accordion title="Handle Errors Gracefully" icon="shield-exclamation">
-    Implement proper error handling in your agent servers. Stream error events to the frontend for transparent user communication.
-  </Accordion>
-</AccordionGroup>
+### 3. Deploy
+Run agent servers locally or deploy to production with [Helm charts](/deployment/helm-chart).
+
+## Integration with Existing Frameworks
+
+You can also integrate Kubiya with existing AI frameworks:
+
+<CardGroup cols={2}>
+  <Card title="LangGraph" icon="diagram-project" href="/full-stack-agents/existing-frameworks/langgraph">
+    Use LangGraph agents within Kubiya workflows
+  </Card>
+  <Card title="Other Frameworks" icon="puzzle-piece" href="/full-stack-agents/existing-frameworks/overview">
+    Integrate LangChain, CrewAI, and more
+  </Card>
+</CardGroup>
 
 ## Next Steps
 
-<CardGroup cols={3}>
-  <Card title="ADK Deep Dive" icon="robot" href="/providers/adk/getting-started">
-    Master the Agent Development Kit
-  </Card>
-  <Card title="Streaming Guide" icon="stream" href="/providers/adk/streaming">
-    Implement real-time streaming
-  </Card>
-  <Card title="Build Frontend" icon="browser" href="/frontend/vercel-ai-sdk">
-    Create AI-powered UIs
-  </Card>
-</CardGroup> 
+<Steps>
+  <Step title="Pick a Provider">
+    Choose between [ADK](/providers/adk/getting-started) for AI generation or [FastMCP](/providers/fastmcp) for tool execution
+  </Step>
+  
+  <Step title="Build Your Agent">
+    Follow the provider documentation to create your agent server
+  </Step>
+  
+  <Step title="Add UI (Optional)">
+    Create a [frontend](/frontend) for user interaction
+  </Step>
+  
+  <Step title="Deploy">
+    Run locally or deploy to production
+  </Step>
+</Steps> 

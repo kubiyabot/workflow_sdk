@@ -1,297 +1,184 @@
 ---
 title: "Agent Servers"
-description: "Backend orchestration servers that power AI automation through various providers"
+description: "Backend servers that connect AI providers to your applications"
 icon: "server"
 ---
 
 # Agent Servers
 
-Agent servers are the backend orchestration layer that powers Kubiya's AI automation. They provide the computational foundation for AI agents to operate, whether hosted on Kubiya Cloud or deployed in your own infrastructure.
+Agent servers are the backend layer that connects AI providers (like ADK or FastMCP) to your frontend applications. They handle request routing, streaming, and session management.
 
-<Info>
-**Agent Servers vs Providers**: Agent servers are the runtime environment, while providers (like ADK and MCP) are the implementations that give agent servers their specific capabilities.
-</Info>
+## What is an Agent Server?
 
-## Architecture Overview
+An agent server:
+- Receives requests from your frontend (web UI, CLI, API)
+- Routes them to the appropriate provider (ADK, FastMCP, etc.)
+- Streams responses back in real-time
+- Manages authentication and sessions
+
+## Quick Start
+
+### 1. Start an ADK Agent Server
+
+```bash
+# Install Kubiya SDK
+pip install kubiya-workflow-sdk
+
+# Start the ADK agent server
+python -m kubiya_workflow_sdk.providers.adk.provider
+
+# Server runs on http://localhost:8001
+```
+
+### 2. Connect from Frontend
+
+```typescript
+// Using Vercel AI SDK
+import { streamText } from 'ai';
+import { kubiya } from '@kubiya/vercel-ai';
+
+const { textStream } = await streamText({
+  model: kubiya('http://localhost:8001'),
+  prompt: 'Deploy my application with health checks',
+});
+
+// Display streaming results
+for await (const text of textStream) {
+  console.log(text);
+}
+```
+
+## How Agent Servers Work
 
 ```mermaid
-graph TB
-    UI[Frontend Applications] --> API[Agent Server APIs]
-    API --> Orchestration[Orchestration Layer]
-    Orchestration --> ADK[ADK Provider]
-    Orchestration --> MCP[MCP Provider]
-    Orchestration --> Custom[Custom Providers]
+graph LR
+    UI[Frontend] --> AS[Agent Server]
+    AS --> Provider{Provider Router}
+    Provider --> ADK[ADK Provider]
+    Provider --> MCP[FastMCP Provider]
     
-    ADK --> LLM[LLM Gateway]
+    ADK --> WF[Workflow Engine]
     MCP --> Tools[MCP Tools]
-    Custom --> Integration[Custom Integrations]
     
-    LLM --> Runners[Kubiya Runners]
-    Tools --> Runners
-    Integration --> Runners
+    WF --> Response[Streaming Response]
+    Tools --> Response
+    Response --> AS
+    AS --> UI
     
-    Runners --> K8s[Kubernetes Execution]
+    style AS fill:#2196F3
+    style ADK fill:#9C27B0
+    style MCP fill:#00ACC1
 ```
 
-## Deployment Options
+## Available Agent Servers
 
-<CardGroup cols={2}>
-  <Card title="Kubiya Cloud" icon="cloud" color="#3b82f6">
-    **Managed orchestration servers** with built-in LLM gateway access to multiple providers (OpenAI, Anthropic, Together AI, Google, etc.)
-    
-    - Zero infrastructure management
-    - Automatic scaling and updates
-    - Built-in multi-provider LLM access
-    - Enterprise-grade security
-  </Card>
-  
-  <Card title="Self-Hosted" icon="building" color="#10b981">
-    **Deploy your own agent servers** using Docker, Kubernetes, or bare metal infrastructure
-    
-    - Full control over infrastructure
-    - Custom security policies
-    - Air-gapped deployments
-    - Direct integration with internal systems
-  </Card>
-</CardGroup>
+### ADK Orchestration Server
+- **Purpose**: Generate and execute workflows from natural language
+- **Port**: 8001 (default)
+- **Provider**: ADK
+- **Use Case**: "Create a Python script that analyzes logs"
 
-## Provider Ecosystem
+### FastMCP Server
+- **Purpose**: Execute MCP-compatible tools directly
+- **Port**: 8002 (default)
+- **Provider**: FastMCP
+- **Use Case**: Direct tool execution like file operations
 
-Agent servers support multiple providers, each offering different capabilities:
+### Custom Agent Server
+Build your own agent server with any provider:
 
-### ADK (Agent Development Kit)
-<Card title="ADK Provider" icon="robot" href="/full-stack-agents/agent-servers/adk">
-  **AI-powered workflow generation** using natural language task descriptions
-  
-  - Natural language to workflow conversion
-  - Multi-step task orchestration
-  - Built-in LLM reasoning
-  - Streaming execution updates
-</Card>
-
-### MCP (Model Context Protocol)
-<Card title="MCP Provider" icon="plug" href="/full-stack-agents/agent-servers/fastmcp">
-  **Tool-based agent interactions** through the Model Context Protocol standard
-  
-  - Standardized tool interfaces
-  - Cross-platform compatibility
-  - Extensible tool ecosystem
-  - Community-driven development
-</Card>
-
-### Custom Providers
-<Card title="Custom Providers" icon="gear">
-  **Build specialized providers** for unique business requirements
-  
-  - Domain-specific logic
-  - Proprietary integrations
-  - Custom AI models
-  - Specialized workflows
-  
-  See the [Provider Overview](/providers/overview) for implementation details.
-</Card>
-
-## Key Capabilities
-
-<AccordionGroup>
-  <Accordion title="🌊 Streaming & Real-time Updates" icon="wave">
-    Agent servers provide real-time streaming of workflow execution, supporting both Server-Sent Events (SSE) and Vercel AI SDK formats for immediate frontend updates.
-  </Accordion>
-  
-  <Accordion title="🔍 Discovery & Health Monitoring" icon="heart-pulse">
-    Built-in discovery APIs allow automatic detection of server capabilities, while health monitoring ensures reliable operation across distributed deployments.
-  </Accordion>
-  
-  <Accordion title="🔐 Security & Authentication" icon="shield-halved">
-    Enterprise-grade security with UserKey authentication, role-based access control, and secure communication between components.
-  </Accordion>
-  
-  <Accordion title="⚡ Multi-Provider Orchestration" icon="network-wired">
-    Single servers can host multiple providers simultaneously, allowing complex workflows that combine ADK's AI generation with MCP's tool execution.
-  </Accordion>
-</AccordionGroup>
-
-## Provider Selection Guide
-
-Choose the right provider based on your use case:
-
-<Tabs>
-  <Tab title="AI-Powered Generation">
-    **Use ADK Provider when:**
-    - You need natural language task description
-    - Workflows require AI reasoning and decision-making
-    - Complex multi-step automation with branching logic
-    - Dynamic workflow generation based on context
-    
-    ```python
-    from kubiya_workflow_sdk.providers import get_provider
-    
-    adk = get_provider("adk")
-    result = await adk.compose(
-        task="Deploy app with health checks and rollback on failure",
-        mode="act"
-    )
-    ```
-  </Tab>
-  
-  <Tab title="Tool-Based Automation">
-    **Use MCP Provider when:**
-    - You have existing tools and want to connect them
-    - Need standardized interfaces across different systems
-    - Building on community-developed tools
-    - Want maximum interoperability
-    
-    ```python
-    from kubiya_workflow_sdk.providers import get_provider
-    
-    mcp = get_provider("mcp")
-    result = await mcp.execute_tool(
-        tool="database_query",
-        parameters={"query": "SELECT * FROM users WHERE active = 1"}
-    )
-    ```
-  </Tab>
-  
-  <Tab title="Custom Logic">
-    **Use Custom Providers when:**
-    - You need proprietary business logic
-    - Integrating with legacy systems
-    - Specific compliance or security requirements
-    - Unique workflow patterns not covered by standard providers
-    
-    ```python
-    from kubiya_workflow_sdk.providers import get_provider
-    
-    custom = get_provider("my_custom_provider")
-    result = await custom.process(
-        workflow_type="compliance_check",
-        parameters={"system": "internal_audit"}
-    )
-    ```
-  </Tab>
-</Tabs>
-
-## Multi-Provider Workflows
-
-Agent servers can combine multiple providers in a single workflow:
-
-<CodeGroup>
-```python Multi-Provider Orchestration
-from kubiya_workflow_sdk import workflow, step
+```python
+from kubiya_workflow_sdk.server import AgentServer
 from kubiya_workflow_sdk.providers import get_provider
 
-@workflow
-def hybrid_deployment():
-    # Use ADK for AI-powered planning
-    adk = get_provider("adk")
-    plan = step("planning").adk_compose(
-        task="Create deployment strategy for ${APP_NAME}",
-        mode="plan"
-    )
-    
-    # Use MCP for tool execution
-    mcp = get_provider("mcp")
-    deploy = step("execution").mcp_tool(
-        tool="kubernetes_deploy",
-        parameters={"strategy": "${plan.strategy}"}
-    ).depends("planning")
-    
-    # Use custom provider for monitoring
-    custom = get_provider("monitoring")
-    monitor = step("monitoring").custom_action(
-        action="setup_alerts",
-        config={"deployment_id": "${deploy.id}"}
-    ).depends("execution")
+# Create custom server
+server = AgentServer(
+    provider=get_provider("your_provider"),
+    port=8003
+)
+
+# Start server
+server.run()
 ```
 
-```yaml Provider Configuration
-# agent-server.yaml
-apiVersion: kubiya.ai/v1
-kind: AgentServer
-metadata:
-  name: multi-provider-server
-spec:
-  providers:
-    - name: adk
-      type: adk
-      config:
-        llm_providers: ["openai", "anthropic"]
-        streaming_enabled: true
-        
-    - name: mcp
-      type: mcp
-      config:
-        tools_directory: "/var/lib/mcp/tools"
-        auto_discovery: true
-        
-    - name: monitoring
-      type: custom
-      config:
-        handler: "internal.monitoring.MonitoringProvider"
-        
-  resources:
-    requests:
-      cpu: "500m"
-      memory: "1Gi"
-    limits:
-      cpu: "2000m"
-      memory: "4Gi"
+## Configuration
+
+### Environment Variables
+
+```bash
+# ADK Configuration
+export KUBIYA_API_KEY="your-api-key"
+export KUBIYA_ADK_MODEL="gemini-1.5-pro"  # or gpt-4, claude-3
+
+# Server Configuration
+export KUBIYA_SERVER_PORT=8001
+export KUBIYA_SERVER_HOST="0.0.0.0"
+
+# FastMCP Configuration
+export KUBIYA_MCP_SERVER_PATH="/path/to/mcp/server"
 ```
-</CodeGroup>
 
-## Production Deployment
+### Server Options
 
-### Scaling Considerations
+```python
+# Start with custom configuration
+python -m kubiya_workflow_sdk.providers.adk.provider \
+  --port 8080 \
+  --host 0.0.0.0 \
+  --model claude-3-opus \
+  --api-key $KUBIYA_API_KEY
+```
 
-<Warning>
-**Resource Planning**: Agent servers with ADK providers require more computational resources due to LLM processing, while MCP providers are typically more lightweight and tool-focused.
-</Warning>
+## Streaming Protocol
 
-### High Availability Setup
+Agent servers use Server-Sent Events (SSE) for real-time streaming:
 
-```yaml
-# Multi-instance deployment for HA
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: agent-server-ha
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: agent-server
-  template:
-    metadata:
-      labels:
-        app: agent-server
-    spec:
-      containers:
-      - name: agent-server
-        image: kubiya/agent-server:latest
-        env:
-        - name: PROVIDERS
-          value: "adk,mcp"
-        - name: HA_MODE
-          value: "true"
-        resources:
-          requests:
-            cpu: 1000m
-            memory: 2Gi
-          limits:
-            cpu: 4000m
-            memory: 8Gi
+```json
+// Request
+{
+  "prompt": "Create a backup script",
+  "stream": true
+}
+
+// Streaming Response Events
+data: {"type": "plan", "content": "Creating backup script..."}
+data: {"type": "code", "content": "#!/bin/bash\n..."}
+data: {"type": "execution", "content": "Running script..."}
+data: {"type": "complete", "content": "Backup completed"}
+```
+
+## Deployment
+
+### Local Development
+```bash
+# Quick start
+python -m kubiya_workflow_sdk.providers.adk.provider
+```
+
+### Production with Docker
+```dockerfile
+FROM python:3.11
+RUN pip install kubiya-workflow-sdk
+CMD ["python", "-m", "kubiya_workflow_sdk.providers.adk.provider"]
+```
+
+### Kubernetes with Helm
+```bash
+helm install kubiya-agent kubiya/agent-server \
+  --set provider=adk \
+  --set apiKey=$KUBIYA_API_KEY
 ```
 
 ## Next Steps
 
-<CardGroup cols={3}>
-  <Card title="ADK Provider" icon="robot" href="/providers/adk/getting-started">
-    Set up AI-powered workflow generation
+<Cards>
+  <Card title="Try ADK Provider" icon="robot" href="/providers/adk/getting-started">
+    Build your first AI workflow
   </Card>
-  <Card title="MCP Provider" icon="plug" href="/providers/fastmcp">
-    Connect tools through Model Context Protocol
+  <Card title="Frontend Integration" icon="browser" href="/frontend">
+    Connect to web applications
   </Card>
-  <Card title="Provider Overview" icon="book" href="/providers/overview">
-    Learn about the provider architecture
+  <Card title="Production Deployment" icon="rocket" href="/deployment/docker">
+    Deploy to production
   </Card>
-</CardGroup> 
+</Cards> 
