@@ -925,6 +925,11 @@ kubiya visualize my-workflow.py --format mermaid
 - [Interactive Notebooks](examples/notebooks/) - Jupyter notebooks for hands-on learning
   - [Getting Started Notebook](examples/notebooks/01_getting_started.ipynb)
   - [AI Workflow Generation](examples/notebooks/02_ai_workflow_generation.ipynb)
+  - [Agent Server Example](examples/notebooks/03_agent_server_example.ipynb)
+  - [Workflow Server](examples/notebooks/04_workflow_server.ipynb)
+  - [Full Capabilities Demo](examples/notebooks/05_full_capabilities.ipynb)
+  - [SDK End-to-End Example](examples/notebooks/06_sdk_end_to_end.ipynb)
+  - [Multi-Provider Agent](examples/notebooks/07_multi_provider_agent.ipynb)
 - [Example Workflows](examples/) - Production-ready workflow templates
 - [Testing Guide](docs/kubiya/workflows/testing.mdx) - Test and debug workflows
 
