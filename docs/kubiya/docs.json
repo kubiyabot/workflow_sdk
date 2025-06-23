@@ -7,12 +7,12 @@
   },
   "favicon": "/assets/favicon.ico",
   "colors": {
-    "primary": "#0EA5E9",
-    "light": "#38BDF8",
-    "dark": "#0284C7",
+    "primary": "#1f2937",
+    "light": "#6b7280",
+    "dark": "#111827",
     "anchors": {
-      "from": "#0EA5E9",
-      "to": "#6366F1"
+      "from": "#1f2937",
+      "to": "#374151"
     }
   },
   "topbarLinks": [
@@ -153,7 +153,7 @@
     "linkedin": "https://www.linkedin.com/company/kubiya-ai",
     "twitter": "https://twitter.com/kubiya_ai"
   },
-  "backgroundImage": "/assets/background.png",
+
   "search": {
     "prompt": "Search documentation..."
   },
@@ -174,13 +174,13 @@
     "raiseIssue": true
   },
   "modeToggle": {
-    "default": "light",
+    "default": "system",
     "isHidden": false
   },
   "custom": {
     "css": ["/style.css"]
   },
-  "theme": "quill",
+  "theme": "mint",
   "redirects": [
     {
       "source": "/providers/adk",

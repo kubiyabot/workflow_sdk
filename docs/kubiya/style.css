@@ -10,6 +10,17 @@
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --primary-gray: #1f2937;
+  --light-gray: #6b7280;
+  --dark-gray: #111827;
+  --border-light: #e5e7eb;
+  --border-dark: #374151;
+  --background-light: #ffffff;
+  --background-dark: #0f172a;
+  --text-light: #1f2937;
+  --text-dark: #f8fafc;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
 }
 
 /* Global Styles */
@@ -329,4 +340,247 @@ footer {
   font-weight: 600 !important;
   margin: 1rem 0 !important;
   border: 1px solid #fbbf24 !important;
+}
+
+/* Light mode styles */
+[data-theme="light"] {
+  --primary-color: var(--primary-gray);
+  --border-color: var(--border-light);
+  --background-color: var(--background-light);
+  --text-color: var(--text-light);
+}
+
+/* Dark mode styles */
+[data-theme="dark"] {
+  --primary-color: var(--text-dark);
+  --border-color: var(--border-dark);
+  --background-color: var(--background-dark);
+  --text-color: var(--text-dark);
+}
+
+/* Enhanced typography for better readability */
+.prose {
+  line-height: 1.7;
+  font-size: 16px;
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4 {
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+.prose h1 {
+  font-size: 2.25rem;
+  color: var(--primary-color);
+}
+
+.prose h2 {
+  font-size: 1.875rem;
+  color: var(--primary-color);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5rem;
+}
+
+.prose h3 {
+  font-size: 1.5rem;
+  color: var(--primary-color);
+}
+
+/* Clean code blocks */
+.prose pre {
+  background: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.5rem;
+  overflow-x: auto;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.prose code {
+  background: var(--border-color);
+  padding: 0.125rem 0.25rem;
+  border-radius: 4px;
+  font-size: 0.875em;
+  font-weight: 500;
+}
+
+/* Enhanced navigation */
+.sidebar {
+  border-right: 1px solid var(--border-color);
+}
+
+.sidebar-item:hover {
+  background-color: var(--border-color);
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+}
+
+/* Clean card components */
+.card {
+  background: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Professional buttons */
+.btn-primary {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+/* Clean table styles */
+.prose table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1.5rem 0;
+}
+
+.prose th,
+.prose td {
+  border: 1px solid var(--border-color);
+  padding: 0.75rem 1rem;
+  text-align: left;
+}
+
+.prose th {
+  background: var(--border-color);
+  font-weight: 600;
+}
+
+/* Enhanced callouts */
+.callout {
+  border-left: 4px solid var(--accent);
+  background: var(--border-color);
+  padding: 1rem 1.5rem;
+  border-radius: 0 8px 8px 0;
+  margin: 1.5rem 0;
+}
+
+.callout-warning {
+  border-left-color: #f59e0b;
+  background: #fef3c7;
+}
+
+.callout-error {
+  border-left-color: #ef4444;
+  background: #fee2e2;
+}
+
+.callout-success {
+  border-left-color: #10b981;
+  background: #d1fae5;
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .callout-warning {
+  background: rgba(245, 158, 11, 0.1);
+}
+
+[data-theme="dark"] .callout-error {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+[data-theme="dark"] .callout-success {
+  background: rgba(16, 185, 129, 0.1);
+}
+
+/* Clean search */
+.search-input {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  width: 100%;
+  background: var(--background-color);
+  color: var(--text-color);
+  transition: border-color 0.2s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Professional footer */
+.footer {
+  border-top: 1px solid var(--border-color);
+  background: var(--background-color);
+  padding: 2rem 0;
+  margin-top: 4rem;
+}
+
+/* Smooth transitions for theme switching */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+/* Remove default mintlify branding styles that might conflict */
+.mintlify-logo {
+  display: none !important;
+}
+
+/* Enhanced mobile responsiveness */
+@media (max-width: 768px) {
+  .prose {
+    font-size: 14px;
+  }
+  
+  .prose h1 {
+    font-size: 1.875rem;
+  }
+  
+  .prose h2 {
+    font-size: 1.5rem;
+  }
+  
+  .card {
+    padding: 1rem;
+  }
+}
+
+/* Focus states for accessibility */
+*:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Clean scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--border-color);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--light-gray);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-gray);
 } 
