@@ -29,11 +29,12 @@ class StreamingKubiyaClient:
 
     def __init__(
         self,
-        api_token: str,
+        api_key: str,
         base_url: str = "https://api.kubiya.ai",
         runner: str = "kubiya-hosted",
         timeout: int = 300,
         max_retries: int = 3,
+        org_name: Optional[str] = None
     ):
         """Initialize the streaming Kubiya client.
 
@@ -44,17 +45,19 @@ class StreamingKubiyaClient:
             timeout: Request timeout in seconds
             max_retries: Maximum number of retry attempts
         """
-        self.api_token = api_token
+        self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.runner = runner
         self.timeout = timeout
         self.max_retries = max_retries
+        self.org_name = org_name
 
         # Default headers - Use UserKey format for API key authentication
         self.headers = {
-            "Authorization": f"UserKey {api_token}",
+            "Authorization": f"UserKey {api_key}",
             "Content-Type": "application/json",
             "Accept": "text/event-stream",
+            "User-Agent": "kubiya_workflow_sdk"
         }
 
     async def execute_workflow_stream(
@@ -82,6 +85,13 @@ class StreamingKubiyaClient:
         url = urljoin(
             self.base_url, f"/api/v1/workflow?runner={self.runner}&command=execute_workflow"
         )
+
+        # Use the runner from the workflow definition if specified, otherwise use default
+        runner = workflow.get('runner', self.runner)
+        del request_body["runner"]
+
+        # Execute the workflow
+        url = urljoin(self.base_url, f"/api/v1/workflow?runner={runner}&command=execute_workflow")
 
         timeout = aiohttp.ClientTimeout(total=self.timeout)
         connector = aiohttp.TCPConnector(limit=100, limit_per_host=30)
@@ -187,10 +197,12 @@ class KubiyaClient:
         self.session.mount("https://", adapter)
 
         # Set default headers - Use UserKey format for API key authentication
-        self.session.headers.update(
-            {"Authorization": f"UserKey {api_key}", "Content-Type": "application/json"}
-        )
-
+        self.session.headers.update({
+            "Authorization": f"UserKey {api_key}",
+            "Content-Type": "application/json",
+            "User-Agent": "kubiya_workflow_sdk"
+        })
+    
     def _make_request(
         self,
         method: str,
@@ -223,6 +235,7 @@ class KubiyaClient:
         headers = kwargs.pop("headers", {})
         if stream:
             headers["Accept"] = "text/event-stream"
+        self.session.headers.update(headers)
 
         try:
             response = self.session.request(
@@ -231,7 +244,6 @@ class KubiyaClient:
                 json=data,
                 timeout=self.timeout,
                 stream=stream,
-                headers=headers,
                 **kwargs,
             )
 
@@ -396,8 +408,12 @@ class KubiyaClient:
         logger.info("Executing workflow...")
         logger.debug(f"Request body: {json.dumps(request_body, indent=2)}")
 
+        # Use the runner from the workflow definition if specified, otherwise use default
+        runner = workflow_definition.get("runner", self.runner)
+        del request_body["runner"]
+
         # Execute the workflow
-        endpoint = f"/api/v1/workflow?runner={self.runner}&operation=execute_workflow"
+        endpoint = f"/api/v1/workflow?runner={runner}&operation=execute_workflow"
         if stream:
             # Add native_sse=true for standard SSE format when streaming
             endpoint += "&native_sse=true"
