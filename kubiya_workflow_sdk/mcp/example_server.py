@@ -31,16 +31,16 @@ async def deploy_status(service: str) -> dict:
         "status": "healthy",
         "version": "2.1.0",
         "uptime": "3 days",
-        "replicas": 3
+        "replicas": 3,
     }
 
 
 @mcp.tool(description="Create a deployment workflow from template")
-async def create_deployment_workflow(service_name: str, 
-                                   environment: str = "staging",
-                                   auto_rollback: bool = True) -> dict:
+async def create_deployment_workflow(
+    service_name: str, environment: str = "staging", auto_rollback: bool = True
+) -> dict:
     """Create a complete deployment workflow from template."""
-    
+
     workflow_code = f'''
 @workflow(name="deploy-{service_name}", version="1.0.0")
 def deployment_workflow():
@@ -80,9 +80,9 @@ def deployment_workflow():
         .depends("deploy")
     )
     '''
-    
+
     if auto_rollback:
-        workflow_code += '''
+        workflow_code += """
     
     # Auto-rollback on failure
     rollback = (
@@ -93,20 +93,23 @@ def deployment_workflow():
     )
     
     return validate >> build >> deploy >> health >> rollback
-    '''
+    """
     else:
-        workflow_code += '''
+        workflow_code += """
     
     return validate >> build >> deploy >> health
-    '''
-    
+    """
+
     # Define the workflow
-    result = await mcp.call_tool("define_workflow", {
-        "name": f"deploy-{service_name}",
-        "code": workflow_code,
-        "description": f"Deployment workflow for {service_name}"
-    })
-    
+    result = await mcp.call_tool(
+        "define_workflow",
+        {
+            "name": f"deploy-{service_name}",
+            "code": workflow_code,
+            "description": f"Deployment workflow for {service_name}",
+        },
+    )
+
     return result
 
 
@@ -115,14 +118,11 @@ def deployment_workflow():
 def backup_workflow():
     """Simple backup workflow example."""
     return (
-        step("snapshot", "Create database snapshot")
-        .shell("pg_dump mydb > backup.sql")
-        >>
-        step("compress", "Compress backup")
-        .shell("gzip backup.sql")
-        >>
-        step("upload", "Upload to S3")
-        .tool("aws", action="s3", args=["cp", "backup.sql.gz", "s3://backups/"])
+        step("snapshot", "Create database snapshot").shell("pg_dump mydb > backup.sql")
+        >> step("compress", "Compress backup").shell("gzip backup.sql")
+        >> step("upload", "Upload to S3").tool(
+            "aws", action="s3", args=["cp", "backup.sql.gz", "s3://backups/"]
+        )
     )
 
 
@@ -132,7 +132,8 @@ mcp.workflows["simple-backup"] = backup_workflow()
 
 # Main entry point
 if __name__ == "__main__":
-    print("""
+    print(
+        """
     🚀 Kubiya MCP Server Example
     
     This server demonstrates:
@@ -142,12 +143,13 @@ if __name__ == "__main__":
     - Custom tools and pre-defined workflows
     
     Available tools:
-    """)
-    
+    """
+    )
+
     for tool in mcp.list_tools():
         print(f"    - {tool['name']}: {tool['description']}")
-    
+
     print("\n    Ready for connections!\n")
-    
+
     # Run the server
-    mcp.run() 
+    mcp.run()
