@@ -17,28 +17,28 @@ def main(argv: Optional[list] = None) -> int:
         description="Kubiya Workflow SDK Server",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    
+
     parser.add_argument(
         "--host",
         type=str,
         default=os.getenv("HOST", "127.0.0.1"),
         help="Host to bind to (default: 127.0.0.1)",
     )
-    
+
     parser.add_argument(
         "--port",
         type=int,
         default=int(os.getenv("PORT", "8000")),
         help="Port to bind to (default: 8000)",
     )
-    
+
     parser.add_argument(
         "--reload",
         action="store_true",
         default=os.getenv("RELOAD", "false").lower() == "true",
         help="Enable auto-reload for development",
     )
-    
+
     parser.add_argument(
         "--log-level",
         type=str,
@@ -46,19 +46,19 @@ def main(argv: Optional[list] = None) -> int:
         choices=["critical", "error", "warning", "info", "debug", "trace"],
         help="Log level (default: info)",
     )
-    
+
     parser.add_argument(
         "--workers",
         type=int,
         default=int(os.getenv("WORKERS", "1")),
         help="Number of worker processes (default: 1)",
     )
-    
+
     args = parser.parse_args(argv)
-    
+
     # Create the app
     app = create_server()
-    
+
     # Run the server
     try:
         uvicorn.run(
@@ -80,4 +80,4 @@ def main(argv: Optional[list] = None) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main()) 
+    sys.exit(main())

@@ -29,6 +29,7 @@ TOOL_OUTPUT_BUFFER_SIZE: Final[int] = 8192
 
 class ExecutorType(str, Enum):
     """Supported executor types."""
+
     PYTHON = "python"
     SHELL = "shell"
     DOCKER = "docker"
@@ -43,6 +44,7 @@ class ExecutorType(str, Enum):
 
 class StepStatus(str, Enum):
     """Step execution status."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -55,6 +57,7 @@ class StepStatus(str, Enum):
 
 class WorkflowStatus(str, Enum):
     """Workflow execution status."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -66,6 +69,7 @@ class WorkflowStatus(str, Enum):
 
 class RetryBackoff(str, Enum):
     """Retry backoff strategies."""
+
     FIXED = "fixed"
     LINEAR = "linear"
     EXPONENTIAL = "expo"
@@ -73,6 +77,7 @@ class RetryBackoff(str, Enum):
 
 class LogLevel(str, Enum):
     """Log levels."""
+
     DEBUG = "debug"
     INFO = "info"
     WARNING = "warning"
@@ -82,6 +87,7 @@ class LogLevel(str, Enum):
 
 class AuthType(str, Enum):
     """Authentication types."""
+
     API_KEY = "UserKey"
     BEARER = "Bearer"
     BASIC = "Basic"
@@ -90,6 +96,7 @@ class AuthType(str, Enum):
 
 class HttpMethod(str, Enum):
     """HTTP methods."""
+
     GET = "GET"
     POST = "POST"
     PUT = "PUT"
@@ -101,6 +108,7 @@ class HttpMethod(str, Enum):
 
 class ContentType(str, Enum):
     """Common content types."""
+
     JSON = "application/json"
     FORM = "application/x-www-form-urlencoded"
     MULTIPART = "multipart/form-data"
@@ -112,6 +120,7 @@ class ContentType(str, Enum):
 
 class ToolType(str, Enum):
     """Tool types."""
+
     DOCKER = "docker"
     PYTHON = "python"
     SHELL = "shell"
@@ -122,6 +131,7 @@ class ToolType(str, Enum):
 
 class QueuePriority(int, Enum):
     """Queue priorities."""
+
     LOW = 1
     NORMAL = 5
     HIGH = 10
@@ -130,6 +140,7 @@ class QueuePriority(int, Enum):
 
 class NotificationChannel(str, Enum):
     """Notification channels."""
+
     EMAIL = "email"
     SLACK = "slack"
     TEAMS = "teams"
@@ -170,4 +181,4 @@ RESERVED_PARAMS = {
     "runner",
     "env",
     "secrets",
-} 
+}

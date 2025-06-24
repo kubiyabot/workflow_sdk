@@ -29,40 +29,55 @@ try:
     from google.adk.tools import FunctionTool
     from google.genai import types
     from google.genai.types import GenerateContentConfig
+
     ADK_AVAILABLE = True
 except ImportError:
     # Create stub classes for type hints
     class LlmAgent:
         pass
+
     class BaseAgent:
         pass
+
     class CallbackContext:
         pass
+
     class InvocationContext:
         pass
+
     class Event:
         pass
+
     class EventActions:
         pass
+
     class LlmRequest:
         pass
+
     class LlmResponse:
         pass
+
     class Session:
         pass
+
     class InMemoryArtifactService:
         pass
+
     class FunctionTool:
         pass
+
     class types:
         class Part:
             @staticmethod
             def from_bytes(data, mime_type):
                 pass
+
         class Content:
             pass
+
     class GenerateContentConfig:
         pass
+
     ADK_AVAILABLE = False
 
 from ..config import ADKConfig
@@ -73,10 +88,11 @@ logger = logging.getLogger(__name__)
 def _get_model_for_agent(config: ADKConfig, agent_role: str) -> Any:
     """Get the model configuration for a specific agent role."""
     model_name = config.get_model_for_role(agent_role)
-    
+
     # Wrap all models with LiteLlm for universal compatibility
     try:
         from google.adk.models.lite_llm import LiteLlm
+
         logger.debug(f"Wrapping model '{model_name}' with LiteLlm for agent role '{agent_role}'")
         return LiteLlm(model=model_name)
     except ImportError:
@@ -91,7 +107,7 @@ def _get_default_generate_config() -> Any:
         return GenerateContentConfig(
             temperature=0.1,
             max_output_tokens=8192,
-            response_modalities=["TEXT"]  # This is what was missing!
+            response_modalities=["TEXT"],  # This is what was missing!
         )
     return None
 
@@ -100,7 +116,7 @@ def get_docker_registry_context() -> str:
     """Get Docker registry configuration from environment variables."""
     registries = os.environ.get("DOCKER_REGISTRIES", "hub.docker.com").split(",")
     registries = [r.strip() for r in registries if r.strip()]
-    
+
     registry_context = f"""
 Docker Container Configuration:
 - Trusted registries: {', '.join(registries)}
@@ -108,11 +124,11 @@ Docker Container Configuration:
 - All Docker images must be from these trusted registries
 - Prefer official images when available (e.g., python:3.9-alpine, node:18-alpine, ubuntu:22.04)
 """
-    
+
     # Add specific image recommendations
     recommendations = {
         "python": "python:3.9-alpine, python:3.11-slim",
-        "node": "node:18-alpine, node:20-alpine", 
+        "node": "node:18-alpine, node:20-alpine",
         "kubectl": "bitnami/kubectl:latest, kubiya/kubectl-light:latest",
         "aws": "amazon/aws-cli:latest, amazon/aws-cli:2.x.x",
         "terraform": "hashicorp/terraform:latest, hashicorp/terraform:1.6",
@@ -120,13 +136,13 @@ Docker Container Configuration:
         "curl": "curlimages/curl:latest, appropriate/curl:latest",
         "git": "alpine/git:latest, bitnami/git:latest",
         "jq": "stedolan/jq:latest, ghcr.io/jqlang/jq:latest",
-        "database": "postgres:15-alpine, mysql:8.0, mongo:7.0, redis:7-alpine"
+        "database": "postgres:15-alpine, mysql:8.0, mongo:7.0, redis:7-alpine",
     }
-    
+
     registry_context += "\nRecommended Docker images by use case:\n"
     for use_case, images in recommendations.items():
         registry_context += f"- {use_case}: {images}\n"
-    
+
     return registry_context
 
 
@@ -318,6 +334,7 @@ The JSON format is what gets submitted to the Kubiya platform for execution.
 @dataclass
 class MissingContext:
     """Track missing context during workflow generation."""
+
     missing_resources: Set[str]
     missing_capabilities: Set[str]
 
@@ -325,6 +342,7 @@ class MissingContext:
 @dataclass
 class WorkflowGenerationResult:
     """Result of workflow generation."""
+
     success: bool
     workflow_code: Optional[str] = None
     workflow_json: Optional[Dict[str, Any]] = None
@@ -336,6 +354,7 @@ class WorkflowGenerationResult:
 @dataclass
 class WorkflowExecutionResult:
     """Result of workflow execution."""
+
     success: bool
     execution_id: Optional[str] = None
     outputs: Dict[str, Any] = None
@@ -347,9 +366,10 @@ class WorkflowExecutionResult:
 @dataclass
 class ValidationResult:
     """Result of workflow validation."""
+
     valid: bool
     meets_requirements: bool
     missing_requirements: List[str] = None
     errors: List[str] = None
     warnings: List[str] = None
-    suggestions: List[str] = None 
+    suggestions: List[str] = None

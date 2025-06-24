@@ -19,14 +19,14 @@ _providers: Dict[str, Type[BaseProvider]] = {}
 def register_provider(name: str, provider_class: Type[BaseProvider]) -> None:
     """
     Register a workflow provider.
-    
+
     Args:
         name: Provider name (e.g., "adk", "langchain", etc.)
         provider_class: Provider class that extends BaseProvider
     """
     if not issubclass(provider_class, BaseProvider):
         raise ValueError(f"Provider {provider_class} must extend BaseProvider")
-    
+
     _providers[name] = provider_class
     logger.info(f"Registered provider: {name}")
 
@@ -34,15 +34,15 @@ def register_provider(name: str, provider_class: Type[BaseProvider]) -> None:
 def get_provider(name: str, client: Any, **kwargs) -> BaseProvider:
     """
     Get a provider instance by name.
-    
+
     Args:
         name: Provider name
         client: Kubiya SDK client
         **kwargs: Provider-specific configuration
-        
+
     Returns:
         Provider instance
-        
+
     Raises:
         ValueError: If provider not found
     """
@@ -50,7 +50,7 @@ def get_provider(name: str, client: Any, **kwargs) -> BaseProvider:
         raise ValueError(
             f"Provider '{name}' not found. Available providers: {list(_providers.keys())}"
         )
-    
+
     provider_class = _providers[name]
     return provider_class(client=client, **kwargs)
 
@@ -63,6 +63,7 @@ def list_providers() -> list[str]:
 # Auto-register built-in providers
 try:
     from .adk import ADKProvider, ADK_AVAILABLE
+
     if ADK_AVAILABLE:
         register_provider("adk", ADKProvider)
     else:
@@ -73,7 +74,7 @@ except ImportError as e:
 # Re-export for convenience
 __all__ = [
     "BaseProvider",
-    "register_provider", 
+    "register_provider",
     "get_provider",
     "list_providers",
 ]
@@ -81,6 +82,7 @@ __all__ = [
 # Export ADK provider if available
 try:
     from .adk import ADKProvider
+
     __all__.append("ADKProvider")
 except ImportError:
-    pass 
+    pass

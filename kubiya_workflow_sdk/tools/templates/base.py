@@ -10,26 +10,16 @@ from ...core import ToolDefinition
 
 class ToolTemplate:
     """Base class for tool templates."""
-    
+
     @staticmethod
-    def create_base_tool(
-        name: str,
-        description: str,
-        tool_type: str,
-        **kwargs
-    ) -> ToolDefinition:
+    def create_base_tool(name: str, description: str, tool_type: str, **kwargs) -> ToolDefinition:
         """Create a base tool definition."""
-        return ToolDefinition(
-            name=name,
-            description=description,
-            type=tool_type,
-            **kwargs
-        )
+        return ToolDefinition(name=name, description=description, type=tool_type, **kwargs)
 
 
 class DockerToolTemplate:
     """Template for Docker-based tools with common patterns."""
-    
+
     @staticmethod
     def with_credentials(
         name: str,
@@ -37,10 +27,10 @@ class DockerToolTemplate:
         image: str,
         credential_files: List[Dict[str, str]],
         env_vars: List[str],
-        **kwargs
+        **kwargs,
     ) -> ToolDefinition:
         """Create a Docker tool that mounts credentials and sets environment variables.
-        
+
         Args:
             name: Tool name
             description: Tool description
@@ -48,7 +38,7 @@ class DockerToolTemplate:
             credential_files: List of files to mount (source, destination)
             env_vars: Environment variables to pass through
             **kwargs: Additional tool configuration
-            
+
         Example:
             tool = DockerToolTemplate.with_credentials(
                 name="aws_tool",
@@ -69,19 +59,15 @@ class DockerToolTemplate:
             image=image,
             env=env_vars,
             with_files=credential_files,
-            **kwargs
+            **kwargs,
         )
-    
+
     @staticmethod
     def with_workspace(
-        name: str,
-        description: str,
-        image: str,
-        workspace_path: str = "/workspace",
-        **kwargs
+        name: str, description: str, image: str, workspace_path: str = "/workspace", **kwargs
     ) -> ToolDefinition:
         """Create a Docker tool that mounts the current workspace.
-        
+
         Args:
             name: Tool name
             description: Tool description
@@ -94,27 +80,16 @@ class DockerToolTemplate:
             description=description,
             type="docker",
             image=image,
-            with_volumes=[
-                {
-                    "source": ".",
-                    "destination": workspace_path,
-                    "mode": "rw"
-                }
-            ],
-            **kwargs
+            with_volumes=[{"source": ".", "destination": workspace_path, "mode": "rw"}],
+            **kwargs,
         )
-    
+
     @staticmethod
     def with_startup_script(
-        name: str,
-        description: str,
-        image: str,
-        startup_script: str,
-        main_content: str,
-        **kwargs
+        name: str, description: str, image: str, startup_script: str, main_content: str, **kwargs
     ) -> ToolDefinition:
         """Create a Docker tool with initialization/startup script.
-        
+
         Args:
             name: Tool name
             description: Tool description
@@ -122,7 +97,7 @@ class DockerToolTemplate:
             startup_script: Script to run before main content
             main_content: Main script content
             **kwargs: Additional tool configuration
-            
+
         Example:
             tool = DockerToolTemplate.with_startup_script(
                 name="python_env_tool",
@@ -155,13 +130,13 @@ EOF
             type="docker",
             image=image,
             content=full_content,
-            **kwargs
+            **kwargs,
         )
 
 
 class AuthenticatedToolTemplate:
     """Templates for tools that require authentication."""
-    
+
     @staticmethod
     def oauth_tool(
         name: str,
@@ -169,10 +144,10 @@ class AuthenticatedToolTemplate:
         tool_type: str,
         oauth_provider: str,
         scopes: List[str],
-        **kwargs
+        **kwargs,
     ) -> ToolDefinition:
         """Create a tool that uses OAuth authentication.
-        
+
         Args:
             name: Tool name
             description: Tool description
@@ -182,34 +157,22 @@ class AuthenticatedToolTemplate:
             **kwargs: Additional tool configuration
         """
         # Add OAuth metadata
-        oauth_config = {
-            "auth_type": "oauth",
-            "provider": oauth_provider,
-            "scopes": scopes
-        }
-        
+        oauth_config = {"auth_type": "oauth", "provider": oauth_provider, "scopes": scopes}
+
         # Add OAuth token to env
-        if 'env' not in kwargs:
-            kwargs['env'] = []
-        kwargs['env'].append(f"{oauth_provider.upper()}_TOKEN")
-        
+        if "env" not in kwargs:
+            kwargs["env"] = []
+        kwargs["env"].append(f"{oauth_provider.upper()}_TOKEN")
+
         # Store auth config in args for now (since metadata field doesn't exist)
-        if 'args' not in kwargs:
-            kwargs['args'] = []
-        kwargs['args'].append({
-            "name": "_auth_metadata",
-            "type": "object",
-            "value": oauth_config,
-            "hidden": True
-        })
-        
-        return ToolDefinition(
-            name=name,
-            description=description,
-            type=tool_type,
-            **kwargs
+        if "args" not in kwargs:
+            kwargs["args"] = []
+        kwargs["args"].append(
+            {"name": "_auth_metadata", "type": "object", "value": oauth_config, "hidden": True}
         )
-    
+
+        return ToolDefinition(name=name, description=description, type=tool_type, **kwargs)
+
     @staticmethod
     def api_key_tool(
         name: str,
@@ -217,10 +180,10 @@ class AuthenticatedToolTemplate:
         tool_type: str,
         api_key_env_var: str,
         api_base_url: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> ToolDefinition:
         """Create a tool that uses API key authentication.
-        
+
         Args:
             name: Tool name
             description: Tool description
@@ -232,16 +195,16 @@ class AuthenticatedToolTemplate:
         env_vars = [api_key_env_var]
         if api_base_url:
             env_vars.append(f"{api_key_env_var.replace('_KEY', '_URL')}")
-            
+
         return ToolDefinition(
             name=name,
             description=description,
             type=tool_type,
             env=env_vars,
             secrets=[api_key_env_var],
-            **kwargs
+            **kwargs,
         )
-    
+
     @staticmethod
     def service_account_tool(
         name: str,
@@ -249,12 +212,12 @@ class AuthenticatedToolTemplate:
         tool_type: str,
         service_account_file: str,
         service_account_env_var: str,
-        **kwargs
+        **kwargs,
     ) -> ToolDefinition:
         """Create a tool that uses service account authentication.
-        
+
         Args:
-            name: Tool name  
+            name: Tool name
             description: Tool description
             tool_type: Tool type
             service_account_file: Path to service account file
@@ -269,16 +232,16 @@ class AuthenticatedToolTemplate:
             with_files=[
                 {
                     "source": service_account_file,
-                    "destination": f"/tmp/{service_account_env_var.lower()}.json"
+                    "destination": f"/tmp/{service_account_env_var.lower()}.json",
                 }
             ],
-            **kwargs
+            **kwargs,
         )
 
 
 class CLIToolTemplate:
     """Templates for CLI-based tools."""
-    
+
     @staticmethod
     def cloud_cli(
         name: str,
@@ -286,10 +249,10 @@ class CLIToolTemplate:
         cli_name: str,  # aws, gcloud, az, etc.
         image: str,
         auth_method: str,  # credentials, service_account, etc.
-        **kwargs
+        **kwargs,
     ) -> ToolDefinition:
         """Create a cloud CLI tool with proper authentication setup.
-        
+
         Args:
             name: Tool name
             description: Tool description
@@ -303,42 +266,52 @@ class CLIToolTemplate:
             "aws": {
                 "credentials": {
                     "files": [
-                        {"source": "$HOME/.aws/credentials", "destination": "/root/.aws/credentials"},
-                        {"source": "$HOME/.aws/config", "destination": "/root/.aws/config"}
+                        {
+                            "source": "$HOME/.aws/credentials",
+                            "destination": "/root/.aws/credentials",
+                        },
+                        {"source": "$HOME/.aws/config", "destination": "/root/.aws/config"},
                     ],
-                    "env": ["AWS_PROFILE", "AWS_REGION", "AWS_DEFAULT_REGION"]
+                    "env": ["AWS_PROFILE", "AWS_REGION", "AWS_DEFAULT_REGION"],
                 },
-                "iam_role": {
-                    "env": ["AWS_ROLE_ARN", "AWS_WEB_IDENTITY_TOKEN_FILE"]
-                }
+                "iam_role": {"env": ["AWS_ROLE_ARN", "AWS_WEB_IDENTITY_TOKEN_FILE"]},
             },
             "gcloud": {
                 "service_account": {
                     "files": [
-                        {"source": "$GOOGLE_APPLICATION_CREDENTIALS", "destination": "/tmp/gcp-key.json"}
+                        {
+                            "source": "$GOOGLE_APPLICATION_CREDENTIALS",
+                            "destination": "/tmp/gcp-key.json",
+                        }
                     ],
-                    "env": ["GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-key.json", "GOOGLE_CLOUD_PROJECT"]
+                    "env": [
+                        "GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-key.json",
+                        "GOOGLE_CLOUD_PROJECT",
+                    ],
                 },
                 "oauth": {
                     "files": [
                         {"source": "$HOME/.config/gcloud", "destination": "/root/.config/gcloud"}
                     ],
-                    "env": ["GOOGLE_CLOUD_PROJECT"]
-                }
+                    "env": ["GOOGLE_CLOUD_PROJECT"],
+                },
             },
             "az": {
                 "service_principal": {
-                    "env": ["AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID", "AZURE_SUBSCRIPTION_ID"]
+                    "env": [
+                        "AZURE_CLIENT_ID",
+                        "AZURE_CLIENT_SECRET",
+                        "AZURE_TENANT_ID",
+                        "AZURE_SUBSCRIPTION_ID",
+                    ]
                 },
-                "managed_identity": {
-                    "env": ["AZURE_CLIENT_ID", "AZURE_SUBSCRIPTION_ID"]
-                }
-            }
+                "managed_identity": {"env": ["AZURE_CLIENT_ID", "AZURE_SUBSCRIPTION_ID"]},
+            },
         }
-        
+
         # Get auth configuration
         cli_auth = auth_configs.get(cli_name, {}).get(auth_method, {})
-        
+
         return ToolDefinition(
             name=name,
             description=description,
@@ -346,9 +319,9 @@ class CLIToolTemplate:
             image=image,
             env=cli_auth.get("env", []),
             with_files=cli_auth.get("files", []),
-            **kwargs
+            **kwargs,
         )
-    
+
     @staticmethod
     def kubernetes_tool(
         name: str,
@@ -356,10 +329,10 @@ class CLIToolTemplate:
         image: str = "bitnami/kubectl:latest",
         kubeconfig_source: str = "$HOME/.kube/config",
         namespace: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> ToolDefinition:
         """Create a Kubernetes CLI tool.
-        
+
         Args:
             name: Tool name
             description: Tool description
@@ -371,26 +344,21 @@ class CLIToolTemplate:
         env_vars = ["KUBECONFIG=/root/.kube/config"]
         if namespace:
             env_vars.append(f"KUBECTL_NAMESPACE={namespace}")
-            
+
         return ToolDefinition(
             name=name,
             description=description,
             type="docker",
             image=image,
             env=env_vars,
-            with_files=[
-                {
-                    "source": kubeconfig_source,
-                    "destination": "/root/.kube/config"
-                }
-            ],
-            **kwargs
+            with_files=[{"source": kubeconfig_source, "destination": "/root/.kube/config"}],
+            **kwargs,
         )
 
 
 class DataProcessingToolTemplate:
     """Templates for data processing tools."""
-    
+
     @staticmethod
     def with_data_volumes(
         name: str,
@@ -399,10 +367,10 @@ class DataProcessingToolTemplate:
         input_path: str,
         output_path: str,
         processing_script: str,
-        **kwargs
+        **kwargs,
     ) -> ToolDefinition:
         """Create a data processing tool with input/output volumes.
-        
+
         Args:
             name: Tool name
             description: Tool description
@@ -419,20 +387,12 @@ class DataProcessingToolTemplate:
             image=image,
             content=processing_script,
             with_volumes=[
-                {
-                    "source": input_path,
-                    "destination": "/data/input",
-                    "mode": "ro"
-                },
-                {
-                    "source": output_path,
-                    "destination": "/data/output",
-                    "mode": "rw"
-                }
+                {"source": input_path, "destination": "/data/input", "mode": "ro"},
+                {"source": output_path, "destination": "/data/output", "mode": "rw"},
             ],
-            **kwargs
+            **kwargs,
         )
-    
+
     @staticmethod
     def streaming_processor(
         name: str,
@@ -440,10 +400,10 @@ class DataProcessingToolTemplate:
         image: str,
         process_function: str,
         buffer_size: int = 1024,
-        **kwargs
+        **kwargs,
     ) -> ToolDefinition:
         """Create a streaming data processor tool.
-        
+
         Args:
             name: Tool name
             description: Tool description
@@ -478,14 +438,14 @@ def process_stream(buffer_size={buffer_size}):
 if __name__ == "__main__":
     process_stream()
 """
-        
+
         return ToolDefinition(
             name=name,
             description=description,
             type="docker",
             image=image,
             content=streaming_wrapper,
-            **kwargs
+            **kwargs,
         )
 
 
@@ -496,4 +456,4 @@ __all__ = [
     "AuthenticatedToolTemplate",
     "CLIToolTemplate",
     "DataProcessingToolTemplate",
-] 
+]
