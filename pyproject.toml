@@ -18,11 +18,10 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: System :: Distributed Computing",
 ]
@@ -77,7 +76,7 @@ Issues = "https://github.com/kubiya-ai/workflow-sdk/issues"
 kubiya-workflow = "kubiya_workflow_sdk.cli:main"
 
 [tool.setuptools]
-packages = ["kubiya_workflow_sdk"]
+packages = {find = {include = ["kubiya_workflow_sdk*"]}}
 
 [tool.setuptools.package-data]
 kubiya_workflow_sdk = ["py.typed"]
@@ -87,7 +86,7 @@ version = {attr = "kubiya_workflow_sdk.__version__.__version__"}
 
 [tool.black]
 line-length = 100
-target-version = ['py38', 'py39', 'py310', 'py311']
+target-version = ['py310', 'py311', 'py312', 'py313']
 include = '\.pyi?$'
 
 [tool.ruff]
@@ -110,7 +109,7 @@ ignore = [
 ]
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

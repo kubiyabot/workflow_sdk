@@ -1,5 +1,5 @@
 # Multi-stage build for Kubiya Workflow SDK Server
-FROM python:3.9-slim as builder
+FROM python:3.10-slim as builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
