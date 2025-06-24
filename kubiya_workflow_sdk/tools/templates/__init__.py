@@ -15,8 +15,8 @@ from .base import (
 
 __all__ = [
     "ToolTemplate",
-    "DockerToolTemplate", 
+    "DockerToolTemplate",
     "AuthenticatedToolTemplate",
     "CLIToolTemplate",
     "DataProcessingToolTemplate",
-] 
+]

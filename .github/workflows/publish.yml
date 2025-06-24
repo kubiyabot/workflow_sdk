@@ -90,6 +90,23 @@ jobs:
       with:
         password: ${{ secrets.PYPI_API_TOKEN }}
 
+  check-package:
+    name: Check package installation from PyPI
+    needs: publish-pypi
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Test package installation
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install -U kubiya-workflow-sdk
+        python -c "import kubiya_workflow_sdk; print(kubiya_workflow_sdk.__version__)" 
+
   publish-test-pypi:
     name: Publish to Test PyPI
     needs: build

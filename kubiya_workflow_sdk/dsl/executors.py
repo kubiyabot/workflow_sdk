@@ -11,7 +11,7 @@ from .step import Step
 def python_executor(name: str, script: str, **kwargs) -> Step:
     """
     Create a Python script step.
-    
+
     Example:
         python_executor("process", '''
             import json
@@ -25,7 +25,7 @@ def python_executor(name: str, script: str, **kwargs) -> Step:
 def shell_executor(name: str, command: str, shell: str = "sh", **kwargs) -> Step:
     """
     Create a shell command step.
-    
+
     Example:
         shell_executor("backup", "tar -czf backup.tar.gz /data")
     """
@@ -35,53 +35,70 @@ def shell_executor(name: str, command: str, shell: str = "sh", **kwargs) -> Step
     return step
 
 
-def docker_executor(name: str, image: str, command: Optional[str] = None,
-                   content: Optional[str] = None, **kwargs) -> Step:
+def docker_executor(
+    name: str, image: str, command: Optional[str] = None, content: Optional[str] = None, **kwargs
+) -> Step:
     """
     Create a Docker container step.
-    
+
     Example:
         docker_executor("build", "node:18", "npm run build")
     """
     return Step(name).docker(image, command, content)
 
 
-def http_executor(name: str, url: str, method: str = "GET",
-                 headers: Optional[Dict[str, str]] = None,
-                 body: Optional[Any] = None, **kwargs) -> Step:
+def http_executor(
+    name: str,
+    url: str,
+    method: str = "GET",
+    headers: Optional[Dict[str, str]] = None,
+    body: Optional[Any] = None,
+    **kwargs,
+) -> Step:
     """
     Create an HTTP request step.
-    
+
     Example:
         http_executor("webhook", "https://api.example.com/webhook",
-                     method="POST", 
+                     method="POST",
                      headers={"Content-Type": "application/json"},
                      body={"status": "started"})
     """
     return Step(name).http(url, method, headers, body)
 
 
-def ssh_executor(name: str, host: str, user: str, command: str,
-                port: int = 22, key_file: Optional[str] = None, **kwargs) -> Step:
+def ssh_executor(
+    name: str,
+    host: str,
+    user: str,
+    command: str,
+    port: int = 22,
+    key_file: Optional[str] = None,
+    **kwargs,
+) -> Step:
     """
     Create an SSH remote execution step.
-    
+
     Example:
-        ssh_executor("deploy", "server.example.com", "deploy", 
+        ssh_executor("deploy", "server.example.com", "deploy",
                     "./deploy.sh", key_file="/home/user/.ssh/id_rsa")
     """
     return Step(name).ssh(host, user, command, port, key_file)
 
 
-def inline_agent_executor(name: str, message: str, agent_name: str,
-                         ai_instructions: str, 
-                         runners: List[str] = ["core-testing-2"],
-                         llm_model: str = "gpt-4o-mini",
-                         tools: Optional[List[Dict[str, Any]]] = None,
-                         **kwargs) -> Step:
+def inline_agent_executor(
+    name: str,
+    message: str,
+    agent_name: str,
+    ai_instructions: str,
+    runners: List[str] = ["core-testing-2"],
+    llm_model: str = "gpt-4o-mini",
+    tools: Optional[List[Dict[str, Any]]] = None,
+    **kwargs,
+) -> Step:
     """
     Create an inline AI agent step.
-    
+
     Example:
         inline_agent_executor(
             "analyze-logs",
@@ -98,18 +115,19 @@ def inline_agent_executor(name: str, message: str, agent_name: str,
         runners=runners,
         llm_model=llm_model,
         tools=tools,
-        **kwargs
+        **kwargs,
     )
 
 
-def tool_executor(name: str, tool_name: str = None, tool_def: Dict[str, Any] = None,
-                 **tool_args) -> Step:
+def tool_executor(
+    name: str, tool_name: str = None, tool_def: Dict[str, Any] = None, **tool_args
+) -> Step:
     """
     Create a tool executor step.
-    
+
     Example with pre-registered tool:
         tool_executor("get-pods", tool_name="kubectl", command="get pods -n default")
-    
+
     Example with inline tool definition:
         tool_executor("notify",
                      tool_def={
@@ -131,7 +149,7 @@ def tool_executor(name: str, tool_name: str = None, tool_def: Dict[str, Any] = N
             content=tool_def["content"],
             args=tool_def["args"],
             description=tool_def.get("description"),
-            with_files=tool_def.get("with_files")
+            with_files=tool_def.get("with_files"),
         )
         if tool_args:
             step.args(**tool_args)
@@ -146,7 +164,7 @@ def tool_executor(name: str, tool_name: str = None, tool_def: Dict[str, Any] = N
 def kubiya_executor(name: str, url: str, method: str = "GET", **config) -> Step:
     """
     Create a Kubiya API executor step.
-    
+
     Example:
         kubiya_executor("get-secret", "api/v1/secret/get_secret_value/MY_SECRET")
     """
@@ -156,8 +174,8 @@ def kubiya_executor(name: str, url: str, method: str = "GET", **config) -> Step:
 def jq_executor(name: str, query: str, **kwargs) -> Step:
     """
     Create a jq JSON processing step.
-    
+
     Example:
         jq_executor("extract-ids", '.data[] | select(.active == true) | .id')
     """
-    return Step(name).jq(query) 
+    return Step(name).jq(query)

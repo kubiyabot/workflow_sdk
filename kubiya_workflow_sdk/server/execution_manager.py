@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class ExecutionManager:
     """Manages workflow executions and their lifecycle."""
-    
+
     def __init__(self, max_concurrent: int = 100, default_timeout: int = 3600):
         self.max_concurrent = max_concurrent
         self.default_timeout = default_timeout
@@ -25,11 +25,11 @@ class ExecutionManager:
         self.events: Dict[str, List[Dict[str, Any]]] = {}
         self._lock = asyncio.Lock()
         self._semaphore = asyncio.Semaphore(max_concurrent)
-        
+
     async def start(self) -> None:
         """Start the execution manager."""
         logger.info(f"Execution manager started (max concurrent: {self.max_concurrent})")
-        
+
     async def stop(self) -> None:
         """Stop the execution manager."""
         logger.info("Execution manager stopping...")
@@ -38,13 +38,16 @@ class ExecutionManager:
             if result.status in [WorkflowStatus.PENDING, WorkflowStatus.RUNNING]:
                 logger.warning(f"Cancelling execution {exec_id}")
                 result.status = WorkflowStatus.CANCELLED
-                
+
     @property
     def active_count(self) -> int:
         """Get count of active executions."""
-        return sum(1 for r in self.executions.values() 
-                  if r.status in [WorkflowStatus.PENDING, WorkflowStatus.RUNNING])
-        
+        return sum(
+            1
+            for r in self.executions.values()
+            if r.status in [WorkflowStatus.PENDING, WorkflowStatus.RUNNING]
+        )
+
     async def create_execution(self, workflow_name: str) -> str:
         """Create a new execution."""
         async with self._lock:
@@ -56,25 +59,25 @@ class ExecutionManager:
                 start_time=datetime.utcnow(),
                 outputs={},
                 errors=[],
-                step_results={}
+                step_results={},
             )
             self.events[exec_id] = []
             return exec_id
-            
+
     async def get_execution(self, execution_id: str) -> Optional[ExecutionResult]:
         """Get execution by ID."""
         return self.executions.get(execution_id)
-        
+
     async def add_event(self, execution_id: str, event: Dict[str, Any]) -> None:
         """Add event to execution history."""
         if execution_id in self.events:
             self.events[execution_id].append(event)
-            
+
     async def store_result(self, execution_id: str, result: ExecutionResult) -> None:
         """Store execution result."""
         async with self._lock:
             self.executions[execution_id] = result
-            
+
     async def cancel_execution(self, execution_id: str) -> bool:
         """Cancel an execution."""
         async with self._lock:
@@ -85,26 +88,23 @@ class ExecutionManager:
                     result.end_time = datetime.utcnow()
                     return True
             return False
-            
+
     async def list_executions(
-        self, 
-        status: Optional[WorkflowStatus] = None,
-        limit: int = 100,
-        offset: int = 0
+        self, status: Optional[WorkflowStatus] = None, limit: int = 100, offset: int = 0
     ) -> List[ExecutionResult]:
         """List executions with optional filtering."""
         results = list(self.executions.values())
-        
+
         # Filter by status if provided
         if status:
             results = [r for r in results if r.status == status]
-            
+
         # Sort by start time (most recent first)
         results.sort(key=lambda r: r.start_time, reverse=True)
-        
+
         # Apply pagination
-        return results[offset:offset + limit]
-        
+        return results[offset : offset + limit]
+
     async def get_events(self, execution_id: str) -> List[Dict[str, Any]]:
         """Get events for an execution."""
-        return self.events.get(execution_id, []) 
+        return self.events.get(execution_id, [])

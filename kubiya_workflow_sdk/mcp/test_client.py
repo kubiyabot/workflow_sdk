@@ -16,13 +16,13 @@ async def test_inline_workflow_definition():
     """Test defining a workflow from inline Python code."""
     print("\n🔧 TEST 1: Define Workflow from Inline Python Code")
     print("=" * 60)
-    
+
     # Create server
     mcp = FastMCP("Test Server")
-    
+
     # Create client
     client = Client(mcp, transport="direct")
-    
+
     async with client:
         # Define a workflow using inline Python code
         workflow_code = '''
@@ -58,19 +58,17 @@ print(json.dumps(transformed))
     
     return extract >> transform >> load
 '''
-        
+
         # Define the workflow
         result = await client.define_workflow(
-            name="data-pipeline",
-            code=workflow_code,
-            description="ETL pipeline example"
+            name="data-pipeline", code=workflow_code, description="ETL pipeline example"
         )
-        
+
         print(f"✅ Workflow defined: {result['workflow']['name']}")
         print(f"   Steps: {result['workflow']['steps']}")
         print(f"   Validation: {'PASSED' if result['validation']['valid'] else 'FAILED'}")
-        
-        if result['validation']['errors']:
+
+        if result["validation"]["errors"]:
             print(f"   Errors: {result['validation']['errors']}")
 
 
@@ -78,10 +76,10 @@ async def test_workflow_execution():
     """Test executing workflows with parameters."""
     print("\n🚀 TEST 2: Execute Workflow with Parameters")
     print("=" * 60)
-    
+
     mcp = FastMCP("Test Server")
     client = Client(mcp, transport="direct")
-    
+
     async with client:
         # Define a parameterized workflow
         workflow_code = '''
@@ -103,20 +101,17 @@ def deploy_with_params():
     
     return deploy >> notify
 '''
-        
+
         # Define it
         await client.define_workflow("parameterized-deploy", workflow_code)
-        
+
         # Execute with parameters
         exec_result = await client.execute_workflow(
             "parameterized-deploy",
-            params={
-                "VERSION": "v2.1.0",
-                "ENV": "production"
-            },
-            stream=False  # For simplicity in test
+            params={"VERSION": "v2.1.0", "ENV": "production"},
+            stream=False,  # For simplicity in test
         )
-        
+
         print(f"✅ Execution ID: {exec_result['execution_id']}")
         print(f"   Status: {exec_result['status']}")
         print(f"   Mocked: {exec_result.get('mocked', False)}")
@@ -126,32 +121,32 @@ async def test_graphql_queries():
     """Test GraphQL queries for workflow introspection."""
     print("\n📊 TEST 3: GraphQL Queries")
     print("=" * 60)
-    
+
     mcp = FastMCP("Test Server")
-    
+
     # Pre-populate some workflows
-    workflow_code1 = '''
+    workflow_code1 = """
 @workflow(name="backup")
 def backup(): 
     return step("backup", "Backup database").shell("pg_dump mydb")
-'''
-    
-    workflow_code2 = '''
+"""
+
+    workflow_code2 = """
 @workflow(name="cleanup")
 def cleanup():
     return (
         step("find", "Find old files").shell("find /tmp -mtime +7")
         >> step("delete", "Delete old files").shell("xargs rm -f")
     )
-'''
-    
+"""
+
     client = Client(mcp, transport="direct")
-    
+
     async with client:
         # Define workflows
         await client.define_workflow("backup", workflow_code1)
         await client.define_workflow("cleanup", workflow_code2)
-        
+
         # Query all workflows
         query1 = """
         {
@@ -165,18 +160,18 @@ def cleanup():
             }
         }
         """
-        
+
         result1 = await client.query_graphql(query1)
-        
-        if result1.get('success'):
+
+        if result1.get("success"):
             print("✅ Query 1 - List all workflows:")
-            for wf in result1['data']['workflows']:
+            for wf in result1["data"]["workflows"]:
                 print(f"   - {wf['name']}: {len(wf['steps'])} steps")
-                for step in wf['steps']:
+                for step in wf["steps"]:
                     print(f"     • {step['name']} ({step['type']})")
         else:
             print(f"❌ GraphQL not available: {result1.get('error', 'Unknown error')}")
-        
+
         # Query specific workflow
         query2 = """
         {
@@ -190,16 +185,16 @@ def cleanup():
             }
         }
         """
-        
+
         result2 = await client.query_graphql(query2)
-        
-        if result2.get('success') and result2['data']['workflow']:
-            wf = result2['data']['workflow']
+
+        if result2.get("success") and result2["data"]["workflow"]:
+            wf = result2["data"]["workflow"]
             print(f"\n✅ Query 2 - Workflow details for '{wf['name']}':")
             print(f"   Parameters: {wf['params']}")
             print(f"   Step dependencies:")
-            for step in wf['steps']:
-                deps = step['depends_on'] or []
+            for step in wf["steps"]:
+                deps = step["depends_on"] or []
                 print(f"   - {step['name']} depends on: {deps}")
 
 
@@ -207,10 +202,10 @@ async def test_complex_workflow():
     """Test a complex real-world workflow."""
     print("\n🏗️ TEST 4: Complex Real-World Workflow")
     print("=" * 60)
-    
+
     mcp = FastMCP("Test Server")
     client = Client(mcp, transport="direct")
-    
+
     async with client:
         # Define a complex incident response workflow
         workflow_code = '''
@@ -285,14 +280,14 @@ def incident_response():
     
     return detect >> analyze >> [page_oncall, remediate, ticket] >> notify
 '''
-        
+
         # Define the workflow
         result = await client.define_workflow(
             name="incident-response",
             code=workflow_code,
-            description="Intelligent incident response automation"
+            description="Intelligent incident response automation",
         )
-        
+
         print(f"✅ Complex workflow defined: {result['workflow']['name']}")
         print(f"   Version: 2.0.0")
         print(f"   Steps: {result['workflow']['steps']}")
@@ -308,9 +303,9 @@ async def test_custom_tools():
     """Test custom tool registration and usage."""
     print("\n🛠️ TEST 5: Custom Tools")
     print("=" * 60)
-    
+
     mcp = FastMCP("Test Server")
-    
+
     # Register custom tools
     @mcp.tool
     def calculate_metrics(values: list, metric_type: str = "average") -> dict:
@@ -323,19 +318,15 @@ async def test_custom_tools():
             result = max(values) if values else 0
         else:
             result = 0
-            
-        return {
-            "metric_type": metric_type,
-            "result": result,
-            "count": len(values)
-        }
-    
+
+        return {"metric_type": metric_type, "result": result, "count": len(values)}
+
     @mcp.tool(description="Generate a performance report")
     async def generate_report(service: str, timeframe: str = "24h") -> dict:
         """Generate performance report for a service."""
         # Simulate async operation
         await asyncio.sleep(0.5)
-        
+
         return {
             "service": service,
             "timeframe": timeframe,
@@ -343,35 +334,34 @@ async def test_custom_tools():
                 "availability": "99.95%",
                 "response_time": "142ms",
                 "error_rate": "0.05%",
-                "throughput": "1.2M req/hour"
+                "throughput": "1.2M req/hour",
             },
-            "generated_at": "2024-01-15T10:30:00Z"
+            "generated_at": "2024-01-15T10:30:00Z",
         }
-    
+
     client = Client(mcp, transport="direct")
-    
+
     async with client:
         # Test custom tools
         metrics_result = await client.call_tool(
-            "calculate_metrics",
-            {"values": [10, 20, 30, 40, 50], "metric_type": "average"}
+            "calculate_metrics", {"values": [10, 20, 30, 40, 50], "metric_type": "average"}
         )
         print(f"✅ Custom tool 'calculate_metrics': {metrics_result}")
-        
+
         report_result = await client.call_tool(
-            "generate_report",
-            {"service": "api-gateway", "timeframe": "7d"}
+            "generate_report", {"service": "api-gateway", "timeframe": "7d"}
         )
         print(f"\n✅ Custom tool 'generate_report':")
         print(f"   Service: {report_result['service']}")
         print(f"   Metrics:")
-        for metric, value in report_result['metrics'].items():
+        for metric, value in report_result["metrics"].items():
             print(f"     - {metric}: {value}")
 
 
 async def main():
     """Run all tests."""
-    print("""
+    print(
+        """
 ╔════════════════════════════════════════════════════════════╗
 ║        Kubiya MCP Server - End-to-End Test Suite           ║
 ║                                                            ║
@@ -382,26 +372,28 @@ async def main():
 ║  • Complex real-world workflows                            ║
 ║  • Custom tool integration                                 ║
 ╚════════════════════════════════════════════════════════════╝
-    """)
-    
+    """
+    )
+
     try:
         await test_inline_workflow_definition()
         await test_workflow_execution()
         await test_graphql_queries()
         await test_complex_workflow()
         await test_custom_tools()
-        
+
         print("\n✅ All tests completed successfully!")
         print("\n💡 Next steps:")
         print("   1. Run example_server.py to start a real MCP server")
         print("   2. Connect from Claude Desktop or any MCP client")
         print("   3. Build your own workflows with inline Python!")
-        
+
     except Exception as e:
         print(f"\n❌ Test failed: {e}")
         import traceback
+
         traceback.print_exc()
 
 
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    asyncio.run(main())
