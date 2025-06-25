@@ -98,6 +98,7 @@ from .dsl import (
 # Client functionality (legacy/raw interface)
 from .client import (
     KubiyaClient,
+    StreamingKubiyaClient,
     execute_workflow,
 )
 
@@ -178,6 +179,7 @@ __all__ = [
     "examples",
     # Client (legacy)
     "KubiyaClient",
+    "StreamingKubiyaClient",
     "execute_workflow",
     # Tools
     "tool",

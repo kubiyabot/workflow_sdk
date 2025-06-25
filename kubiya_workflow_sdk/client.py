@@ -36,23 +36,33 @@ class StreamingKubiyaClient:
         runner: str = "kubiya-hosted",
         timeout: int = 300,
         max_retries: int = 3,
+        max_connections: int = 30,
+        max_connections_per_host: int = 30,
         org_name: Optional[str] = None
     ):
         """Initialize the streaming Kubiya client.
 
         Args:
-            api_token: Kubiya API token (note: using api_token for compatibility)
+            api_key: Kubiya API key
             base_url: Base URL for the Kubiya API
             runner: Kubiya runner instance name
             timeout: Request timeout in seconds
             max_retries: Maximum number of retry attempts
+            max_connections: # Maximum total simultaneous connections for aiohttp session
+            max_connections_per_host: Maximum simultaneous connections per host
+            org_name: Organization name for API calls
         """
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.runner = runner
         self.timeout = timeout
         self.max_retries = max_retries
+        self.max_connections = max_connections
+        self.max_connections_per_host = max_connections_per_host
         self.org_name = org_name
+
+        self._connector = None
+        self._session = None
 
         # Default headers - Use UserKey format for API key authentication
         self.headers = {
@@ -61,6 +71,55 @@ class StreamingKubiyaClient:
             "Accept": "text/event-stream",
             "User-Agent": "kubiya_workflow_sdk"
         }
+
+    async def __aenter__(self):
+        # Create a connector with connection pooling
+        self._connector = aiohttp.TCPConnector(
+            limit=self.max_connections,
+            limit_per_host=self.max_connections_per_host,
+            ttl_dns_cache=300,  # 5 minutes DNS cache
+            use_dns_cache=True,
+            keepalive_timeout=30,
+            enable_cleanup_closed=True
+        )
+
+        # Create timeout configuration
+        timeout = aiohttp.ClientTimeout(
+            total=self.timeout,
+            connect=30,  # 30 seconds to connect
+            sock_read=60  # 60 seconds to read data
+        )
+
+        # Create session
+        self._session = aiohttp.ClientSession(
+            connector=self._connector,
+            timeout=timeout,
+            headers=self.headers,
+            raise_for_status=False  # Handle status codes manually
+        )
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Close session and cleanup resources with proper error handling."""
+
+        if self._session is not None:
+            try:
+                if not self._session.closed:
+                    await self._session.close()
+            except Exception:
+                pass  # Ignore errors during cleanup
+            finally:
+                self._session = None
+
+            # Close connector
+        if self._connector is not None:
+            try:
+                if not self._connector.closed:
+                    await self._connector.close()
+            except Exception:
+                pass  # Ignore errors during cleanup
+            finally:
+                self._connector = None
 
     async def execute_workflow_stream(
         self, workflow: Dict[str, Any], params: Optional[Dict[str, Any]] = None
@@ -86,35 +145,28 @@ class StreamingKubiyaClient:
 
         # Use the runner from the workflow definition if specified, otherwise use default
         runner = workflow.get('runner', self.runner)
-        if "runner" in request_body:
-            del request_body["runner"]
+        request_body.pop("runner", None)
 
         # Execute the workflow
-        url = urljoin(self.base_url, f"/api/v1/workflow?runner={runner}&operation=execute_workflow")
-
-        timeout = aiohttp.ClientTimeout(total=self.timeout)
-        connector = aiohttp.TCPConnector(limit=100, limit_per_host=30)
+        url = urljoin(self.base_url, f"/api/v1/workflow?runner={runner}&operation=execute_workflow&native_sse=true")
 
         try:
-            async with aiohttp.ClientSession(
-                timeout=timeout, connector=connector, headers=self.headers
-            ) as session:
-                async with session.post(url, json=request_body) as response:
+            async with self._session.post(url, json=request_body) as response:
+                # Check for authentication errors
+                if response.status == 401:
+                    raise KubiyaAuthenticationError("Invalid API token or unauthorized access")
 
-                    # Check for authentication errors
-                    if response.status == 401:
-                        raise KubiyaAuthenticationError("Invalid API token or unauthorized access")
+                # Check for other errors
+                if response.status >= 400:
+                    error_text = await response.text()
+                    logger.error(f"API Error Response: {error_text}")
+                    raise KubiyaAPIError(
+                        f"API request failed: HTTP {response.status} - {error_text[:200]}",
+                        status_code=response.status,
+                        response_body=error_text,
+                    )
 
-                    # Check for other errors
-                    if response.status >= 400:
-                        error_text = await response.text()
-                        logger.error(f"API Error Response: {error_text}")
-                        raise KubiyaAPIError(
-                            f"API request failed: HTTP {response.status} - {error_text[:200]}",
-                            status_code=response.status,
-                            response_body=error_text,
-                        )
-
+                try:
                     # Process the streaming response
                     async for line in response.content:
                         line = line.decode("utf-8").strip()
@@ -123,7 +175,7 @@ class StreamingKubiyaClient:
                             data = line[6:]  # Remove 'data: ' prefix
 
                             if data.strip() == "[DONE]":
-                                return
+                                break
 
                             try:
                                 event_data = json.loads(data)
@@ -131,7 +183,7 @@ class StreamingKubiyaClient:
 
                                 # Check for end events
                                 if event_data.get("end") or event_data.get("finishReason"):
-                                    return
+                                    break
 
                             except json.JSONDecodeError:
                                 # Yield raw data if it's not JSON
@@ -142,7 +194,10 @@ class StreamingKubiyaClient:
                             if event_type in ["end", "error"]:
                                 yield {"type": "event", "event_type": event_type}
                                 if event_type == "end":
-                                    return
+                                    break
+                except Exception as e:
+                    raise WorkflowExecutionError(f"Streaming execution failed: {str(e)}")
+
 
         except aiohttp.ClientError as e:
             raise KubiyaConnectionError(f"Failed to connect to Kubiya API: {str(e)}")
@@ -150,7 +205,7 @@ class StreamingKubiyaClient:
             raise KubiyaTimeoutError(f"Request timed out after {self.timeout} seconds")
         except Exception as e:
             if not isinstance(
-                e, (KubiyaAPIError, KubiyaAuthenticationError, KubiyaConnectionError)
+                e, (KubiyaAPIError, KubiyaAuthenticationError, KubiyaConnectionError, WorkflowExecutionError)
             ):
                 raise WorkflowExecutionError(f"Streaming execution failed: {str(e)}")
             raise
