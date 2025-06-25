@@ -538,7 +538,7 @@ class KubiyaClient:
             KubiyaAPIError: For API errors
         """
         try:
-            response = self._make_request(method="GET", endpoint=f"/api/v1/integrations")
+            response = self._make_request(method="GET", endpoint=f"/api/v2/integrations")
             data = response.json()
 
             # Handle different response formats
