@@ -85,6 +85,7 @@
               "concepts/platform-overview",
               "concepts/workflows",
               "concepts/runners",
+              "concepts/runners/helm-chart",
               "concepts/integrations",
               "concepts/deterministic-workflows",
               "concepts/why-kubiya",
@@ -102,17 +103,6 @@
             ]
           },
           {
-            "group": "Full-Stack AI Agents",
-            "pages": [
-              "full-stack-agents/overview",
-              "full-stack-agents/architecture",
-              "full-stack-agents/quickstart",
-              "full-stack-agents/examples",
-              "full-stack-agents/existing-frameworks/overview",
-              "full-stack-agents/existing-frameworks/langgraph"
-            ]
-          },
-          {
             "group": "MCP Integration",
             "pages": [
               "mcp/overview",
@@ -124,26 +114,21 @@
             ]
           },
           {
-            "group": "AI Frameworks",
+            "group": "Full-Stack Agents",
             "pages": [
-              "frameworks/overview",
-              "frameworks/langchain",
-              "frameworks/openai",
-              "frameworks/claude",
-              "frameworks/custom"
+              "mcp/full-stack-agents/overview",
+              "mcp/full-stack-agents/architecture",
+              "mcp/full-stack-agents/quickstart",
+              "mcp/full-stack-agents/examples",
+              "mcp/full-stack-agents/existing-frameworks/overview",
+              "mcp/full-stack-agents/existing-frameworks/langgraph"
             ]
           },
           {
-            "group": "Frontend & UI",
+            "group": "Streaming UI",
             "pages": [
-              "frontend",
-              "frontend/vercel-ai-sdk"
-            ]
-          },
-          {
-            "group": "Deployment",
-            "pages": [
-              "deployment/helm-chart"
+              "mcp/streaming-ui/overview",
+              "mcp/streaming-ui/vercel-ai-sdk"
             ]
           },
           {
@@ -250,7 +235,23 @@
     },
     {
       "source": "/full-stack-agents",
-      "destination": "/full-stack-agents/overview"
+      "destination": "/mcp/full-stack-agents/overview"
+    },
+    {
+      "source": "/full-stack-agents/overview",
+      "destination": "/mcp/full-stack-agents/overview"
+    },
+    {
+      "source": "/full-stack-agents/architecture",
+      "destination": "/mcp/full-stack-agents/architecture"
+    },
+    {
+      "source": "/full-stack-agents/quickstart",
+      "destination": "/mcp/full-stack-agents/quickstart"
+    },
+    {
+      "source": "/full-stack-agents/examples",
+      "destination": "/mcp/full-stack-agents/examples"
     },
     {
       "source": "/agent-servers",
@@ -259,6 +260,18 @@
     {
       "source": "/streaming",
       "destination": "/providers/adk/streaming"
+    },
+    {
+      "source": "/frontend",
+      "destination": "/mcp/streaming-ui/overview"
+    },
+    {
+      "source": "/frontend/vercel-ai-sdk",
+      "destination": "/mcp/streaming-ui/vercel-ai-sdk"
+    },
+    {
+      "source": "/deployment/helm-chart",
+      "destination": "/concepts/runners/helm-chart"
     }
   ]
 }
