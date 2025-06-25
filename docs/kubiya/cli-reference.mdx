@@ -1,0 +1,527 @@
+---
+title: CLI Reference
+description: Complete reference for Kubiya CLI commands
+---
+
+# CLI Reference
+
+The Kubiya CLI provides commands for managing workflows, running the MCP server, and interacting with the Kubiya platform.
+
+## Installation
+
+```bash
+# Install the SDK with CLI
+pip install kubiya-workflow-sdk[all]
+
+# Verify installation
+kubiya --version
+```
+
+## Global Options
+
+These options work with all commands:
+
+| Option | Description |
+|--------|-------------|
+| `--help` | Show help message |
+| `--version` | Show version |
+| `--debug` | Enable debug logging |
+| `--quiet` | Suppress output |
+
+## MCP Commands
+
+Commands for Model Context Protocol (MCP) functionality.
+
+### kubiya mcp agent
+
+Start an OpenAI-compatible agent server.
+
+```bash
+kubiya mcp agent [OPTIONS]
+```
+
+**Options:**
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--provider` | LLM provider (openai, anthropic, together, groq, ollama) | Required |
+| `--model` | Specific model to use | Provider default |
+| `--port` | HTTP port | 8000 |
+| `--host` | Host to bind to | 0.0.0.0 |
+| `--api-key` | Provider API key | From environment |
+
+**Examples:**
+
+```bash
+# Start with Together AI
+kubiya mcp agent --provider together --port 8000
+
+# Start with specific model
+kubiya mcp agent --provider anthropic --model claude-3-5-sonnet-20241022
+
+# Start with custom host
+kubiya mcp agent --provider openai --host localhost --port 3000
+```
+
+### kubiya mcp server
+
+Start the MCP server with stdio transport.
+
+```bash
+kubiya mcp server [OPTIONS]
+```
+
+**Options:**
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--api-key` | Kubiya API key | From KUBIYA_API_KEY |
+| `--base-url` | API base URL | https://api.kubiya.ai |
+
+**Example:**
+
+```bash
+# Start MCP server
+kubiya mcp server
+
+# With custom API endpoint
+kubiya mcp server --base-url http://localhost:8001
+```
+
+### kubiya mcp chat
+
+Interactive chat mode for testing MCP tools.
+
+```bash
+kubiya mcp chat [OPTIONS]
+```
+
+**Options:**
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--provider` | LLM provider | together |
+| `--model` | Model to use | Provider default |
+| `--api-key` | Provider API key | From environment |
+
+**Example:**
+
+```bash
+# Interactive chat
+kubiya mcp chat --provider anthropic
+
+# With specific model
+kubiya mcp chat --provider openai --model gpt-4
+```
+
+### kubiya mcp test
+
+Run MCP tool tests.
+
+```bash
+kubiya mcp test [OPTIONS]
+```
+
+**Options:**
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--tools` | Specific tools to test | All tools |
+| `--verbose` | Verbose output | False |
+
+**Example:**
+
+```bash
+# Test all tools
+kubiya mcp test
+
+# Test specific tools
+kubiya mcp test --tools compile_workflow,execute_workflow
+
+# Verbose mode
+kubiya mcp test --verbose
+```
+
+## Workflow Commands
+
+Commands for managing and executing workflows.
+
+### kubiya validate
+
+Validate workflow syntax.
+
+```bash
+kubiya validate WORKFLOW_FILE [OPTIONS]
+```
+
+**Arguments:**
+
+- `WORKFLOW_FILE`: Path to workflow Python file
+
+**Options:**
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--format` | Output format (json, yaml, text) | text |
+| `--strict` | Strict validation | False |
+
+**Example:**
+
+```bash
+# Validate workflow
+kubiya validate my_workflow.py
+
+# JSON output
+kubiya validate my_workflow.py --format json
+
+# Strict mode
+kubiya validate my_workflow.py --strict
+```
+
+### kubiya run
+
+Execute a workflow.
+
+```bash
+kubiya run WORKFLOW_FILE [OPTIONS]
+```
+
+**Arguments:**
+
+- `WORKFLOW_FILE`: Path to workflow file or workflow name
+
+**Options:**
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--params` | Workflow parameters (KEY=value) | None |
+| `--runner` | Runner to use | kubiya-hosted |
+| `--dry-run` | Simulate execution | False |
+| `--stream` | Stream output | True |
+| `--format` | Output format | text |
+
+**Examples:**
+
+```bash
+# Run workflow
+kubiya run backup.py
+
+# With parameters
+kubiya run deploy.py --params VERSION=1.2.0 --params ENV=staging
+
+# Dry run
+kubiya run risky_operation.py --dry-run
+
+# Specific runner
+kubiya run data_processing.py --runner docker-runner-1
+```
+
+### kubiya list
+
+List workflows or executions.
+
+```bash
+kubiya list [TYPE] [OPTIONS]
+```
+
+**Arguments:**
+
+- `TYPE`: What to list (workflows, executions, runners)
+
+**Options:**
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--limit` | Maximum results | 20 |
+| `--offset` | Result offset | 0 |
+| `--status` | Filter by status | All |
+| `--search` | Search term | None |
+
+**Examples:**
+
+```bash
+# List workflows
+kubiya list workflows
+
+# List recent executions
+kubiya list executions --limit 10
+
+# List failed executions
+kubiya list executions --status failed
+
+# Search workflows
+kubiya list workflows --search backup
+```
+
+### kubiya logs
+
+View execution logs.
+
+```bash
+kubiya logs EXECUTION_ID [OPTIONS]
+```
+
+**Arguments:**
+
+- `EXECUTION_ID`: Execution ID to view
+
+**Options:**
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--follow` | Follow log output | False |
+| `--tail` | Number of lines | All |
+| `--step` | Specific step | All steps |
+
+**Examples:**
+
+```bash
+# View logs
+kubiya logs exec-123456
+
+# Follow logs
+kubiya logs exec-123456 --follow
+
+# Last 50 lines
+kubiya logs exec-123456 --tail 50
+
+# Specific step
+kubiya logs exec-123456 --step deploy
+```
+
+### kubiya export
+
+Export workflow definition.
+
+```bash
+kubiya export WORKFLOW [OPTIONS]
+```
+
+**Arguments:**
+
+- `WORKFLOW`: Workflow name or file
+
+**Options:**
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--format` | Export format (yaml, json) | yaml |
+| `--output` | Output file | stdout |
+
+**Examples:**
+
+```bash
+# Export to YAML
+kubiya export my_workflow.py
+
+# Export to JSON
+kubiya export my_workflow.py --format json
+
+# Save to file
+kubiya export my_workflow.py --output workflow.yaml
+```
+
+## Configuration Commands
+
+### kubiya config
+
+Manage CLI configuration.
+
+```bash
+kubiya config [SUBCOMMAND]
+```
+
+**Subcommands:**
+
+#### kubiya config set
+
+Set configuration value.
+
+```bash
+kubiya config set KEY VALUE
+```
+
+**Example:**
+
+```bash
+# Set API key
+kubiya config set api_key your-key-here
+
+# Set default runner
+kubiya config set default_runner docker-runner-1
+```
+
+#### kubiya config get
+
+Get configuration value.
+
+```bash
+kubiya config get KEY
+```
+
+**Example:**
+
+```bash
+# Get API endpoint
+kubiya config get api_endpoint
+
+# Get all config
+kubiya config get
+```
+
+#### kubiya config list
+
+List all configuration.
+
+```bash
+kubiya config list
+```
+
+## Environment Variables
+
+The CLI respects these environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `KUBIYA_API_KEY` | Kubiya API key |
+| `KUBIYA_BASE_URL` | API base URL |
+| `OPENAI_API_KEY` | OpenAI API key |
+| `ANTHROPIC_API_KEY` | Anthropic API key |
+| `TOGETHER_API_KEY` | Together AI API key |
+| `GROQ_API_KEY` | Groq API key |
+| `LOG_LEVEL` | Logging level (DEBUG, INFO, WARNING, ERROR) |
+| `MCP_USE_ANONYMIZED_TELEMETRY` | Disable telemetry (false) |
+
+## Configuration File
+
+The CLI stores configuration in `~/.kubiya/config.yaml`:
+
+```yaml
+api_key: your-api-key
+api_endpoint: https://api.kubiya.ai
+default_runner: kubiya-hosted
+default_provider: together
+log_level: INFO
+```
+
+## Common Workflows
+
+### Starting an AI Agent
+
+```bash
+# 1. Set API keys
+export KUBIYA_API_KEY="your-key"
+export TOGETHER_API_KEY="your-key"
+
+# 2. Start agent server
+kubiya mcp agent --provider together --port 8000
+
+# 3. Use with any OpenAI client
+curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model": "kubiya-workflow-agent", "messages": [{"role": "user", "content": "Create a backup workflow"}]}'
+```
+
+### Creating and Running Workflows
+
+```bash
+# 1. Create workflow file (backup.py)
+cat > backup.py << EOF
+from kubiya_workflow_sdk.dsl import Workflow
+
+wf = Workflow("backup")
+wf.step("backup-db", "pg_dump mydb > backup.sql")
+wf.step("upload", "aws s3 cp backup.sql s3://backups/")
+EOF
+
+# 2. Validate
+kubiya validate backup.py
+
+# 3. Run
+kubiya run backup.py
+
+# 4. Check status
+kubiya list executions --limit 1
+```
+
+### Setting up Claude Desktop
+
+```bash
+# 1. Install SDK
+pip install kubiya-workflow-sdk[all]
+
+# 2. Add to Claude config
+echo '{
+  "mcpServers": {
+    "kubiya": {
+      "command": "kubiya",
+      "args": ["mcp", "server"],
+      "env": {
+        "KUBIYA_API_KEY": "'$KUBIYA_API_KEY'"
+      }
+    }
+  }
+}' > ~/Library/Application\ Support/Claude/claude_desktop_config.json
+
+# 3. Restart Claude Desktop
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Command not found**
+   ```bash
+   # Ensure SDK is installed
+   pip install kubiya-workflow-sdk[all]
+   
+   # Check PATH
+   which kubiya
+   ```
+
+2. **API key errors**
+   ```bash
+   # Check environment
+   echo $KUBIYA_API_KEY
+   
+   # Set in config
+   kubiya config set api_key your-key
+   ```
+
+3. **Connection errors**
+   ```bash
+   # Check API endpoint
+   kubiya config get api_endpoint
+   
+   # Test connection
+   curl https://api.kubiya.ai/health
+   ```
+
+### Debug Mode
+
+Enable debug logging for troubleshooting:
+
+```bash
+# Via flag
+kubiya --debug mcp agent --provider together
+
+# Via environment
+export LOG_LEVEL=DEBUG
+kubiya mcp agent --provider together
+```
+
+## Getting Help
+
+```bash
+# General help
+kubiya --help
+
+# Command help
+kubiya mcp --help
+kubiya mcp agent --help
+
+# Online resources
+# Documentation: https://docs.kubiya.ai
+# GitHub: https://github.com/kubiya-ai/workflow-sdk
+# Discord: https://discord.gg/kubiya
+``` 

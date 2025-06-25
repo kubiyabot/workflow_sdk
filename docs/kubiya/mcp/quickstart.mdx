@@ -1,0 +1,336 @@
+---
+title: MCP Quickstart
+description: Get started with Kubiya MCP in 5 minutes
+---
+
+# MCP Quickstart Guide
+
+Get up and running with Kubiya's Model Context Protocol (MCP) implementation in just 5 minutes. This guide will show you how to use AI to create and execute workflows.
+
+## Prerequisites
+
+- Python 3.9+
+- Kubiya API key ([get one here](https://app.kubiya.ai/settings/api-keys))
+- LLM API key (OpenAI, Anthropic, or Together)
+
+## Installation
+
+```bash
+# Install with MCP support
+pip install kubiya-workflow-sdk[all]
+
+# Or just the core SDK
+pip install kubiya-workflow-sdk
+```
+
+## Quick Start: Agent Server
+
+The fastest way to get started is with the Agent Server - an OpenAI-compatible API that any AI can use.
+
+### 1. Set Environment Variables
+
+```bash
+export KUBIYA_API_KEY="your-kubiya-api-key"
+export TOGETHER_API_KEY="your-together-api-key"  # Or OPENAI_API_KEY, ANTHROPIC_API_KEY
+```
+
+### 2. Start the Agent Server
+
+```bash
+# Start with default model
+kubiya mcp agent --provider together --port 8000
+
+# Or specify a model
+kubiya mcp agent --provider anthropic --model claude-3-5-sonnet-20241022 --port 8000
+```
+
+You'll see:
+```
+╭───────────── Starting Agent Server ──────────────╮
+│ Kubiya MCP Agent Server                          │
+│                                                  │
+│ Provider: together                               │
+│ Model: meta-llama/Llama-3.3-70B-Instruct-Turbo  │
+│ Endpoint: http://0.0.0.0:8000                    │
+│ Kubiya API: ✅ Configured                        │
+╰──────────────────────────────────────────────────╯
+```
+
+### 3. Create Your First Workflow
+
+Now you can use any OpenAI-compatible client:
+
+```python
+from openai import OpenAI
+
+# Connect to the agent server
+client = OpenAI(
+    base_url="http://localhost:8000/v1",
+    api_key="not-needed"  # API keys are set via environment
+)
+
+# Ask AI to create a workflow
+response = client.chat.completions.create(
+    model="kubiya-workflow-agent",
+    messages=[{
+        "role": "user",
+        "content": "Create a workflow that checks disk space and alerts if any disk is over 80% full"
+    }],
+    stream=True  # Get real-time updates
+)
+
+# Stream the response
+for chunk in response:
+    if chunk.choices[0].delta.content:
+        print(chunk.choices[0].delta.content, end="")
+```
+
+The AI will:
+1. Generate a workflow using Kubiya's DSL
+2. Compile it to a valid manifest
+3. Execute it (if requested)
+4. Stream real-time progress
+
+## Example Workflows
+
+### System Monitoring
+
+```python
+response = client.chat.completions.create(
+    model="kubiya-workflow-agent",
+    messages=[{
+        "role": "user",
+        "content": """
+        Create a workflow that:
+        1. Checks CPU, memory, and disk usage
+        2. Sends a Slack alert if any metric is above 80%
+        3. Logs all metrics to a file
+        """
+    }]
+)
+```
+
+### Database Backup
+
+```python
+response = client.chat.completions.create(
+    model="kubiya-workflow-agent",
+    messages=[{
+        "role": "user",
+        "content": """
+        Create a workflow to backup PostgreSQL databases:
+        1. Connect to database server
+        2. Run pg_dump for all databases
+        3. Compress the backups
+        4. Upload to S3 with timestamp
+        5. Delete local files
+        6. Send completion notification
+        """
+    }]
+)
+```
+
+### CI/CD Pipeline
+
+```python
+response = client.chat.completions.create(
+    model="kubiya-workflow-agent",
+    messages=[{
+        "role": "user",
+        "content": """
+        Create a CI/CD pipeline that:
+        1. Runs unit tests with pytest
+        2. Builds Docker image if tests pass
+        3. Pushes to registry
+        4. Deploys to Kubernetes staging
+        5. Runs smoke tests
+        6. Promotes to production on success
+        """
+    }]
+)
+```
+
+## Streaming Events
+
+The agent server streams workflow execution events in real-time:
+
+```python
+# Execute with streaming
+response = client.chat.completions.create(
+    model="kubiya-workflow-agent",
+    messages=[{
+        "role": "user",
+        "content": "Create and execute a workflow that counts from 1 to 5"
+    }],
+    stream=True
+)
+
+for chunk in response:
+    content = chunk.choices[0].delta.content
+    if content:
+        # Events come in special format for execution updates
+        if content.startswith("2:"):  # Execution event
+            import json
+            event = json.loads(content[2:])
+            print(f"Event: {event['type']} - {event.get('message', '')}")
+        else:
+            print(content, end="")
+```
+
+## Using with Different Clients
+
+### cURL
+
+```bash
+curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "kubiya-workflow-agent",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Create a workflow that lists all running Docker containers"
+      }
+    ],
+    "stream": true
+  }'
+```
+
+### JavaScript/TypeScript
+
+```javascript
+const response = await fetch('http://localhost:8000/v1/chat/completions', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    model: 'kubiya-workflow-agent',
+    messages: [
+      { role: 'user', content: 'Create a workflow to check website uptime' }
+    ],
+    stream: true
+  })
+});
+
+const reader = response.body.getReader();
+const decoder = new TextDecoder();
+
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
+  
+  const chunk = decoder.decode(value);
+  console.log(chunk);
+}
+```
+
+### Vercel AI SDK
+
+```typescript
+import { openai } from '@ai-sdk/openai';
+import { streamText } from 'ai';
+
+const result = await streamText({
+  model: openai('kubiya-workflow-agent', {
+    baseURL: 'http://localhost:8000/v1',
+  }),
+  messages: [
+    {
+      role: 'user',
+      content: 'Create a workflow to deploy my Node.js app',
+    },
+  ],
+});
+
+for await (const chunk of result.textStream) {
+  process.stdout.write(chunk);
+}
+```
+
+## Direct MCP Server Usage
+
+For lower-level control, use the MCP server directly via stdio:
+
+```bash
+# Start MCP server
+kubiya mcp server
+```
+
+This starts a stdio-based MCP server that tools like Claude Desktop can connect to directly.
+
+### Claude Desktop Configuration
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "kubiya": {
+      "command": "kubiya",
+      "args": ["mcp", "server"],
+      "env": {
+        "KUBIYA_API_KEY": "your-api-key"
+      }
+    }
+  }
+}
+```
+
+## Available Providers
+
+The agent server supports multiple LLM providers:
+
+| Provider | Models | Environment Variable |
+|----------|--------|---------------------|
+| OpenAI | gpt-4, gpt-4-turbo, gpt-3.5-turbo | OPENAI_API_KEY |
+| Anthropic | claude-3-opus, claude-3-sonnet, claude-3-haiku | ANTHROPIC_API_KEY |
+| Together | Llama-3.3-70B, DeepSeek-V3, Mixtral | TOGETHER_API_KEY |
+| Groq | llama-3.3-70b, mixtral-8x7b | GROQ_API_KEY |
+| Ollama | Any local model | (No API key needed) |
+
+## Interactive Testing
+
+Test MCP tools interactively:
+
+```bash
+# Interactive chat mode
+kubiya mcp chat --provider anthropic
+
+# Test specific tools
+kubiya mcp test
+```
+
+## Next Steps
+
+- [MCP Tools Reference](./tools-reference.mdx) - Learn about all available MCP tools
+- [Agent Server Guide](./agent-server.mdx) - Advanced agent server configuration
+- [Authentication](./authentication.mdx) - Security and API key management
+- [Examples](./examples.mdx) - More integration examples
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Model not specified error**
+   ```bash
+   # Always specify a model or use default
+   kubiya mcp agent --provider together --model "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+   ```
+
+2. **API key not found**
+   ```bash
+   # Make sure to export your API keys
+   export KUBIYA_API_KEY="your-key"
+   export TOGETHER_API_KEY="your-key"
+   ```
+
+3. **Port already in use**
+   ```bash
+   # Use a different port
+   kubiya mcp agent --provider together --port 8001
+   ```
+
+### Getting Help
+
+- Check the [documentation](https://docs.kubiya.ai)
+- Join our [Discord community](https://discord.gg/kubiya)
+- Open an [issue on GitHub](https://github.com/kubiya-ai/workflow-sdk/issues) 

@@ -1,579 +1,282 @@
 ---
-title: MCP Overview
-description: Integrate Kubiya workflows with Claude Desktop, Cursor, and other MCP-compatible tools
+title: MCP Integration
+description: Connect any AI tool to Kubiya workflows with the Model Context Protocol
 icon: plug
 ---
 
-# MCP Overview
+# MCP Integration
 
-The Model Context Protocol (MCP) enables AI assistants like Claude Desktop and Cursor to interact with external tools and services. Kubiya provides MCP server integration, allowing these AI tools to discover, generate, and execute workflows directly.
+Connect Kubiya to any AI assistant (Claude, ChatGPT, Cursor) using the Model Context Protocol (MCP). Write simple workflows and let AI execute them on behalf of authenticated users.
 
-## What is MCP?
+## Identity-Aware Workflow Execution
 
-MCP (Model Context Protocol) is an open protocol that standardizes how AI assistants connect to external data sources and tools. It enables:
+When users interact with Kubiya through the Composer UI or other interfaces, the MCP server ensures workflows execute with their identity. This provides:
 
-- **Tool Discovery**: AI agents can discover available tools and their capabilities
-- **Context Sharing**: Share relevant context between AI and external systems
-- **Action Execution**: AI can execute actions in connected systems
-- **Real-time Updates**: Stream results back to the AI interface
+- **User Attribution** - Every workflow run is tied to the user who initiated it
+- **Permission Enforcement** - Users can only execute workflows they have access to
+- **Audit Compliance** - Complete traceability of who did what and when
+- **Multi-tenant Isolation** - Users' workflows and data remain separate
 
-## Kubiya MCP Integration
-
-```mermaid
-graph LR
-    subgraph "AI Clients"
-        CD[Claude Desktop]
-        CU[Cursor IDE]
-        CA[Custom Agents]
-    end
-    
-    subgraph "MCP Server"
-        MS[Kubiya MCP Server]
-        TD[Tool Discovery]
-        WE[Workflow Execution]
-    end
-    
-    subgraph "Kubiya Platform"
-        API[Kubiya API]
-        WF[Workflows]
-        RN[Runners]
-    end
-    
-    CD <--> MS
-    CU <--> MS
-    CA <--> MS
-    
-    MS --> TD
-    MS --> WE
-    WE --> API
-    API --> WF
-    WF --> RN
-    
-    style MS fill:#0088ff,stroke:#0066cc,stroke-width:3px
-    style API fill:#00d4ff,stroke:#0066cc,stroke-width:2px
-```
-
-## Setting Up MCP Server
-
-### 1. Create MCP Server
-
-Create a Python file for your MCP server:
+## Quick Start (6 Lines of Code!)
 
 ```python
-# kubiya_mcp_server.py
-import os
 import asyncio
-from typing import Dict, List, Any
-from kubiya_workflow_sdk import KubiyaClient, workflow, step
-from kubiya_workflow_sdk.mcp import KubiyaWorkflowServer
+from mcp_use import MCPClient
+from mcp_use.adapters.langchain_adapter import LangChainAdapter
 
-# Initialize Kubiya client
-client = KubiyaClient(
-    api_key=os.getenv("KUBIYA_API_KEY"),
-    org_name=os.getenv("KUBIYA_ORG", "default")
+# Configure and connect to Kubiya
+client = MCPClient.from_dict({
+    "mcpServers": {
+        "kubiya": {
+            "command": "python3",
+            "args": ["-m", "kubiya_workflow_sdk.mcp.server"]
+        }
+    }
+})
+
+# That's it! Now use the tools
+adapter = LangChainAdapter()
+tools = await adapter.create_tools(client)
+```
+
+## What Can You Do?
+
+The Kubiya MCP server exposes these powerful tools to any AI:
+
+### 🔧 Available Tools
+
+| Tool | What it does | Example |
+|------|--------------|---------|
+| `define_workflow` | Create workflows from simple Python code | Create deployment pipelines |
+| `execute_workflow` | Run workflows with parameters | Deploy to production |
+| `list_workflows` | See all your workflows | Check available automations |
+| `validate_workflow` | Check workflow syntax | Validate before running |
+| `export_workflow` | Export as YAML/JSON | Share with team |
+| `get_execution` | Track workflow status | Monitor deployments |
+
+## Creating Workflows - It's Simple!
+
+No decorators, no complexity. Just simple, clean Python:
+
+### Hello World
+```python
+from kubiya_workflow_sdk.dsl import Workflow
+
+wf = Workflow("hello-world")
+wf.description("My first workflow!")
+wf.step("greet", "echo 'Hello, Kubiya!'")
+wf.step("date", "date")
+```
+
+### Real-World Example: Deploy Pipeline
+```python
+from kubiya_workflow_sdk.dsl import Workflow
+
+wf = Workflow("deploy-app")
+wf.description("Deploy application to production")
+
+# Add parameters
+wf.params(app="myapp", env="staging", version="latest")
+
+# Build and test
+wf.step("build", "docker build -t {{app}}:{{version}} .")
+wf.step("test", "docker run {{app}}:{{version}} npm test")
+
+# Deploy based on environment
+wf.step("deploy-staging", 
+    "kubectl apply -f k8s/staging/",
+    condition="{{env}} == 'staging'"
+)
+wf.step("deploy-prod",
+    "kubectl apply -f k8s/production/", 
+    condition="{{env}} == 'production'"
 )
 
-# Create MCP server
-server = KubiyaWorkflowServer(
-    name="kubiya-workflows",
-    description="Execute and manage Kubiya workflows",
-    client=client
+# Verify deployment
+wf.step("verify", "curl https://{{app}}-{{env}}.example.com/health")
+```
+
+## Connect Your AI Assistant
+
+### Option 1: Use with Any LangChain LLM
+
+```python
+from langchain_openai import ChatOpenAI
+from mcp_use import MCPAgent, MCPClient
+
+# Setup
+client = MCPClient.from_dict({
+    "mcpServers": {
+        "kubiya": {
+            "command": "python3",
+            "args": ["-m", "kubiya_workflow_sdk.mcp.server"],
+            "env": {"KUBIYA_API_KEY": "your-key"}  # For execution
+        }
+    }
+})
+
+# Create AI agent
+llm = ChatOpenAI(model="gpt-4")
+agent = MCPAgent(llm=llm, client=client)
+
+# Let AI create workflows!
+result = await agent.run(
+    "Create a workflow that backs up my database every night"
 )
+```
 
-# Add custom tools
-@server.tool
-async def list_workflows():
-    """List all available workflows in Kubiya"""
-    workflows = await client.list_workflows_async()
-    return [
-        {
-            "name": w.name,
-            "description": w.description,
-            "version": w.version,
-            "params": w.parameters
-        }
-        for w in workflows
-    ]
+### Option 2: Direct Tool Usage (No LLM)
 
-@server.tool
-async def execute_workflow(
-    workflow_name: str,
-    params: Dict[str, Any] = None,
-    stream: bool = True
-):
-    """Execute a Kubiya workflow by name"""
-    
-    # Find workflow
-    workflows = await client.list_workflows_async()
-    workflow = next((w for w in workflows if w.name == workflow_name), None)
-    
-    if not workflow:
-        return {"error": f"Workflow '{workflow_name}' not found"}
-    
-    # Execute with streaming
-    if stream:
-        events = []
-        async for event in client.execute_workflow_events_async(
-            workflow=workflow,
-            params=params or {}
-        ):
-            events.append({
-                "type": event.type,
-                "data": event.data,
-                "timestamp": event.timestamp
-            })
-        return {"execution_id": events[0].get("execution_id"), "events": events}
-    else:
-        result = await client.execute_workflow_async(
-            workflow=workflow,
-            params=params or {}
-        )
-        return {
-            "execution_id": result.execution_id,
-            "status": result.status,
-            "outputs": result.outputs
-        }
+```python
+# Get tools
+adapter = LangChainAdapter()
+tools = await adapter.create_tools(client)
 
-@server.tool
-async def create_workflow(
-    name: str,
-    description: str,
-    steps: List[Dict[str, Any]]
-):
-    """Create a new workflow programmatically"""
-    
-    # Build workflow using DSL
-    wf = workflow(name).description(description)
-    
-    for step_def in steps:
-        s = step(step_def["name"])
-        
-        # Configure step based on type
-        if step_def.get("type") == "shell":
-            s.shell(step_def["command"])
-        elif step_def.get("type") == "docker":
-            s.docker(
-                image=step_def["image"],
-                command=step_def.get("command")
-            )
-        elif step_def.get("type") == "inline_agent":
-            s.inline_agent(
-                message=step_def["message"],
-                agent_name=step_def["agent_name"],
-                ai_instructions=step_def["ai_instructions"],
-                runners=step_def.get("runners", ["auto"])
-            )
-        
-        # Add dependencies
-        if step_def.get("depends"):
-            s.depends(step_def["depends"])
-            
-        wf.add_step(s)
-    
-    # Create in Kubiya
-    result = await client.create_workflow_async(wf)
-    return {
-        "workflow_id": result.id,
-        "name": result.name,
-        "status": "created"
-    }
+# Find the tool you need
+define_tool = next(t for t in tools if t.name == "define_workflow")
 
-@server.tool  
-async def get_execution_status(execution_id: str):
-    """Get the status of a workflow execution"""
-    status = await client.get_execution_status_async(execution_id)
-    return {
-        "execution_id": execution_id,
-        "status": status.state,
-        "started_at": status.started_at,
-        "completed_at": status.completed_at,
-        "outputs": status.outputs,
-        "errors": status.errors
-    }
+# Create workflow directly
+result = await define_tool.ainvoke({
+    "name": "backup-db",
+    "code": '''
+from kubiya_workflow_sdk.dsl import Workflow
 
+wf = Workflow("backup-db")
+wf.step("dump", "pg_dump mydb > backup.sql")
+wf.step("compress", "gzip backup.sql")
+wf.step("upload", "aws s3 cp backup.sql.gz s3://backups/")
+'''
+})
+```
+
+## Real Examples That Work
+
+### 1. Data Processing Pipeline
+```python
+wf = Workflow("process-data")
+wf.params(input="/data/raw", output="/data/processed")
+
+# Process files in parallel
+wf.parallel_steps(
+    "process-files",
+    items=["file1.csv", "file2.csv", "file3.csv"],
+    command="python process.py {{input}}/{{item}} {{output}}/{{item}}"
+)
+```
+
+### 2. Infrastructure Automation
+```python
+wf = Workflow("setup-infra")
+wf.params(provider="aws", region="us-east-1")
+
+wf.step("terraform-init", "terraform init")
+wf.step("terraform-plan", "terraform plan -out=tfplan")
+wf.step("terraform-apply", "terraform apply tfplan")
+```
+
+### 3. CI/CD Pipeline
+```python
+wf = Workflow("ci-pipeline")
+wf.step("checkout", "git checkout main")
+wf.step("install", "npm install")
+wf.step("lint", "npm run lint")
+wf.step("test", "npm test")
+wf.step("build", "npm run build")
+wf.step("deploy", "npm run deploy:prod", condition="{{branch}} == 'main'")
+```
+
+## Installation
+
+```bash
+# Install the SDK and mcp-use
+pip install kubiya-workflow-sdk mcp-use
+
+# For AI agents, also install your preferred LLM
+pip install langchain-openai  # For OpenAI
+pip install langchain-anthropic  # For Claude
+```
+
+## Running the MCP Server
+
+The MCP server starts automatically when you connect, but you can also run it standalone:
+
+```bash
 # Run the server
-if __name__ == "__main__":
-    server.run()
+python -m kubiya_workflow_sdk.mcp.server
 ```
 
-### 2. Configure Claude Desktop
+## Authentication Options
 
-Add the MCP server to Claude Desktop's configuration:
+The MCP server supports two authentication approaches:
 
-```json
-// ~/Library/Application Support/Claude/claude_desktop_config.json
-{
-  "mcpServers": {
-    "kubiya": {
-      "command": "python",
-      "args": ["/path/to/kubiya_mcp_server.py"],
-      "env": {
-        "KUBIYA_API_KEY": "your-api-key",
-        "KUBIYA_ORG": "your-org"
-      }
-    }
-  }
-}
-```
+### 1. Simple API Key (Getting Started)
 
-### 3. Configure Cursor
-
-For Cursor IDE, add to settings:
-
-```json
-// .cursor/mcp_config.json
-{
-  "servers": [
-    {
-      "name": "kubiya",
-      "command": "python",
-      "args": ["kubiya_mcp_server.py"],
-      "env": {
-        "KUBIYA_API_KEY": "${env:KUBIYA_API_KEY}"
-      }
-    }
-  ]
-}
-```
-
-## Usage Examples
-
-### In Claude Desktop
-
-Once configured, you can ask Claude to:
-
-```
-"List all available Kubiya workflows"
-
-"Execute the 'deploy-application' workflow with version 1.2.3"
-
-"Create a workflow that backs up the database and uploads to S3"
-
-"Check the status of execution abc123"
-```
-
-Claude will use the MCP tools to interact with Kubiya directly.
-
-### Advanced MCP Tools
-
-Create specialized tools for your use cases:
+Perfect for development and simple integrations:
 
 ```python
-@server.tool
-async def deploy_to_kubernetes(
-    app_name: str,
-    image: str,
-    namespace: str = "default",
-    replicas: int = 3
-):
-    """Deploy an application to Kubernetes via Kubiya workflow"""
-    
-    # Create deployment workflow
-    wf = workflow(f"deploy-{app_name}")
-    
-    # Update deployment
-    wf.add_step(
-        step("update-deployment")
-        .docker(
-            image="bitnami/kubectl:latest",
-            command=f"""
-kubectl set image deployment/{app_name} \
-  {app_name}={image} \
-  -n {namespace}
-"""
-        )
-    )
-    
-    # Scale deployment
-    wf.add_step(
-        step("scale-deployment")
-        .docker(
-            image="bitnami/kubectl:latest",
-            command=f"kubectl scale deployment/{app_name} --replicas={replicas} -n {namespace}"
-        )
-        .depends("update-deployment")
-    )
-    
-    # Wait for rollout
-    wf.add_step(
-        step("wait-rollout")
-        .docker(
-            image="bitnami/kubectl:latest",
-            command=f"kubectl rollout status deployment/{app_name} -n {namespace}"
-        )
-        .depends("scale-deployment")
-        .retry(limit=5, interval_sec=30)
-    )
-    
-    # Execute workflow
-    result = await client.execute_workflow_async(wf)
-    return {
-        "status": "deployed",
-        "app": app_name,
-        "image": image,
-        "execution_id": result.execution_id
-    }
+# Pass API key as parameter
+result = await execute_tool.ainvoke({
+    "name": "my-workflow",
+    "params": {"env": "production"},
+    "api_key": "your-kubiya-api-key"
+})
 
-@server.tool
-async def run_database_migration(
-    database_url: str,
-    migration_dir: str,
-    rollback: bool = False
-):
-    """Run database migrations through Kubiya"""
-    
-    wf = workflow("database-migration")
-    
-    # Create migration step with database service
-    migration_step = (
-        step("run-migration")
-        .tool_def(
-            name="migrator",
-            type="docker",
-            image="migrate/migrate:latest",
-            content=f"""#!/bin/sh
-migrate -path {migration_dir} -database {database_url} {"down" if rollback else "up"}
-""",
-            args=[],
-            with_services=[{
-                "name": "postgres",
-                "image": "postgres:15",
-                "env": {
-                    "POSTGRES_PASSWORD": "temp"
-                }
-            }]
-        )
-    )
-    
-    wf.add_step(migration_step)
-    
-    # Execute
-    result = await client.execute_workflow_async(wf)
-    return {
-        "status": "completed",
-        "direction": "rollback" if rollback else "forward",
-        "execution_id": result.execution_id
-    }
+# Or use environment variable
+export KUBIYA_API_KEY="your-api-key"
 ```
 
-## Resource Management
+### 2. OAuth/OIDC Authentication (Production)
 
-MCP servers can manage Kubiya resources:
+For enterprise deployments with proper authentication:
 
 ```python
-@server.resource("workflows")
-async def list_workflow_resources():
-    """Provide workflows as MCP resources"""
-    workflows = await client.list_workflows_async()
-    return [
-        {
-            "uri": f"kubiya://workflows/{w.name}",
-            "name": w.name,
-            "mimeType": "application/x-kubiya-workflow",
-            "description": w.description
-        }
-        for w in workflows
-    ]
-
-@server.resource("executions")  
-async def list_execution_resources():
-    """Provide recent executions as resources"""
-    executions = await client.list_executions_async(limit=50)
-    return [
-        {
-            "uri": f"kubiya://executions/{e.id}",
-            "name": f"{e.workflow_name} - {e.started_at}",
-            "mimeType": "application/x-kubiya-execution",
-            "metadata": {
-                "status": e.status,
-                "duration": e.duration_seconds
-            }
-        }
-        for e in executions
-    ]
+# Run server with OAuth/OIDC
+python -m kubiya_workflow_sdk.mcp.server_auth \
+  --auth-server https://your-auth-server.com \
+  --auth-type oidc
 ```
 
-## Prompts and Context
+Learn more in the [Authentication Guide](/mcp/authentication).
 
-Provide contextual prompts for AI assistants:
+## Tool Overview
 
-```python
-@server.prompt("debug-workflow")
-async def debug_workflow_prompt(execution_id: str):
-    """Generate a debugging prompt for failed workflows"""
-    
-    # Get execution details
-    execution = await client.get_execution_async(execution_id)
-    logs = await client.get_execution_logs_async(execution_id)
-    
-    return f"""
-Debug the following Kubiya workflow execution:
+The server exposes 8 powerful tools:
 
-Workflow: {execution.workflow_name}
-Status: {execution.status}
-Error: {execution.error_message}
+| Tool | Purpose | Requires API Key |
+|------|---------|------------------|
+| `define_workflow` | Create workflows from code | No |
+| `create_workflow_from_json` | Create from JSON/YAML | No |
+| `execute_workflow` | Run workflows | Yes (via parameter) |
+| `get_execution` | Check execution status | No |
+| `list_workflows` | List all workflows | No |
+| `validate_workflow` | Validate workflow syntax | No |
+| `export_workflow` | Export to YAML/JSON | No |
+| `validate_workflow_code` | Validate Python code | No |
 
-Recent logs:
-{logs[-100:]}  # Last 100 log lines
+## What's Next?
 
-Analyze the failure and suggest fixes.
-"""
-
-@server.prompt("optimize-workflow")
-async def optimize_workflow_prompt(workflow_name: str):
-    """Generate optimization suggestions for workflows"""
-    
-    # Get workflow definition and recent executions
-    workflow = await client.get_workflow_async(workflow_name)
-    executions = await client.list_executions_async(
-        workflow_name=workflow_name,
-        limit=10
-    )
-    
-    avg_duration = sum(e.duration_seconds for e in executions) / len(executions)
-    
-    return f"""
-Analyze this Kubiya workflow for optimization opportunities:
-
-Workflow: {workflow_name}
-Average Duration: {avg_duration}s
-Steps: {len(workflow.steps)}
-
-Definition:
-{workflow.to_yaml()}
-
-Suggest optimizations for:
-1. Performance (parallel execution, caching)
-2. Reliability (retry policies, error handling)
-3. Resource usage (container sizes, concurrency)
-"""
-```
-
-## Security Considerations
-
-### Authentication
-
-MCP servers should authenticate with Kubiya:
-
-```python
-# Use environment variables
-KUBIYA_API_KEY = os.getenv("KUBIYA_API_KEY")
-if not KUBIYA_API_KEY:
-    raise ValueError("KUBIYA_API_KEY environment variable required")
-
-# Or use configuration file
-config_path = os.path.expanduser("~/.kubiya/config.json")
-if os.path.exists(config_path):
-    with open(config_path) as f:
-        config = json.load(f)
-        api_key = config.get("api_key")
-```
-
-### Authorization
-
-Implement authorization checks:
-
-```python
-@server.tool
-async def execute_production_workflow(
-    workflow_name: str,
-    require_approval: bool = True
-):
-    """Execute production workflows with safety checks"""
-    
-    # Check if workflow is production
-    if "production" in workflow_name.lower():
-        if require_approval:
-            # Could integrate with approval systems
-            return {
-                "error": "Production workflow requires approval",
-                "workflow": workflow_name,
-                "action_required": "approval"
-            }
-    
-    # Proceed with execution
-    return await execute_workflow(workflow_name)
-```
-
-### Audit Logging
-
-Log all MCP operations:
-
-```python
-import logging
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger("kubiya-mcp")
-
-@server.middleware
-async def audit_log(tool_name: str, args: dict, result: Any):
-    """Log all tool invocations"""
-    logger.info(f"MCP Tool: {tool_name}, Args: {args}, User: {os.getenv('USER')}")
-    return result
-```
-
-## Best Practices
-
-### 1. Tool Design
-- Keep tools focused and single-purpose
-- Provide clear descriptions and parameter docs
-- Return structured data for AI consumption
-
-### 2. Error Handling
-```python
-@server.tool
-async def safe_execution(workflow_name: str):
-    """Execute workflow with comprehensive error handling"""
-    try:
-        result = await execute_workflow(workflow_name)
-        return {"success": True, "result": result}
-    except WorkflowNotFoundError:
-        return {"success": False, "error": "Workflow not found"}
-    except ExecutionError as e:
-        return {"success": False, "error": str(e), "details": e.details}
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
-        return {"success": False, "error": "Internal error occurred"}
-```
-
-### 3. Performance
-- Cache frequently accessed data
-- Use async operations throughout
-- Implement pagination for large results
-
-### 4. Versioning
-```python
-@server.metadata
-async def server_info():
-    """Provide server version and capabilities"""
-    return {
-        "version": "1.0.0",
-        "kubiya_sdk_version": kubiya_workflow_sdk.__version__,
-        "capabilities": [
-            "workflow_execution",
-            "workflow_creation",
-            "status_monitoring",
-            "resource_management"
-        ]
-    }
-```
-
-## Next Steps
-
-<CardGroup cols={2}>
-  <Card title="Claude Desktop Setup" icon="robot" href="/mcp/claude-desktop">
-    Configure Claude Desktop integration
+<Cards>
+  <Card title="Try Examples" icon="code" href="https://github.com/kubiyabot/workflow_sdk/tree/main/examples/mcp_integration">
+    Ready-to-run examples
   </Card>
-  <Card title="Cursor Setup" icon="code" href="/mcp/cursor">
-    Set up Cursor IDE integration
+  <Card title="DSL Reference" icon="book" href="/workflows/dsl-reference">
+    Learn the workflow DSL
   </Card>
-  <Card title="Custom Agents" icon="wand-magic-sparkles" href="/mcp/custom-agents">
-    Build custom MCP agents
+  <Card title="API Keys" icon="key" href="https://app.kubiya.ai/settings">
+    Get your API key
   </Card>
-  <Card title="Examples" icon="book" href="/workflows/examples">
-    See workflow examples
-  </Card>
-</CardGroup> 
+</Cards>
+
+## FAQ
+
+**Q: Do I need decorators?**  
+A: No! Just use the simple DSL: `wf = Workflow("name")` and add steps.
+
+**Q: Can I use this with Claude/ChatGPT/Cursor?**  
+A: Yes! Any tool that supports MCP or LangChain can connect.
+
+**Q: Do I need an API key?**  
+A: Only for executing workflows. Creating and validating workflows works without a key.
+
+**Q: Is it production-ready?**  
+A: Yes! The MCP server is battle-tested and ready for production use. 

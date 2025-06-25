@@ -1,29 +1,18 @@
 """
-Kubiya Workflow SDK CLI - Command line interface for workflow management.
-
-This module provides a rich CLI experience for creating, validating, testing,
-and executing workflows.
+Kubiya Workflow SDK CLI - Command line interface for MCP server and agent management.
 """
 
 import click
 import json
-import yaml
 import sys
 import os
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional
 from rich.console import Console
 from rich.table import Table
-from rich.syntax import Syntax
 from rich.panel import Panel
 from rich import print as rprint
 import logging
-
-from .dsl_v2 import FlowWorkflow, step, flow
-from .client_v2 import create_streaming_client
-from .runner import WorkflowRunner
-from .executor_registry import validate_workflow
-from .visualization import workflow_to_mermaid
 
 console = Console()
 logger = logging.getLogger(__name__)
@@ -31,435 +20,319 @@ logger = logging.getLogger(__name__)
 
 @click.group()
 @click.option("--debug", is_flag=True, help="Enable debug logging")
-@click.option("--api-token", envvar="KUBIYA_API_TOKEN", help="Kubiya API token")
-@click.option("--base-url", default="https://api.kubiya.ai", help="API base URL")
 @click.pass_context
-def cli(ctx, debug, api_token, base_url):
-    """Kubiya Workflow SDK - Build and execute enterprise workflows."""
+def cli(ctx, debug):
+    """Kubiya Workflow SDK - MCP Server and Agent Management."""
     if debug:
         logging.basicConfig(level=logging.DEBUG)
     else:
         logging.basicConfig(level=logging.INFO)
 
     ctx.ensure_object(dict)
-    ctx.obj["api_token"] = api_token
-    ctx.obj["base_url"] = base_url
-
-    if not api_token and ctx.invoked_subcommand not in ["init", "validate", "visualize"]:
-        console.print(
-            "[yellow]Warning: No API token found. Set KUBIYA_API_TOKEN or use --api-token[/yellow]"
-        )
+    ctx.obj["debug"] = debug
 
 
-@cli.command()
-@click.argument("name")
-@click.option(
-    "--template",
-    type=click.Choice(["basic", "docker", "kubernetes", "data-pipeline"]),
-    default="basic",
-    help="Workflow template to use",
-)
-@click.option("--output", "-o", type=click.Path(), help="Output file (default: {name}.py)")
-def init(name, template, output):
-    """Initialize a new workflow from template."""
-    templates = {
-        "basic": """from kubiya_workflow_sdk import flow, step
+@cli.group()
+def mcp():
+    """MCP (Model Context Protocol) server commands."""
+    pass
 
-@flow(name="{name}", version="1.0.0", description="TODO: Add description")
-def {func_name}(ctx):
-    return (
-        step("validate", "Validate inputs")
-            .python(lambda: print("Validating..."))
-            .output("validation_result")
-        >>
-        step("process", "Process data")
-            .python(lambda: print("Processing..."))
-            .output("result")
-        >>
-        step("notify", "Send notification")
-            .shell("echo 'Workflow completed!'")
-    )
 
-if __name__ == "__main__":
-    # Test locally
-    workflow = {func_name}()
-    print(workflow.to_yaml())
-""",
-        "docker": """from kubiya_workflow_sdk import flow, step
-
-@flow(name="{name}", version="1.0.0", description="Docker-based workflow")
-def {func_name}(ctx):
-    return (
-        step("build", "Build Docker image")
-            .docker("docker:latest")
-            .command("docker build -t myapp:{{{{ctx.param('version', 'latest')}}}} .")
-            .output("image_id")
-        >>
-        step("test", "Run tests in container")
-            .docker("myapp:{{{{ctx.param('version', 'latest')}}}}")
-            .command("pytest /app/tests")
-            .output("test_results")
-        >>
-        step("push", "Push to registry")
-            .docker("docker:latest")
-            .command("docker push myapp:{{{{ctx.param('version', 'latest')}}}}")
-            .env(DOCKER_REGISTRY="{{{{ctx.param('registry', 'docker.io')}}}}")
-    )
-""",
-        "kubernetes": """from kubiya_workflow_sdk import flow, step
-
-@flow(name="{name}", version="1.0.0", description="Kubernetes deployment workflow")  
-def {func_name}(ctx):
-    return (
-        step("validate_manifest", "Validate K8s manifests")
-            .tool("kubectl", action="apply", args=["--dry-run=client", "-f", "k8s/"])
-            .output("validation")
-        >>
-        step("deploy", "Deploy to Kubernetes")
-            .tool("kubectl", action="apply", args=["-f", "k8s/"])
-            .retry(max_attempts=3, delay=30)
-            .output("deployment_result")
-        >>
-        step("wait_ready", "Wait for pods to be ready")
-            .tool("kubectl", action="wait", 
-                  args=["--for=condition=ready", "pod", "-l", "app={{{{ctx.param('app_name')}}}}"])
-            .timeout(300)
-    )
-""",
-        "data-pipeline": """from kubiya_workflow_sdk import flow, step
-
-@flow(name="{name}", version="1.0.0", description="Data processing pipeline")
-def {func_name}(ctx):
-    extract = step("extract", "Extract data from source")
-        .python(extract_data)
-        .env(SOURCE_URL="{{{{ctx.param('source_url')}}}}")
-        .output("raw_data")
-        
-    transform = step("transform", "Transform data")
-        .python(transform_data)
-        .output("processed_data")
-        
-    load = step("load", "Load data to destination")
-        .python(load_data)
-        .env(DEST_URL="{{{{ctx.param('destination_url')}}}}")
-        .output("load_result")
-        
-    return extract >> transform >> load
-
-def extract_data():
-    import pandas as pd
-    # TODO: Implement extraction logic
-    return {"record_count": 1000}
+@mcp.command()
+@click.option("--stdio", is_flag=True, default=True, help="Use stdio transport (default)")
+@click.option("--api-key", envvar="KUBIYA_API_KEY", help="Kubiya API key")
+@click.option("--base-url", default="https://api.kubiya.ai", help="Kubiya API base URL")
+def server(stdio, api_key, base_url):
+    """Start the Kubiya MCP server for tool integration."""
+    import subprocess
+    import sys
     
-def transform_data():
-    # TODO: Implement transformation logic
-    return {"transformed_count": 950}
+    if api_key:
+        os.environ["KUBIYA_API_KEY"] = api_key
+    if base_url:
+        os.environ["KUBIYA_BASE_URL"] = base_url
     
-def load_data():
-    # TODO: Implement loading logic
-    return {"loaded_count": 950}
-""",
-    }
-
-    # Generate function name from workflow name
-    func_name = name.lower().replace("-", "_").replace(" ", "_")
-
-    # Format template
-    content = templates[template].format(name=name, func_name=func_name)
-
-    # Determine output file
-    if not output:
-        output = f"{name}.py"
-
-    # Write file
-    Path(output).write_text(content)
-
-    console.print(f"[green]✅ Created workflow '{name}' from template '{template}'[/green]")
-    console.print(f"[blue]📄 File: {output}[/blue]")
-    console.print("\n[yellow]Next steps:[/yellow]")
-    console.print("1. Edit the workflow file to add your logic")
-    console.print(f"2. Validate: [cyan]kubiya validate {output}[/cyan]")
-    console.print(f"3. Execute: [cyan]kubiya run {output}[/cyan]")
-
-
-@cli.command()
-@click.argument("workflow_file", type=click.Path(exists=True))
-@click.option(
-    "--format",
-    "-f",
-    type=click.Choice(["summary", "detailed", "json"]),
-    default="summary",
-    help="Output format",
-)
-def validate(workflow_file, format):
-    """Validate a workflow file."""
+    # Run the MCP server
+    cmd = [sys.executable, "-m", "kubiya_workflow_sdk.mcp.server"]
+    
+    console.print("[green]🚀 Starting Kubiya MCP Server...[/green]")
+    console.print(f"[blue]Transport: stdio[/blue]")
+    console.print(f"[blue]Base URL: {base_url}[/blue]")
+    
+    if not api_key:
+        console.print("[yellow]⚠️  No KUBIYA_API_KEY set - workflow execution will be limited[/yellow]")
+    
     try:
-        # Load workflow
-        workflow = _load_workflow(workflow_file)
+        subprocess.run(cmd)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Server stopped[/yellow]")
 
-        # Validate
-        result = validate_workflow(workflow)
 
-        if format == "json":
-            click.echo(
-                json.dumps(
-                    {"valid": result.valid, "errors": result.errors, "warnings": result.warnings},
-                    indent=2,
-                )
-            )
-        elif format == "detailed":
-            console.print(Panel(f"[bold]Validation Report: {workflow_file}[/bold]"))
-
-            if result.valid:
-                console.print("[green]✅ Workflow is valid![/green]")
-            else:
-                console.print("[red]❌ Workflow has errors[/red]")
-
-            if result.errors:
-                console.print("\n[red]Errors:[/red]")
-                for error in result.errors:
-                    console.print(f"  • {error}")
-
-            if result.warnings:
-                console.print("\n[yellow]Warnings:[/yellow]")
-                for warning in result.warnings:
-                    console.print(f"  • {warning}")
-        else:
-            # Summary format
-            if result.valid:
-                console.print(f"[green]✅ {workflow_file} is valid[/green]")
-            else:
-                console.print(f"[red]❌ {workflow_file} has {len(result.errors)} error(s)[/red]")
-                for error in result.errors[:3]:
-                    console.print(f"   {error}")
-                if len(result.errors) > 3:
-                    console.print(f"   ... and {len(result.errors) - 3} more")
-
-        sys.exit(0 if result.valid else 1)
-
+@mcp.command()
+@click.option("--provider", "-p", 
+              type=click.Choice(["openai", "anthropic", "together", "groq"]),
+              default="together",
+              help="LLM provider to use")
+@click.option("--model", "-m", help="Model name (uses provider default if not specified)")
+@click.option("--api-key", help="LLM provider API key (or set via environment)")
+@click.option("--kubiya-key", envvar="KUBIYA_API_KEY", help="Kubiya API key")
+@click.option("--port", "-P", default=8000, type=int, help="Server port")
+@click.option("--host", "-H", default="0.0.0.0", help="Server host")
+def agent(provider, model, api_key, kubiya_key, port, host):
+    """Start a production AI agent server with Kubiya MCP integration.
+    
+    This starts a full HTTP server that:
+    - Provides OpenAI-compatible chat endpoint (/v1/chat/completions)
+    - Streams responses in Vercel AI SDK format
+    - Integrates with Kubiya MCP for workflow execution
+    - Supports discovery endpoint for frontend integration
+    
+    Examples:
+    
+        # Start with Together AI (recommended)
+        kubiya mcp agent --provider together --port 8000
+        
+        # Start with OpenAI GPT-4
+        kubiya mcp agent -p openai -m gpt-4 --api-key sk-...
+        
+        # Start with Anthropic Claude
+        kubiya mcp agent -p anthropic -m claude-3-opus-20240229
+    """
+    from kubiya_workflow_sdk.mcp.agent_server import run_server
+    
+    # Set environment variables
+    if kubiya_key:
+        os.environ["KUBIYA_API_KEY"] = kubiya_key
+    
+    # Get API keys
+    kubiya_key = os.getenv("KUBIYA_API_KEY")
+    provider_key = os.getenv(f"{provider.upper()}_API_KEY")
+    
+    # Display startup banner
+    console.print(Panel(
+        f"[bold]Kubiya MCP Agent Server[/bold]\n\n"
+        f"Provider: {provider}\n"
+        f"Model: {model or 'default'}\n"
+        f"Endpoint: http://{host}:{port}\n"
+        f"Kubiya API: {'✅ Configured' if kubiya_key else '⚠️ Not configured'}",
+        title="Starting Agent Server",
+        border_style="cyan"
+    ))
+    
+    console.print(f"[cyan]Available endpoints:[/cyan]")
+    console.print(f"  Chat:     http://{host}:{port}/v1/chat/completions")
+    console.print(f"  Discover: http://{host}:{port}/discover")
+    console.print(f"  Health:   http://{host}:{port}/health")
+    console.print("\n[yellow]Press Ctrl+C to stop the server[/yellow]")
+    
+    try:
+        run_server(
+            provider=provider,
+            model=model,
+            api_key=provider_key,
+            host=host,
+            port=port
+        )
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Server stopped[/yellow]")
     except Exception as e:
-        console.print(f"[red]Error loading workflow: {e}[/red]")
+        console.print(f"\n[red]Error: {str(e)}[/red]")
         sys.exit(1)
 
 
-@cli.command()
-@click.argument("workflow_file", type=click.Path(exists=True))
-@click.option("--params", "-p", multiple=True, help="Parameters as key=value")
-@click.option("--params-file", type=click.Path(exists=True), help="JSON/YAML file with parameters")
-@click.option("--step", "-s", help="Execute only this step")
-@click.option("--dry-run", is_flag=True, help="Show what would be executed")
-@click.option("--no-stream", is_flag=True, help="Disable streaming output")
-@click.option(
-    "--output", "-o", type=click.Choice(["text", "json"]), default="text", help="Output format"
-)
-@click.pass_context
-def run(ctx, workflow_file, params, params_file, step, dry_run, no_stream, output):
-    """Execute a workflow."""
+@mcp.command()
+@click.option("--provider", "-p", 
+              type=click.Choice(["openai", "anthropic", "together", "groq"]),
+              required=True,
+              help="LLM provider")
+@click.option("--model", "-m", help="Model name")
+@click.option("--api-key", help="LLM provider API key")
+@click.option("--kubiya-key", envvar="KUBIYA_API_KEY", help="Kubiya API key")
+def chat(provider, model, api_key, kubiya_key):
+    """Interactive chat with Kubiya MCP server."""
+    import asyncio
+    from .mcp.interactive_chat import run_interactive_chat
+    
+    if kubiya_key:
+        os.environ["KUBIYA_API_KEY"] = kubiya_key
+    
+    # Default models
+    default_models = {
+        "openai": "gpt-4",
+        "anthropic": "claude-3-opus-20240229", 
+        "together": "deepseek-ai/DeepSeek-V3",
+        "groq": "llama-3.1-70b-versatile"
+    }
+    
+    if not model:
+        model = default_models.get(provider)
+    
+    console.print(f"[green]💬 Starting interactive chat with {provider}/{model}[/green]")
+    console.print("[yellow]Type 'exit' or 'quit' to end the conversation[/yellow]")
+    console.print("[yellow]Type 'help' for available commands[/yellow]\n")
+    
     try:
-        # Load workflow
-        workflow = _load_workflow(workflow_file)
-
-        # Parse parameters
-        params_dict = {}
-        for param in params:
-            key, value = param.split("=", 1)
-            # Try to parse as JSON, fallback to string
-            try:
-                params_dict[key] = json.loads(value)
-            except:
-                params_dict[key] = value
-
-        # Load params from file
-        if params_file:
-            file_params = _load_params_file(params_file)
-            params_dict.update(file_params)
-
-        # Create client
-        client = create_streaming_client(
-            api_token=ctx.obj["api_token"], base_url=ctx.obj["base_url"]
-        )
-
-        # Configure output
-        print_events = output == "text" and not no_stream
-
-        # Execute
-        if dry_run:
-            console.print("[yellow]🏃 Running in dry-run mode[/yellow]")
-            result = client.test_workflow_stream(
-                workflow=workflow.to_dict(),
-                test_params=params_dict,
-                dry_run=True,
-                print_events=print_events,
-            )
-        else:
-            console.print(f"[green]🚀 Executing workflow: {workflow.name}[/green]")
-
-            # Handle selective step execution
-            if step:
-                runner = WorkflowRunner(client=client)
-                result = runner.run_step(workflow, step, params=params_dict)
-            else:
-                result = client.execute_workflow(
-                    workflow=workflow.to_dict(),
-                    params=params_dict,
-                    stream=not no_stream,
-                    print_events=print_events,
-                )
-
-        # Output results
-        if output == "json":
-            click.echo(
-                json.dumps(
-                    {
-                        "execution_id": result.execution_id,
-                        "status": result.status.value,
-                        "duration": result.duration_seconds,
-                        "outputs": result.outputs,
-                        "errors": result.errors,
-                    },
-                    indent=2,
-                )
-            )
-        else:
-            if hasattr(result, "print_summary"):
-                result.print_summary()
-            else:
-                console.print(f"\n[bold]Execution ID:[/bold] {result.execution_id}")
-                console.print(f"[bold]Status:[/bold] {result.status.value}")
-                if result.duration_seconds:
-                    console.print(f"[bold]Duration:[/bold] {result.duration_seconds:.2f}s")
-
+        asyncio.run(run_interactive_chat(
+            provider=provider,
+            model=model,
+            api_key=api_key
+        ))
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Chat ended[/yellow]")
     except Exception as e:
-        console.print(f"[red]Execution failed: {e}[/red]")
-        if ctx.obj.get("debug"):
-            import traceback
+        console.print(f"[red]Chat error: {e}[/red]")
+        sys.exit(1)
 
+
+@mcp.command()
+@click.option("--provider", "-p", 
+              type=click.Choice(["openai", "anthropic", "together", "groq", "ollama"]),
+              default="together",
+              help="LLM provider to use")
+@click.option("--model", "-m", help="Model name (provider-specific)")
+@click.option("--api-key", help="LLM provider API key")
+@click.option("--kubiya-key", envvar="KUBIYA_API_KEY", help="Kubiya API key")
+@click.option("--scenario", "-s",
+              type=click.Choice(["basic", "cicd", "data", "security", "custom"]),
+              default="basic",
+              help="Test scenario to run")
+@click.option("--interactive", "-i", is_flag=True, help="Interactive conversation mode")
+@click.option("--output", "-o", help="Save conversation log to file")
+def test(provider, model, api_key, kubiya_key, scenario, interactive, output):
+    """Test MCP server with an AI agent."""
+    import asyncio
+    from .mcp.test_agent import run_mcp_test
+    
+    # Set up environment
+    if kubiya_key:
+        os.environ["KUBIYA_API_KEY"] = kubiya_key
+    
+    # Default models per provider
+    default_models = {
+        "openai": "gpt-4",
+        "anthropic": "claude-3-opus-20240229",
+        "together": "deepseek-ai/DeepSeek-V3",
+        "groq": "llama-3.1-70b-versatile",
+        "ollama": "llama3.1:70b"
+    }
+    
+    if not model:
+        model = default_models.get(provider, "gpt-4")
+    
+    console.print(f"[green]🤖 Testing MCP server with {provider}/{model}[/green]")
+    console.print(f"[blue]Scenario: {scenario}[/blue]")
+    
+    try:
+        asyncio.run(run_mcp_test(
+            provider=provider,
+            model=model,
+            api_key=api_key,
+            scenario=scenario,
+            interactive=interactive,
+            output_file=output
+        ))
+    except Exception as e:
+        console.print(f"[red]Test failed: {e}[/red]")
+        if "--debug" in sys.argv:
+            import traceback
             traceback.print_exc()
         sys.exit(1)
 
 
 @cli.command()
-@click.argument("workflow_file", type=click.Path(exists=True))
-@click.option("--output", "-o", help="Output file (default: stdout)")
-@click.option(
-    "--format",
-    "-f",
-    type=click.Choice(["mermaid", "dot", "png", "svg"]),
-    default="mermaid",
-    help="Output format",
-)
-@click.option("--open", "open_file", is_flag=True, help="Open generated file")
-def visualize(workflow_file, output, format, open_file):
-    """Generate workflow visualization."""
-    try:
-        # Load workflow
-        workflow = _load_workflow(workflow_file)
-
-        if format == "mermaid":
-            # Generate Mermaid diagram
-            diagram = workflow_to_mermaid(workflow)
-
-            if output:
-                Path(output).write_text(diagram)
-                console.print(f"[green]✅ Saved Mermaid diagram to {output}[/green]")
-            else:
-                console.print(Panel(diagram, title="Mermaid Diagram", expand=False))
-
-            if open_file and output:
-                import webbrowser
-
-                mermaid_url = f"https://mermaid.live/edit#pako:{_encode_mermaid(diagram)}"
-                webbrowser.open(mermaid_url)
-
-        else:
-            console.print(f"[red]Format '{format}' not implemented yet[/red]")
-
-    except Exception as e:
-        console.print(f"[red]Error generating visualization: {e}[/red]")
-        sys.exit(1)
+def version():
+    """Show version information."""
+    from . import __version__
+    
+    console.print(Panel(
+        f"[bold]Kubiya Workflow SDK[/bold]\n\n"
+        f"Version: {__version__.VERSION}\n"
+        f"Python: {sys.version.split()[0]}\n"
+        f"Platform: {sys.platform}",
+        title="Version Information",
+        border_style="blue"
+    ))
 
 
 @cli.command()
-@click.argument("workflow_file", type=click.Path(exists=True))
-@click.option("--format", "-f", type=click.Choice(["json", "yaml"]), help="Output format")
-def export(workflow_file, format):
-    """Export workflow to JSON or YAML."""
-    try:
-        workflow = _load_workflow(workflow_file)
+@click.option("--full", is_flag=True, help="Show full documentation")
+def help(full):
+    """Show help and usage examples."""
+    
+    help_text = """
+[bold]Kubiya Workflow SDK CLI[/bold]
 
-        if format == "json" or (not format and workflow_file.endswith(".py")):
-            output = workflow.to_json()
-        else:
-            output = workflow.to_yaml()
+The Kubiya CLI provides tools for running MCP servers and AI agents that can create
+and execute workflows through natural language.
 
-        click.echo(output)
+[bold]Quick Start:[/bold]
 
-    except Exception as e:
-        console.print(f"[red]Error exporting workflow: {e}[/red]")
-        sys.exit(1)
+1. Start an AI agent server (for web apps):
+   [cyan]kubiya mcp agent --provider together --port 8000[/cyan]
 
+2. Start an MCP server (for Claude Desktop):
+   [cyan]kubiya mcp server[/cyan]
 
-@cli.command()
-@click.option("--runner", "-r", help="List executions for specific runner")
-@click.option(
-    "--status",
-    "-s",
-    type=click.Choice(["pending", "running", "completed", "failed"]),
-    help="Filter by status",
-)
-@click.option("--limit", "-l", default=10, help="Number of executions to show")
-@click.pass_context
-def list(ctx, runner, status, limit):
-    """List recent workflow executions."""
-    try:
-        client = create_streaming_client(
-            api_token=ctx.obj["api_token"], base_url=ctx.obj["base_url"]
-        )
+3. Interactive chat:
+   [cyan]kubiya mcp chat --provider openai[/cyan]
 
-        # Would need to implement list_executions in streaming client
-        console.print("[yellow]List command not fully implemented[/yellow]")
+[bold]Common Commands:[/bold]
 
-    except Exception as e:
-        console.print(f"[red]Error listing executions: {e}[/red]")
-        sys.exit(1)
+• [cyan]kubiya mcp agent[/cyan] - Start HTTP agent server for Vercel AI SDK
+• [cyan]kubiya mcp server[/cyan] - Start MCP server for Claude Desktop
+• [cyan]kubiya mcp chat[/cyan] - Interactive chat with workflows
+• [cyan]kubiya mcp test[/cyan] - Test MCP integration
+• [cyan]kubiya version[/cyan] - Show version info
 
+[bold]Environment Variables:[/bold]
 
-def _load_workflow(file_path: str) -> FlowWorkflow:
-    """Load workflow from Python file."""
-    import importlib.util
+• KUBIYA_API_KEY - Your Kubiya API key for workflow execution
+• TOGETHER_API_KEY - Together AI API key
+• OPENAI_API_KEY - OpenAI API key
+• ANTHROPIC_API_KEY - Anthropic API key
+• GROQ_API_KEY - Groq API key
+"""
 
-    spec = importlib.util.spec_from_file_location("workflow", file_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    if full:
+        help_text += """
+[bold]Agent Server Details:[/bold]
 
-    # Find workflow in module
-    for name, obj in vars(module).items():
-        if hasattr(obj, "_flow_metadata"):
-            # It's a flow decorator
-            return obj()
+The agent server provides a production-ready HTTP API that:
+- Implements OpenAI-compatible chat completions endpoint
+- Streams responses in Vercel AI SDK format
+- Integrates with Kubiya MCP for workflow tools
+- Supports multiple LLM providers
 
-    raise ValueError("No workflow found in file. Use @flow decorator.")
+[bold]Example Integration:[/bold]
 
+In your Next.js app with Vercel AI SDK:
 
-def _load_params_file(file_path: str) -> Dict[str, Any]:
-    """Load parameters from JSON or YAML file."""
-    content = Path(file_path).read_text()
+```typescript
+const { messages, input, handleSubmit } = useChat({
+  api: 'http://localhost:8000/v1/chat/completions',
+});
+```
 
-    if file_path.endswith((".yaml", ".yml")):
-        return yaml.safe_load(content)
-    else:
-        return json.loads(content)
+[bold]Available Providers:[/bold]
 
+• together - Best cost/performance ratio (recommended)
+• openai - GPT-4 and GPT-3.5
+• anthropic - Claude 3 models
+• groq - Fast inference with open models
 
-def _encode_mermaid(diagram: str) -> str:
-    """Encode Mermaid diagram for live editor URL."""
-    import base64
-    import zlib
+[bold]Test Scenarios:[/bold]
 
-    # Compress and encode
-    compressed = zlib.compress(diagram.encode("utf-8"), 9)
-    encoded = base64.urlsafe_b64encode(compressed).decode("utf-8")
-    return encoded
+• basic - Simple workflow creation and execution
+• cicd - CI/CD pipeline workflows
+• data - Data processing workflows
+• security - Security scanning workflows
+• custom - Define your own test prompts
+"""
+
+    console.print(Panel(help_text, title="Help", border_style="green"))
+    
+    if not full:
+        console.print("\n[dim]Use --full for complete documentation[/dim]")
 
 
 if __name__ == "__main__":

@@ -1,20 +1,14 @@
 """
-Kubiya MCP Server - Expose workflows via Model Context Protocol.
+MCP (Model Context Protocol) integration for Kubiya Workflows.
 
-This module provides MCP server functionality to expose Kubiya workflows
-to any MCP-compatible AI agent (Claude, ChatGPT, etc).
+This module provides tools for creating MCP servers that expose Kubiya workflow
+functionality to any MCP-compatible client or agent framework.
 """
 
-from .server import FastMCP, create_mcp_server, KubiyaMCP
-from .client import Client
-from .workflow_server import KubiyaWorkflowServer, create_workflow_server, WorkflowMCPServer
+from .server import KubiyaMCPServer, create_server
 
-__all__ = [
-    "FastMCP",
-    "create_mcp_server",
-    "KubiyaMCP",
-    "Client",
-    "KubiyaWorkflowServer",
-    "create_workflow_server",
-    "WorkflowMCPServer",
-]
+# Legacy aliases for backward compatibility
+KubiyaMCP = KubiyaMCPServer
+create_mcp_server = create_server
+
+__all__ = ["KubiyaMCPServer", "create_server", "KubiyaMCP", "create_mcp_server"]

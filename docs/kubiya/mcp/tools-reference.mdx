@@ -1,0 +1,656 @@
+---
+title: MCP Tools Reference
+description: Complete reference for all Kubiya MCP tools
+---
+
+# MCP Tools Reference
+
+This document provides a complete reference for all tools available in the Kubiya MCP server. These tools enable AI agents to create, manage, and execute workflows.
+
+## Core Workflow Tools
+
+### compile_workflow
+
+Compiles DSL code into a workflow manifest.
+
+**Parameters:**
+- `dsl_code` (string, required): Python code using Kubiya DSL
+
+**Returns:**
+```json
+{
+  "success": true,
+  "manifest": {
+    "name": "workflow-name",
+    "steps": [...],
+    "params": {...}
+  },
+  "errors": []
+}
+```
+
+**Example:**
+```python
+result = compile_workflow(
+    dsl_code="""
+from kubiya_workflow_sdk.dsl import Workflow
+
+wf = Workflow("backup-db")
+wf.description("Backup database to S3")
+wf.step("dump", "pg_dump mydb > backup.sql")
+wf.step("upload", "aws s3 cp backup.sql s3://backups/")
+"""
+)
+```
+
+### execute_workflow
+
+Executes a workflow with real-time streaming.
+
+**Parameters:**
+- `workflow_input` (string or dict, required): Workflow name or manifest
+- `params` (dict, optional): Workflow parameters
+- `runner` (string, optional): Runner to use (default: "kubiya-hosted")
+- `stream_format` (string, optional): "raw" or "vercel" (default: "raw")
+
+**Returns (streaming):**
+```json
+{
+  "type": "step_running",
+  "step": "backup",
+  "message": "Starting backup..."
+}
+```
+
+**Example:**
+```python
+# Execute by name
+result = execute_workflow(
+    workflow_input="backup-db",
+    params={"database": "production"},
+    stream_format="vercel"
+)
+
+# Execute from manifest
+result = execute_workflow(
+    workflow_input={
+        "name": "quick-check",
+        "steps": [
+            {"name": "check", "command": "echo Hello"}
+        ]
+    }
+)
+```
+
+## Discovery Tools
+
+### get_workflow_runners
+
+Lists available workflow runners with their capabilities.
+
+**Parameters:**
+- `include_health` (bool, optional): Include health status (default: true)
+- `category` (string, optional): Filter by category ("docker", "kubernetes")
+
+**Returns:**
+```json
+{
+  "success": true,
+  "runners": [
+    {
+      "name": "core-testing-2",
+      "type": "kubernetes",
+      "docker_enabled": true,
+      "is_healthy": true,
+      "components": {
+        "docker": {
+          "version": "24.0.7",
+          "status": "ok"
+        }
+      }
+    }
+  ],
+  "default_runner": "kubiya-hosted",
+  "suggestions": [
+    "Docker-enabled runners:",
+    "  - core-testing-2: kubernetes [docker v24.0.7]"
+  ]
+}
+```
+
+**Example:**
+```python
+# Get all runners
+runners = get_workflow_runners()
+
+# Get only Docker-enabled runners
+docker_runners = get_workflow_runners(category="docker")
+```
+
+### get_integrations
+
+Lists available integrations (AWS, GCP, etc.).
+
+**Parameters:**
+- `category` (string, optional): Filter by type ("cloud", "database", "monitoring")
+- `include_configs` (bool, optional): Include configuration details
+
+**Returns:**
+```json
+{
+  "success": true,
+  "integrations": [
+    {
+      "name": "aws",
+      "type": "aws",
+      "description": "AWS account integration",
+      "configs": [
+        {
+          "name": "prod-account",
+          "is_default": true
+        }
+      ]
+    }
+  ],
+  "categories": ["cloud", "database", "monitoring"]
+}
+```
+
+### get_workflow_secrets
+
+Lists available secrets for workflows.
+
+**Parameters:**
+- `pattern` (string, optional): Filter pattern (e.g., "AWS_*")
+- `include_metadata` (bool, optional): Include creation info
+
+**Returns:**
+```json
+{
+  "success": true,
+  "secrets": [
+    {
+      "name": "AWS_ACCESS_KEY_ID",
+      "description": "AWS access key",
+      "created_by": "admin@company.com",
+      "created_at": "2024-01-15T10:00:00Z"
+    }
+  ],
+  "total_count": 25
+}
+```
+
+## Workflow Management Tools
+
+### list_workflows
+
+Lists all available workflows.
+
+**Parameters:**
+- `limit` (int, optional): Maximum results (default: 100)
+- `offset` (int, optional): Pagination offset
+- `search` (string, optional): Search term
+
+**Returns:**
+```json
+{
+  "success": true,
+  "workflows": [
+    {
+      "name": "deploy-app",
+      "description": "Deploy application to Kubernetes",
+      "created_at": "2024-01-15T10:00:00Z",
+      "params": ["version", "environment"]
+    }
+  ],
+  "total": 42
+}
+```
+
+### validate_workflow
+
+Validates workflow syntax without executing.
+
+**Parameters:**
+- `workflow` (dict, required): Workflow manifest
+
+**Returns:**
+```json
+{
+  "success": true,
+  "valid": true,
+  "errors": [],
+  "warnings": ["Step 'cleanup' has no error handling"]
+}
+```
+
+### export_workflow
+
+Exports workflow to different formats.
+
+**Parameters:**
+- `name` (string, required): Workflow name
+- `format` (string, optional): "yaml" or "json" (default: "yaml")
+
+**Returns:**
+```yaml
+name: deploy-app
+description: Deploy application
+steps:
+  - name: build
+    command: docker build -t app:latest .
+  - name: push
+    command: docker push app:latest
+```
+
+### validate_workflow_code
+
+Validates DSL code syntax.
+
+**Parameters:**
+- `code` (string, required): Python DSL code
+
+**Returns:**
+```json
+{
+  "success": true,
+  "valid": true,
+  "errors": [],
+  "suggestions": ["Consider adding error handling"]
+}
+```
+
+## Execution Tools
+
+### get_execution
+
+Gets execution status and details.
+
+**Parameters:**
+- `execution_id` (string, required): Execution ID
+
+**Returns:**
+```json
+{
+  "success": true,
+  "execution": {
+    "id": "exec-123456",
+    "workflow": "backup-db",
+    "status": "completed",
+    "started_at": "2024-01-15T10:00:00Z",
+    "completed_at": "2024-01-15T10:05:00Z",
+    "steps": [
+      {
+        "name": "dump",
+        "status": "success",
+        "duration": "2m30s",
+        "output": "Database dumped successfully"
+      }
+    ]
+  }
+}
+```
+
+## Resource Tools (Read-Only)
+
+### hello_world_example
+
+Returns a simple hello world workflow example.
+
+**Returns:**
+```python
+from kubiya_workflow_sdk.dsl import Workflow
+
+wf = Workflow("hello-world")
+wf.description("Simple hello world example")
+wf.step("greet", "echo 'Hello, World!'")
+wf.step("date", "date")
+```
+
+### docker_python_example
+
+Returns an example of using Docker with Python.
+
+**Returns:**
+```python
+from kubiya_workflow_sdk.dsl import Workflow
+
+wf = Workflow("python-analysis")
+wf.description("Data analysis with Python")
+
+wf.step("analyze")
+  .docker("python:3.11-slim")
+  .packages(["pandas", "numpy"])
+  .code("""
+import pandas as pd
+import numpy as np
+
+# Your analysis code here
+data = pd.DataFrame(np.random.randn(100, 4))
+print(data.describe())
+""")
+```
+
+### parallel_example
+
+Returns an example of parallel step execution.
+
+**Returns:**
+```python
+from kubiya_workflow_sdk.dsl import Workflow
+
+wf = Workflow("parallel-processing")
+wf.description("Process multiple items in parallel")
+
+# Define items to process
+items = ["item1", "item2", "item3"]
+
+# Process in parallel
+wf.parallel_steps(
+    "process-items",
+    items=items,
+    command="process.sh ${ITEM}",
+    max_concurrent=2
+)
+```
+
+### cicd_example
+
+Returns a complete CI/CD pipeline example.
+
+**Returns:**
+```python
+from kubiya_workflow_sdk.dsl import Workflow
+
+wf = Workflow("cicd-pipeline")
+wf.description("Complete CI/CD pipeline")
+
+# Run tests
+wf.step("test", "pytest tests/")
+
+# Build only if tests pass
+wf.step("build", "docker build -t app:${VERSION} .")
+  .condition("${test.exit_code} == 0")
+
+# Deploy to staging
+wf.step("deploy-staging", "kubectl apply -f k8s/staging/")
+
+# Run smoke tests
+wf.step("smoke-test", "pytest tests/smoke/")
+
+# Deploy to production with approval
+wf.step("deploy-prod", "kubectl apply -f k8s/production/")
+  .condition("${smoke-test.exit_code} == 0")
+```
+
+### data_pipeline_example
+
+Returns a data pipeline workflow example.
+
+**Returns:**
+```python
+from kubiya_workflow_sdk.dsl import Workflow
+
+wf = Workflow("data-pipeline")
+wf.description("ETL data pipeline")
+
+# Extract
+wf.step("extract")
+  .docker("python:3.11")
+  .code("""
+import requests
+data = requests.get('https://api.example.com/data').json()
+with open('/tmp/raw_data.json', 'w') as f:
+    json.dump(data, f)
+""")
+
+# Transform
+wf.step("transform")
+  .docker("python:3.11")
+  .packages(["pandas"])
+  .code("""
+import pandas as pd
+df = pd.read_json('/tmp/raw_data.json')
+# Transform logic here
+df.to_parquet('/tmp/processed_data.parquet')
+""")
+
+# Load
+wf.step("load", "aws s3 cp /tmp/processed_data.parquet s3://data-lake/")
+```
+
+## Prompt Resources
+
+### workflow_dsl_guide
+
+Returns comprehensive DSL syntax guide.
+
+**Content includes:**
+- Basic workflow structure
+- Step types (shell, docker, inline_agent)
+- Parameters and variables
+- Conditions and loops
+- Error handling
+- Best practices
+
+### docker_templates
+
+Returns Docker configuration templates.
+
+**Templates include:**
+- Python with common data science packages
+- Node.js with build tools
+- Go development environment
+- R statistical computing
+- Java/Kotlin builds
+- Custom base images
+
+### workflow_patterns
+
+Returns common workflow patterns.
+
+**Patterns include:**
+- Sequential processing
+- Parallel execution
+- Conditional branching
+- Error handling and retry
+- Approval gates
+- Notifications
+- Cleanup operations
+
+### best_practices
+
+Returns workflow development best practices.
+
+**Topics include:**
+- Naming conventions
+- Parameter validation
+- Secret management
+- Error handling
+- Logging and monitoring
+- Testing strategies
+- Performance optimization
+
+### recommended_images
+
+Returns recommended Docker images for common tasks.
+
+**Categories:**
+- **Languages**: Python, Node.js, Go, Java, etc.
+- **Databases**: PostgreSQL, MySQL, MongoDB tools
+- **Cloud**: AWS CLI, gcloud, Azure CLI
+- **DevOps**: Terraform, Ansible, kubectl
+- **Monitoring**: Prometheus, Grafana tools
+
+## Using Tools with AI
+
+### Example: Creating a Complex Workflow
+
+```python
+# AI agent can combine multiple tools
+async def create_monitoring_workflow():
+    # 1. Check available runners
+    runners = await get_workflow_runners(category="docker")
+    
+    # 2. Get monitoring integrations
+    integrations = await get_integrations(category="monitoring")
+    
+    # 3. Create workflow with context
+    code = f"""
+from kubiya_workflow_sdk.dsl import Workflow
+
+wf = Workflow("system-monitor")
+wf.description("Monitor system health")
+
+# Use best runner
+wf.runner("{runners['runners'][0]['name']}")
+
+# Add monitoring steps
+wf.step("check-cpu", "top -bn1 | grep Cpu")
+wf.step("check-memory", "free -h")
+wf.step("check-disk", "df -h")
+
+# Send to monitoring system
+wf.step("send-metrics")
+  .docker("python:3.11")
+  .code('''
+# Send to {integrations['integrations'][0]['name']}
+# ... monitoring code ...
+''')
+"""
+    
+    # 4. Compile and validate
+    result = await compile_workflow(dsl_code=code)
+    
+    # 5. Execute if valid
+    if result['success']:
+        await execute_workflow(
+            workflow_input=result['manifest'],
+            stream_format="vercel"
+        )
+```
+
+### Tool Chaining
+
+Tools can be chained for complex operations:
+
+1. **Discovery** → Use `get_workflow_runners` to find capable runners
+2. **Context** → Use `get_integrations` and `get_workflow_secrets` for available resources
+3. **Examples** → Reference `*_example` tools for patterns
+4. **Creation** → Use `compile_workflow` with context-aware code
+5. **Validation** → Use `validate_workflow` before execution
+6. **Execution** → Use `execute_workflow` with appropriate runner
+7. **Monitoring** → Use `get_execution` to track progress
+
+## Error Handling
+
+All tools return consistent error formats:
+
+```json
+{
+  "success": false,
+  "error": "Detailed error message",
+  "type": "validation_error|execution_error|api_error",
+  "details": {
+    "line": 10,
+    "column": 5,
+    "suggestion": "Did you mean 'step' instead of 'steps'?"
+  }
+}
+```
+
+Common error types:
+- **validation_error**: Syntax or schema issues
+- **execution_error**: Runtime failures
+- **api_error**: Kubiya API issues
+- **auth_error**: Authentication failures
+
+## Best Practices
+
+1. **Always validate before executing**
+   ```python
+   result = compile_workflow(dsl_code=code)
+   if result['success']:
+       execute_workflow(workflow_input=result['manifest'])
+   ```
+
+2. **Use appropriate runners**
+   ```python
+   runners = get_workflow_runners(category="docker")
+   # Select runner based on requirements
+   ```
+
+3. **Handle streaming properly**
+   ```python
+   for event in execute_workflow(workflow_input=wf, stream_format="raw"):
+       if event['type'] == 'step_failed':
+           # Handle failure
+   ```
+
+4. **Check resource availability**
+   ```python
+   secrets = get_workflow_secrets(pattern="AWS_*")
+   if not secrets['secrets']:
+       # Request user to configure AWS credentials
+   ```
+
+## Next Steps
+
+- [Agent Server Guide](./agent-server.mdx) - Using tools via OpenAI API
+- [Examples](./examples.mdx) - Real-world tool usage
+- [Workflow DSL](../workflows/dsl-reference.mdx) - Understanding the DSL
+Common error codes:
+- `WORKFLOW_NOT_FOUND`: Workflow doesn't exist
+- `INVALID_PARAMETERS`: Missing or invalid parameters
+- `EXECUTION_FAILED`: Workflow execution failed
+- `UNAUTHORIZED`: API key required or invalid
+- `SYNTAX_ERROR`: Invalid workflow code
+
+## Using Tools with AI
+
+### With LangChain
+```python
+from langchain_openai import ChatOpenAI
+from mcp_use import MCPAgent, MCPClient
+
+client = MCPClient.from_dict({
+    "mcpServers": {
+        "kubiya": {
+            "command": "python3",
+            "args": ["-m", "kubiya_workflow_sdk.mcp.server"]
+        }
+    }
+})
+
+llm = ChatOpenAI(model="gpt-4")
+agent = MCPAgent(llm=llm, client=client)
+
+# AI can now use all tools
+result = await agent.run("List all workflows and create a summary report")
+```
+
+### Direct Tool Usage
+```python
+from mcp_use.adapters.langchain_adapter import LangChainAdapter
+
+adapter = LangChainAdapter()
+tools = await adapter.create_tools(client)
+
+# Get specific tool
+list_tool = next(t for t in tools if t.name == "list_workflows")
+workflows = await list_tool.ainvoke({})
+```
+
+## Best Practices
+
+1. **Validate Before Creating**: Always use `validate_workflow` before `define_workflow`
+2. **Use Dry Run**: Test with `mode="dry_run"` before actual execution
+3. **Handle Errors**: Always check for error responses
+4. **Secure API Keys**: Never hardcode API keys in your code
+5. **Monitor Executions**: Use `get_execution` to track long-running workflows
+
+## Next Steps
+
+- [See examples](/mcp/examples)
+- [Learn the DSL](/workflows/dsl-reference)
+- [Get API access](https://app.kubiya.ai/settings) 
