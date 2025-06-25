@@ -25,7 +25,7 @@ def register_tools(mcp, server):
         description: Optional[str] = None,
         runner: Optional[str] = None,
         prefer_docker: bool = True,
-        provide_missing_secrets: Optional[Dict[str, str]] = None,
+        provide_missing_secrets: Optional[Union[str, Dict[str, str]]] = None,
     ) -> Dict[str, Any]:
         """
         Compile Kubiya DSL code into a workflow JSON manifest.
@@ -77,6 +77,17 @@ def register_tools(mcp, server):
             ```
         """
         try:
+            # Parse provide_missing_secrets if it's a JSON string
+            if isinstance(provide_missing_secrets, str):
+                try:
+                    provide_missing_secrets = json.loads(provide_missing_secrets)
+                except json.JSONDecodeError as e:
+                    return {
+                        "success": False,
+                        "errors": [f"Invalid JSON in provide_missing_secrets: {str(e)}"],
+                        "provide_missing_secrets_received": provide_missing_secrets
+                    }
+            
             # Refresh context if needed
             if not server.workflow_context.runners:
                 await server.refresh_context()
@@ -238,7 +249,7 @@ def register_tools(mcp, server):
     @mcp.tool()
     async def execute_workflow(
         workflow_input: Union[str, Dict[str, Any]],
-        params: Optional[Dict[str, Any]] = None,
+        params: Optional[Union[str, Dict[str, Any]]] = None,
         api_key: Optional[str] = None,
         runner: Optional[str] = None,
         dry_run: bool = False,
@@ -262,6 +273,18 @@ def register_tools(mcp, server):
             Execution result with all events
         """
         try:
+            # Parse params if it's a JSON string
+            if isinstance(params, str):
+                try:
+                    params = json.loads(params)
+                except json.JSONDecodeError as e:
+                    return {
+                        "success": False,
+                        "type": "validation_error",
+                        "error": f"Invalid JSON in params: {str(e)}",
+                        "params_received": params
+                    }
+            
             # Get authenticated client
             client = server.get_client(api_key)
             
