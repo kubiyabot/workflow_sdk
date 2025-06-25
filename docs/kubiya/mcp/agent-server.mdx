@@ -1,0 +1,664 @@
+---
+title: Agent Server Guide
+description: OpenAI-compatible API for AI workflow generation
+---
+
+# Agent Server Guide
+
+The Kubiya Agent Server provides an OpenAI-compatible API that enables any AI system to create and execute workflows. It acts as a bridge between AI models and the Kubiya workflow engine.
+
+## Overview
+
+The Agent Server:
+- Provides an OpenAI-compatible `/v1/chat/completions` endpoint
+- Supports multiple LLM providers (OpenAI, Anthropic, Together, Groq, Ollama)
+- Streams workflow creation and execution in real-time
+- Works with any OpenAI SDK or compatible client
+
+## Architecture
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│   AI Clients    │────▶│   Agent Server   │────▶│   MCP Server    │
+│ (Any OpenAI SDK)│     │ (HTTP/8000)      │     │   (stdio)       │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+                                │                          │
+                                ▼                          ▼
+                        ┌──────────────────┐     ┌─────────────────┐
+                        │  LLM Provider    │     │  Kubiya API     │
+                        │ (GPT-4, Claude)  │     │  (Execution)    │
+                        └──────────────────┘     └─────────────────┘
+```
+
+## Starting the Server
+
+### Basic Usage
+
+```bash
+# Start with Together AI (default)
+kubiya mcp agent --provider together --port 8000
+
+# Start with OpenAI
+kubiya mcp agent --provider openai --model gpt-4 --port 8000
+
+# Start with Anthropic
+kubiya mcp agent --provider anthropic --model claude-3-5-sonnet-20241022 --port 8000
+```
+
+### Configuration Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--provider` | LLM provider (openai, anthropic, together, groq, ollama) | Required |
+| `--model` | Specific model to use | Provider default |
+| `--port` | HTTP port to listen on | 8000 |
+| `--host` | Host to bind to | 0.0.0.0 |
+| `--api-key` | Provider API key (or use env var) | From environment |
+
+### Environment Variables
+
+```bash
+# Kubiya API (required for workflow execution)
+export KUBIYA_API_KEY="your-kubiya-api-key"
+
+# LLM Provider API Keys (based on provider)
+export OPENAI_API_KEY="your-openai-key"
+export ANTHROPIC_API_KEY="your-anthropic-key"
+export TOGETHER_API_KEY="your-together-key"
+export GROQ_API_KEY="your-groq-key"
+
+# Optional configuration
+export MCP_USE_ANONYMIZED_TELEMETRY=false  # Disable telemetry
+```
+
+## API Endpoints
+
+### Chat Completions
+
+`POST /v1/chat/completions`
+
+OpenAI-compatible chat endpoint for workflow generation.
+
+```python
+from openai import OpenAI
+
+client = OpenAI(base_url="http://localhost:8000/v1", api_key="not-needed")
+
+response = client.chat.completions.create(
+    model="kubiya-workflow-agent",
+    messages=[
+        {"role": "user", "content": "Create a workflow to check system health"}
+    ],
+    stream=True  # Enable streaming
+)
+```
+
+### Discovery Endpoint
+
+`GET /discover`
+
+Returns server capabilities and configuration.
+
+```bash
+curl http://localhost:8000/discover
+```
+
+Response:
+```json
+{
+  "name": "Kubiya MCP Agent Server",
+  "version": "1.0.0",
+  "capabilities": {
+    "streaming": true,
+    "models": ["kubiya-workflow-agent"],
+    "formats": ["sse", "vercel"]
+  }
+}
+```
+
+### Health Check
+
+`GET /health`
+
+Simple health check endpoint.
+
+```bash
+curl http://localhost:8000/health
+# Returns: {"status": "healthy"}
+```
+
+## Streaming Formats
+
+The agent server supports two streaming formats:
+
+### 1. Standard SSE (Server-Sent Events)
+
+Default format compatible with OpenAI SDK:
+
+```
+data: {"choices":[{"delta":{"content":"Creating workflow..."}}]}
+
+data: {"choices":[{"delta":{"content":"Step 1: Check CPU usage"}}]}
+
+data: [DONE]
+```
+
+### 2. Vercel AI SDK Format
+
+Special format for Vercel AI SDK compatibility:
+
+```
+0:"Creating workflow..."
+0:" Step 1: Check CPU"
+2:{"type":"step_running","step":"check-cpu","message":"Checking CPU usage"}
+2:{"type":"step_complete","step":"check-cpu","output":"CPU: 45%"}
+d:{"finishReason":"stop"}
+```
+
+To use Vercel format, add a header:
+```
+X-Streaming-Format: vercel
+```
+
+## Provider Configuration
+
+### OpenAI
+
+```bash
+kubiya mcp agent --provider openai --model gpt-4 --port 8000
+```
+
+Models:
+- `gpt-4` (default)
+- `gpt-4-turbo`
+- `gpt-3.5-turbo`
+
+### Anthropic
+
+```bash
+kubiya mcp agent --provider anthropic --model claude-3-5-sonnet-20241022 --port 8000
+```
+
+Models:
+- `claude-3-5-sonnet-20241022` (default)
+- `claude-3-opus-20240229`
+- `claude-3-haiku-20240307`
+
+### Together AI
+
+```bash
+kubiya mcp agent --provider together --model "meta-llama/Llama-3.3-70B-Instruct-Turbo" --port 8000
+```
+
+Popular models:
+- `meta-llama/Llama-3.3-70B-Instruct-Turbo` (default)
+- `deepseek-ai/DeepSeek-V3`
+- `mistralai/Mixtral-8x7B-Instruct-v0.1`
+
+### Groq
+
+```bash
+kubiya mcp agent --provider groq --model llama-3.3-70b-versatile --port 8000
+```
+
+Models:
+- `llama-3.3-70b-versatile` (default)
+- `mixtral-8x7b-32768`
+- `gemma-7b-it`
+
+### Ollama (Local Models)
+
+```bash
+# First, ensure Ollama is running locally
+ollama serve
+
+# Then start the agent server
+kubiya mcp agent --provider ollama --model llama3.2 --port 8000
+```
+
+## Client Examples
+
+### Python (OpenAI SDK)
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://localhost:8000/v1",
+    api_key="not-needed"
+)
+
+# Simple request
+response = client.chat.completions.create(
+    model="kubiya-workflow-agent",
+    messages=[
+        {"role": "user", "content": "Create a backup workflow"}
+    ]
+)
+
+print(response.choices[0].message.content)
+
+# Streaming request
+stream = client.chat.completions.create(
+    model="kubiya-workflow-agent",
+    messages=[
+        {"role": "user", "content": "Create and execute a monitoring workflow"}
+    ],
+    stream=True
+)
+
+for chunk in stream:
+    if chunk.choices[0].delta.content:
+        print(chunk.choices[0].delta.content, end="")
+```
+
+### JavaScript/TypeScript
+
+```javascript
+import OpenAI from 'openai';
+
+const client = new OpenAI({
+  baseURL: 'http://localhost:8000/v1',
+  apiKey: 'not-needed',
+});
+
+// Create workflow
+const response = await client.chat.completions.create({
+  model: 'kubiya-workflow-agent',
+  messages: [
+    { role: 'user', content: 'Create a CI/CD pipeline' }
+  ],
+  stream: true,
+});
+
+// Handle streaming
+for await (const chunk of response) {
+  const content = chunk.choices[0]?.delta?.content;
+  if (content) {
+    process.stdout.write(content);
+  }
+}
+```
+
+### cURL
+
+```bash
+# Simple request
+curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "kubiya-workflow-agent",
+    "messages": [
+      {"role": "user", "content": "Create a database backup workflow"}
+    ]
+  }'
+
+# Streaming request
+curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Accept: text/event-stream" \
+  -d '{
+    "model": "kubiya-workflow-agent",
+    "messages": [
+      {"role": "user", "content": "Create and run a health check"}
+    ],
+    "stream": true
+  }'
+```
+
+### Vercel AI SDK
+
+```typescript
+import { openai } from '@ai-sdk/openai';
+import { streamText } from 'ai';
+
+const result = await streamText({
+  model: openai('kubiya-workflow-agent', {
+    baseURL: 'http://localhost:8000/v1',
+  }),
+  messages: [
+    {
+      role: 'user',
+      content: 'Create a workflow to deploy my app',
+    },
+  ],
+  // Automatically uses Vercel format
+});
+
+// Handle the stream
+for await (const textPart of result.textStream) {
+  process.stdout.write(textPart);
+}
+
+// Get the final result
+const finalText = await result.text;
+```
+
+## Workflow Execution Events
+
+When workflows are executed, the agent server streams real-time events:
+
+### Event Types
+
+1. **step_running** - Step has started execution
+```json
+{
+  "type": "step_running",
+  "step": "check-disk",
+  "message": "Checking disk usage..."
+}
+```
+
+2. **step_complete** - Step finished successfully
+```json
+{
+  "type": "step_complete",
+  "step": "check-disk",
+  "output": "Disk usage: 65%",
+  "duration": "1.2s"
+}
+```
+
+3. **step_failed** - Step encountered an error
+```json
+{
+  "type": "step_failed",
+  "step": "deploy",
+  "error": "Connection timeout",
+  "will_retry": true
+}
+```
+
+4. **workflow_complete** - Entire workflow finished
+```json
+{
+  "type": "workflow_complete",
+  "workflow": "system-check",
+  "status": "success",
+  "duration": "45s"
+}
+```
+
+### Parsing Events
+
+```python
+import json
+
+for chunk in stream:
+    content = chunk.choices[0].delta.content
+    if content and content.startswith("2:"):  # Vercel format event
+        event = json.loads(content[2:])
+        if event["type"] == "step_complete":
+            print(f"✓ {event['step']}: {event['output']}")
+```
+
+## Production Deployment
+
+### Docker
+
+```dockerfile
+FROM python:3.11-slim
+
+RUN pip install kubiya-workflow-sdk[all]
+
+ENV KUBIYA_API_KEY=""
+ENV TOGETHER_API_KEY=""
+
+EXPOSE 8000
+
+CMD ["kubiya", "mcp", "agent", "--provider", "together", "--port", "8000"]
+```
+
+### Docker Compose
+
+```yaml
+version: '3.8'
+
+services:
+  agent-server:
+    image: kubiya/workflow-sdk:latest
+    command: kubiya mcp agent --provider anthropic --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      - KUBIYA_API_KEY=${KUBIYA_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+```
+
+### Kubernetes
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubiya-agent-server
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: kubiya-agent
+  template:
+    metadata:
+      labels:
+        app: kubiya-agent
+    spec:
+      containers:
+      - name: agent-server
+        image: kubiya/workflow-sdk:latest
+        command: ["kubiya", "mcp", "agent"]
+        args: ["--provider", "together", "--port", "8000"]
+        ports:
+        - containerPort: 8000
+        env:
+        - name: KUBIYA_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: kubiya-secrets
+              key: api-key
+        - name: TOGETHER_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: together-secrets
+              key: api-key
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubiya-agent-server
+spec:
+  selector:
+    app: kubiya-agent
+  ports:
+  - port: 80
+    targetPort: 8000
+  type: LoadBalancer
+```
+
+## Security Considerations
+
+### API Key Management
+
+1. **Never expose API keys in client code**
+   - Set them as environment variables on the server
+   - Use secrets management in production
+
+2. **Network Security**
+   - Use HTTPS in production (reverse proxy)
+   - Implement rate limiting
+   - Use firewall rules to restrict access
+
+3. **Authentication**
+   - The agent server itself doesn't require authentication
+   - API keys are used for the underlying services
+   - Consider adding an auth proxy for production
+
+### Example Nginx Configuration
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name agent.yourdomain.com;
+    
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+    
+    location / {
+        proxy_pass http://localhost:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        
+        # SSE support
+        proxy_set_header X-Accel-Buffering no;
+        proxy_read_timeout 86400;
+    }
+}
+```
+
+## Monitoring and Logging
+
+### Metrics
+
+The agent server logs key metrics:
+
+- Request count and latency
+- LLM API calls and tokens used
+- Workflow creation/execution success rates
+- Error rates by type
+
+### Structured Logging
+
+```bash
+# Enable debug logging
+export LOG_LEVEL=DEBUG
+kubiya mcp agent --provider together --port 8000
+```
+
+Log format:
+```
+2024-01-15 10:30:45,123 - INFO - Processing request with sse format: Create backup workflow
+2024-01-15 10:30:46,456 - INFO - Workflow created: backup-databases
+2024-01-15 10:30:47,789 - INFO - Execution started: exec-123456
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **"Model not specified" error**
+   - Solution: Always provide `--model` or use provider defaults
+   
+2. **"Failed to initialize MCP agent"**
+   - Check API keys are set correctly
+   - Verify network connectivity to LLM provider
+
+3. **Streaming not working**
+   - Ensure client supports SSE
+   - Check for proxy buffering issues
+   - Verify `Accept: text/event-stream` header
+
+4. **Workflow execution fails**
+   - Verify `KUBIYA_API_KEY` is valid
+   - Check runner availability
+   - Review workflow syntax
+
+### Debug Mode
+
+```bash
+# Enable verbose logging
+export LOG_LEVEL=DEBUG
+export MCP_DEBUG=true
+
+kubiya mcp agent --provider together --port 8000
+```
+
+## Advanced Usage
+
+### Custom System Prompts
+
+You can customize the agent's behavior by modifying the system prompt:
+
+```python
+# In your client code
+messages = [
+    {
+        "role": "system", 
+        "content": "You are an expert in creating monitoring workflows. Always include error handling and notifications."
+    },
+    {
+        "role": "user",
+        "content": "Create a comprehensive monitoring solution"
+    }
+]
+```
+
+### Workflow Templates
+
+Pre-define common patterns:
+
+```python
+# Request with context
+messages = [
+    {
+        "role": "user",
+        "content": """
+        Create a workflow based on this template:
+        - Name: daily-backup-{timestamp}
+        - Runner: production-runner
+        - Steps:
+          1. Backup all PostgreSQL databases
+          2. Compress with timestamp
+          3. Upload to S3 with encryption
+          4. Verify upload integrity
+          5. Clean up old backups (>30 days)
+          6. Send Slack notification
+        """
+    }
+]
+```
+
+### Batch Processing
+
+Process multiple workflow requests:
+
+```python
+async def create_workflows(descriptions):
+    tasks = []
+    for desc in descriptions:
+        task = client.chat.completions.create(
+            model="kubiya-workflow-agent",
+            messages=[{"role": "user", "content": desc}],
+            stream=False
+        )
+        tasks.append(task)
+    
+    results = await asyncio.gather(*tasks)
+    return results
+```
+
+## Next Steps
+
+- [MCP Tools Reference](./tools-reference.mdx) - Detailed tool documentation
+- [Authentication Guide](./authentication.mdx) - Security best practices
+- [Examples](./examples.mdx) - Real-world integration examples
+- [Workflow DSL](../workflows/dsl-reference.mdx) - Understanding generated workflows 

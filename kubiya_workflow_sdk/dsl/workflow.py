@@ -75,6 +75,24 @@ class Workflow:
         self.data["params"] = parameters
         return self
 
+    def with_files(self, files: Dict[str, str]) -> "Workflow":
+        """Add files to the workflow.
+        
+        Args:
+            files: Dictionary mapping filename to content
+            
+        Example:
+            wf.with_files({
+                "config.json": '{"key": "value"}',
+                "script.py": '''
+import pandas as pd
+print("Hello from script")
+'''
+            })
+        """
+        self.data["files"] = files
+        return self
+
     def dotenv(self, *files: str) -> "Workflow":
         """Load environment from .env files."""
         if len(files) == 1:

@@ -1,0 +1,548 @@
+---
+title: "Examples"
+description: "Real-world full-stack agent implementations"
+icon: "flask"
+---
+
+# Full-Stack Agent Examples
+
+Explore complete examples of AI agents built with Kubiya. Each example includes the full code and demonstrates different use cases.
+
+## DevOps Assistant Agent
+
+An intelligent agent that helps with DevOps tasks like deployments, monitoring, and troubleshooting.
+
+### Backend Setup
+
+```python
+# devops_agent.py
+import os
+from kubiya_workflow_sdk.mcp import AgentServer
+
+# Initialize with GPT-4 for complex DevOps reasoning
+server = AgentServer(
+    provider="openai",
+    model="gpt-4o",
+    api_key=os.getenv("OPENAI_API_KEY")
+)
+
+# Custom system prompt for DevOps context
+server.system_prompt = """
+You are an expert DevOps engineer assistant. You can:
+- Deploy applications with zero downtime
+- Set up monitoring and alerting
+- Debug production issues
+- Create CI/CD pipelines
+- Manage infrastructure
+
+Always consider security, scalability, and best practices.
+Use appropriate Docker images for different tasks.
+"""
+
+if __name__ == "__main__":
+    server.run(port=8765)
+```
+
+### Frontend (React)
+
+```tsx
+// DevOpsAssistant.tsx
+import React from 'react';
+import { useChat } from '@ai-sdk/react';
+
+export function DevOpsAssistant() {
+  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+    api: 'http://localhost:8765/v1/chat/completions',
+    initialMessages: [
+      {
+        id: '1',
+        role: 'assistant',
+        content: 'Hi! I\'m your DevOps assistant. I can help you deploy apps, set up monitoring, create CI/CD pipelines, and more. What would you like to do today?'
+      }
+    ]
+  });
+
+  return (
+    <div className="max-w-4xl mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">DevOps Assistant</h1>
+      
+      <div className="bg-gray-100 rounded-lg p-4 h-96 overflow-y-auto mb-4">
+        {messages.map(m => (
+          <div key={m.id} className={`mb-4 ${m.role === 'user' ? 'text-right' : ''}`}>
+            <div className={`inline-block p-3 rounded-lg ${
+              m.role === 'user' ? 'bg-blue-500 text-white' : 'bg-white'
+            }`}>
+              <div className="font-semibold mb-1">
+                {m.role === 'user' ? 'You' : 'DevOps Assistant'}
+              </div>
+              <div className="whitespace-pre-wrap">{m.content}</div>
+            </div>
+          </div>
+        ))}
+        {isLoading && (
+          <div className="text-center text-gray-500">
+            <span className="animate-pulse">Assistant is working...</span>
+          </div>
+        )}
+      </div>
+      
+      <form onSubmit={handleSubmit} className="flex gap-2">
+        <input
+          className="flex-1 p-2 border rounded-lg"
+          value={input}
+          onChange={handleInputChange}
+          placeholder="e.g., Deploy my Node.js app with health checks"
+          disabled={isLoading}
+        />
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+        >
+          Send
+        </button>
+      </form>
+    </div>
+  );
+}
+```
+
+### Example Interactions
+
+```
+User: Deploy my Node.js app with zero downtime
+
+Agent: I'll create a zero-downtime deployment workflow for your Node.js app. This will include:
+1. Building a new Docker image
+2. Running health checks
+3. Gradually rolling out the update
+4. Automatic rollback if issues are detected
+
+[Creates and executes blue-green deployment workflow]
+```
+
+## Data Pipeline Agent
+
+Build data processing pipelines with natural language.
+
+### Configuration
+
+```python
+# data_agent.py
+from kubiya_workflow_sdk.cli import main
+import sys
+
+# Run with specialized data processing context
+sys.argv = [
+    "kubiya", "mcp", "agent",
+    "--provider", "anthropic",
+    "--model", "claude-3-5-sonnet-20241022",
+    "--port", "8766"
+]
+
+# The agent will have access to:
+# - Data processing templates
+# - ETL workflow patterns
+# - Database integrations
+# - Analytics tools
+
+if __name__ == "__main__":
+    main()
+```
+
+### Example Workflows Created
+
+#### CSV Processing Pipeline
+```
+User: Process sales data from CSV, calculate monthly totals, and generate a report
+
+Agent: I'll create a data processing workflow that:
+1. Reads your CSV file
+2. Calculates monthly sales totals
+3. Generates visualizations
+4. Creates a PDF report
+
+[Workflow uses python:3.11-slim with pandas, matplotlib]
+```
+
+#### Real-time Data Stream
+```
+User: Set up a pipeline to process streaming data from Kafka
+
+Agent: Creating a streaming data pipeline with:
+1. Kafka consumer setup
+2. Data transformation
+3. Real-time aggregation
+4. Output to database
+
+[Workflow with kafka-python and stream processing]
+```
+
+## CI/CD Automation Agent
+
+Automate your entire CI/CD pipeline with AI.
+
+### Docker Compose Setup
+
+```yaml
+# docker-compose.yml
+version: '3.8'
+
+services:
+  cicd-agent:
+    build: .
+    ports:
+      - "8767:8767"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - KUBIYA_API_KEY=${KUBIYA_API_KEY}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+    volumes:
+      - ./workflows:/app/workflows
+    command: >
+      kubiya mcp agent
+      --provider openai
+      --model gpt-4o
+      --port 8767
+
+  frontend:
+    image: node:18-alpine
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+    ports:
+      - "3000:3000"
+    command: npm run dev
+```
+
+### CI/CD Workflow Examples
+
+#### Multi-Language Testing
+```
+User: Create a CI pipeline that tests my app in Python, Node.js, and Go
+
+Agent: I'll set up parallel testing for all three languages:
+
+[Creates workflow with parallel steps]
+- Python: pytest with coverage
+- Node.js: jest with ESLint
+- Go: go test with race detection
+```
+
+#### Kubernetes Deployment
+```
+User: Deploy to Kubernetes with canary releases
+
+Agent: Creating a Kubernetes deployment workflow with:
+1. Build and push Docker image
+2. Deploy 10% canary
+3. Monitor metrics for 5 minutes
+4. Gradual rollout to 100%
+5. Automatic rollback on errors
+
+[Workflow includes kubectl, helm, and monitoring]
+```
+
+## Security Scanner Agent
+
+Automated security scanning and remediation.
+
+### Specialized Security Agent
+
+```python
+# security_agent.py
+import os
+from fastapi import FastAPI
+from kubiya_workflow_sdk.cli import run_agent_server
+
+app = FastAPI()
+
+# Security-focused configuration
+config = {
+    "provider": "anthropic",
+    "model": "claude-3-5-sonnet-20241022",
+    "system_message": """
+    You are a security expert. Create workflows for:
+    - Vulnerability scanning
+    - Dependency checking
+    - Security compliance
+    - Incident response
+    
+    Always use security best practices and latest scanning tools.
+    """
+}
+
+@app.on_event("startup")
+async def startup():
+    await run_agent_server(**config)
+
+# Run with: uvicorn security_agent:app --port 8768
+```
+
+### Security Workflow Examples
+
+```
+User: Scan my Docker images for vulnerabilities
+
+Agent: I'll create a comprehensive security scanning workflow:
+1. Scan with Trivy for vulnerabilities
+2. Check with Snyk for dependency issues
+3. Run CIS Docker Benchmark
+4. Generate security report
+
+[Creates workflow with multiple security tools]
+```
+
+## Custom Chatbot with Memory
+
+Build a chatbot that remembers context and learns from interactions.
+
+### Stateful Agent Implementation
+
+```python
+# stateful_agent.py
+from typing import Dict, List
+import json
+from datetime import datetime
+
+class StatefulAgent:
+    def __init__(self):
+        self.conversation_memory: Dict[str, List] = {}
+        self.workflow_history: List[Dict] = []
+    
+    def remember_workflow(self, user_id: str, workflow: Dict):
+        """Store successful workflows for reuse"""
+        self.workflow_history.append({
+            "user_id": user_id,
+            "workflow": workflow,
+            "timestamp": datetime.now().isoformat(),
+            "description": workflow.get("description", "")
+        })
+    
+    def suggest_workflows(self, query: str) -> List[Dict]:
+        """Suggest relevant past workflows"""
+        # Implement similarity matching
+        relevant = []
+        for item in self.workflow_history:
+            if query.lower() in item["description"].lower():
+                relevant.append(item["workflow"])
+        return relevant[:3]  # Top 3 suggestions
+
+# Integration with agent server
+agent = StatefulAgent()
+
+# Use in your agent responses to provide contextual suggestions
+```
+
+### Frontend with Workflow History
+
+```tsx
+// ChatWithHistory.tsx
+import React, { useState, useEffect } from 'react';
+import { useChat } from '@ai-sdk/react';
+
+export function ChatWithHistory() {
+  const [workflowHistory, setWorkflowHistory] = useState([]);
+  const { messages, input, handleInputChange, handleSubmit } = useChat({
+    api: 'http://localhost:8765/v1/chat/completions',
+    onFinish: (message) => {
+      // Extract and save workflows from responses
+      if (message.content.includes('workflow')) {
+        const workflow = extractWorkflow(message.content);
+        if (workflow) {
+          setWorkflowHistory(prev => [...prev, {
+            id: Date.now(),
+            name: workflow.name,
+            description: workflow.description,
+            timestamp: new Date()
+          }]);
+        }
+      }
+    }
+  });
+
+  return (
+    <div className="flex h-screen">
+      {/* Chat Interface */}
+      <div className="flex-1 flex flex-col">
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {messages.map(m => (
+            <ChatMessage key={m.id} message={m} />
+          ))}
+        </div>
+        
+        {/* Input */}
+        <ChatInput
+          input={input}
+          onChange={handleInputChange}
+          onSubmit={handleSubmit}
+        />
+      </div>
+      
+      {/* Workflow History Sidebar */}
+      <div className="w-80 bg-gray-100 p-4 overflow-y-auto">
+        <h2 className="text-lg font-bold mb-4">Workflow History</h2>
+        {workflowHistory.map(wf => (
+          <WorkflowCard
+            key={wf.id}
+            workflow={wf}
+            onRerun={() => {
+              handleSubmit({
+                preventDefault: () => {},
+                target: {
+                  elements: {
+                    prompt: { value: `Run the ${wf.name} workflow again` }
+                  }
+                }
+              });
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+## Production Deployment Example
+
+### Kubernetes Deployment
+
+```yaml
+# k8s-deployment.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agent-config
+data:
+  AGENT_CONFIG: |
+    {
+      "provider": "openai",
+      "model": "gpt-4o",
+      "port": 8765,
+      "features": {
+        "streaming": true,
+        "authentication": true,
+        "rate_limiting": {
+          "enabled": true,
+          "requests_per_minute": 60
+        }
+      }
+    }
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubiya-agent
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: kubiya-agent
+  template:
+    metadata:
+      labels:
+        app: kubiya-agent
+    spec:
+      containers:
+      - name: agent
+        image: kubiya/agent:latest
+        ports:
+        - containerPort: 8765
+        env:
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-keys
+              key: openai
+        - name: KUBIYA_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-keys
+              key: kubiya
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8765
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8765
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: config
+        configMap:
+          name: agent-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubiya-agent
+spec:
+  selector:
+    app: kubiya-agent
+  ports:
+  - port: 80
+    targetPort: 8765
+  type: LoadBalancer
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: kubiya-agent-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: kubiya-agent
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+```
+
+### Monitoring Setup
+
+```yaml
+# prometheus-monitoring.yaml
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: kubiya-agent-metrics
+spec:
+  selector:
+    matchLabels:
+      app: kubiya-agent
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+```
+
+## Next Steps
+
+- Explore the [MCP Agent Server documentation](/mcp/agent-server) for advanced features
+- Learn about [custom tool development](/mcp/tools-reference)
+- Check out [frontend integration options](/frontend/vercel-ai-sdk)
+- Join our [community](https://discord.gg/kubiya) to share your agents 

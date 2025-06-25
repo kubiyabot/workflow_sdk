@@ -10,7 +10,10 @@ from urllib.parse import urljoin
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from .core.constants import WorkflowStatus
 from .core.exceptions import (
     APIError as KubiyaAPIError,
     WorkflowExecutionError,
@@ -19,7 +22,6 @@ from .core.exceptions import (
     AuthenticationError as KubiyaAuthenticationError,
     WorkflowError as WorkflowNotFoundError,
 )
-from .core.types import WorkflowStatus
 
 logger = logging.getLogger(__name__)
 
@@ -82,16 +84,13 @@ class StreamingKubiyaClient:
         if params:
             request_body["parameters"] = params
 
-        url = urljoin(
-            self.base_url, f"/api/v1/workflow?runner={self.runner}&command=execute_workflow"
-        )
-
         # Use the runner from the workflow definition if specified, otherwise use default
         runner = workflow.get('runner', self.runner)
-        del request_body["runner"]
+        if "runner" in request_body:
+            del request_body["runner"]
 
         # Execute the workflow
-        url = urljoin(self.base_url, f"/api/v1/workflow?runner={runner}&command=execute_workflow")
+        url = urljoin(self.base_url, f"/api/v1/workflow?runner={runner}&operation=execute_workflow")
 
         timeout = aiohttp.ClientTimeout(total=self.timeout)
         connector = aiohttp.TCPConnector(limit=100, limit_per_host=30)
@@ -109,8 +108,9 @@ class StreamingKubiyaClient:
                     # Check for other errors
                     if response.status >= 400:
                         error_text = await response.text()
+                        logger.error(f"API Error Response: {error_text}")
                         raise KubiyaAPIError(
-                            f"API request failed: HTTP {response.status}",
+                            f"API request failed: HTTP {response.status} - {error_text[:200]}",
                             status_code=response.status,
                             response_body=error_text,
                         )
@@ -493,40 +493,218 @@ class KubiyaClient:
         """Get available runners in the organization.
 
         Returns:
-            List of runner configurations
+            List of runner configurations (without capabilities field)
 
         Raises:
             KubiyaAPIError: For API errors
         """
-        try:
-            response = self._make_request(method="GET", endpoint=f"/api/v1/runners")
-            data = response.json()
+        response = self._make_request(method="GET", endpoint=f"/api/v1/runners")
+        data = response.json()
 
-            # Handle different response formats
-            if isinstance(data, dict):
-                # If it's a dict of runners, convert to list
-                runners = []
-                for runner_name, runner_info in data.items():
-                    runner_data = {"name": runner_name}
-                    if isinstance(runner_info, dict):
-                        runner_data.update(runner_info)
-                    runners.append(runner_data)
-                return runners
-            elif isinstance(data, list):
-                return data
-            else:
-                return []
-        except KubiyaAPIError as e:
-            logger.warning(f"Failed to fetch runners: {e}")
-            # Return default runners if API is not available
+        # Handle different response formats
+        if isinstance(data, dict):
+            # If it's a dict of runners, convert to list
+            runners = []
+            for runner_name, runner_info in data.items():
+                runner_data = {"name": runner_name}
+                if isinstance(runner_info, dict):
+                    runner_data.update(runner_info)
+                # Remove capabilities field if present
+                runner_data.pop("capabilities", None)
+                runners.append(runner_data)
+            return runners
+        elif isinstance(data, list):
+            # Remove capabilities from each runner
             return [
-                {
-                    "name": "core-testing-2",
-                    "type": "kubernetes",
-                    "region": "us-central1",
-                    "capabilities": ["docker", "kubernetes", "python", "bash"],
-                }
+                {k: v for k, v in runner.items() if k != "capabilities"}
+                for runner in data
             ]
+        else:
+            raise KubiyaAPIError("Unexpected response format from runners endpoint")
+
+    def get_runner_health(self, runner_name: str) -> Dict[str, Any]:
+        """Get health status of a specific runner.
+
+        Args:
+            runner_name: Name of the runner to check
+
+        Returns:
+            Health status including component versions and checks
+
+        Raises:
+            KubiyaAPIError: For API errors
+        """
+        response = self._make_request(
+            method="GET", 
+            endpoint=f"/api/v3/runners/{runner_name}/health"
+        )
+        return response.json()
+
+    def get_runners_with_health(
+        self, 
+        check_health: bool = True,
+        required_components: Optional[Dict[str, str]] = None,
+        max_workers: int = 10,
+        health_timeout: int = 5
+    ) -> List[Dict[str, Any]]:
+        """Get runners with their health status and filter by component versions.
+
+        Args:
+            check_health: Whether to check health status for each runner
+            required_components: Dict of component names to required versions
+                                e.g., {"agent-manager": "0.1.17", "tool-manager": None}
+                                None value means any version is acceptable
+            max_workers: Maximum number of parallel health check workers
+            health_timeout: Timeout for each health check in seconds
+
+        Returns:
+            List of runners with health information
+
+        Raises:
+            KubiyaAPIError: For API errors
+        """
+        # Get base runner list
+        runners = self.get_runners()
+        
+        if not check_health:
+            # Return runners without capabilities field
+            return [
+                {k: v for k, v in runner.items() if k != 'capabilities'}
+                for runner in runners
+            ]
+        
+        # Check if we need to filter by components from environment
+        env_components = {}
+        if os.environ.get("KUBIYA_REQUIRED_AGENT_MANAGER_VERSION"):
+            env_components["agent-manager"] = os.environ["KUBIYA_REQUIRED_AGENT_MANAGER_VERSION"]
+        if os.environ.get("KUBIYA_REQUIRED_TOOL_MANAGER_VERSION"):
+            env_components["tool-manager"] = os.environ["KUBIYA_REQUIRED_TOOL_MANAGER_VERSION"]
+        
+        # Merge with provided requirements
+        if required_components:
+            env_components.update(required_components)
+        required_components = env_components if env_components else required_components
+        
+        # Function to check health for a single runner
+        def check_runner_health(runner):
+            runner_name = runner.get("name")
+            if not runner_name:
+                return runner
+            
+            # Create a copy without capabilities
+            runner_copy = {k: v for k, v in runner.items() if k != 'capabilities'}
+            
+            try:
+                # Use a separate session with timeout for health checks
+                health_session = requests.Session()
+                health_session.headers.update(self.session.headers)
+                health_session.timeout = health_timeout
+                
+                # Get health status with retries
+                retry_strategy = Retry(
+                    total=3,
+                    backoff_factor=0.5,
+                    status_forcelist=[500, 502, 503, 504],
+                    allowed_methods=["GET"]
+                )
+                adapter = HTTPAdapter(max_retries=retry_strategy)
+                health_session.mount("http://", adapter)
+                health_session.mount("https://", adapter)
+                
+                response = health_session.get(
+                    urljoin(self.base_url, f"/api/v3/runners/{runner_name}/health"),
+                    timeout=health_timeout
+                )
+                response.raise_for_status()
+                health_data = response.json()
+                
+                runner_copy["health"] = health_data
+                runner_copy["health_status"] = health_data.get("status", "unknown")
+                runner_copy["is_healthy"] = health_data.get("health") == "true"
+                
+            except Exception as e:
+                logger.warning(f"Failed to fetch health for runner {runner_name}: {e}")
+                # Return error status if health check fails
+                runner_copy["health"] = {
+                    "health": "false",
+                    "status": "error",
+                    "error": str(e),
+                    "time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "checks": []
+                }
+                runner_copy["health_status"] = "error"
+                runner_copy["is_healthy"] = False
+            
+            # Check component requirements if specified
+            if required_components and runner_copy.get("is_healthy"):
+                meets_requirements = True
+                component_versions = {}
+                
+                for check in runner_copy.get("health", {}).get("checks", []):
+                    component_name = check.get("name")
+                    component_version = check.get("version")
+                    component_status = check.get("status")
+                    
+                    if component_name:
+                        component_versions[component_name] = {
+                            "version": component_version,
+                            "status": component_status,
+                            "metadata": check.get("metadata", {})
+                        }
+                    
+                    # Check if this component has a requirement
+                    if component_name in required_components:
+                        required_version = required_components[component_name]
+                        
+                        # Component must be healthy
+                        if component_status != "ok":
+                            meets_requirements = False
+                            break
+                        
+                        # Check version if specified
+                        if required_version and component_version != required_version:
+                            meets_requirements = False
+                            break
+                
+                runner_copy["component_versions"] = component_versions
+                runner_copy["meets_requirements"] = meets_requirements
+            else:
+                runner_copy["meets_requirements"] = not required_components
+            
+            return runner_copy
+        
+        # Use ThreadPoolExecutor for parallel health checks
+        enriched_runners = []
+        
+        with ThreadPoolExecutor(max_workers=min(max_workers, len(runners))) as executor:
+            # Submit all health check tasks
+            future_to_runner = {
+                executor.submit(check_runner_health, runner): runner 
+                for runner in runners
+            }
+            
+            # Collect results as they complete
+            for future in as_completed(future_to_runner):
+                try:
+                    result = future.result()
+                    enriched_runners.append(result)
+                except Exception as e:
+                    # If a health check fails catastrophically, include the runner anyway
+                    runner = future_to_runner[future]
+                    logger.error(f"Critical error checking runner {runner.get('name')}: {e}")
+                    runner_copy = {k: v for k, v in runner.items() if k != 'capabilities'}
+                    runner_copy.update({
+                        "health_status": "error",
+                        "is_healthy": False,
+                        "meets_requirements": False,
+                        "health": {"error": str(e)}
+                    })
+                    enriched_runners.append(runner_copy)
+        
+        # Sort by name for consistent ordering
+        enriched_runners.sort(key=lambda r: r.get("name", ""))
+        
+        return enriched_runners
 
     def get_integrations(self) -> List[Dict[str, Any]]:
         """Get available integrations in the organization.
@@ -537,41 +715,16 @@ class KubiyaClient:
         Raises:
             KubiyaAPIError: For API errors
         """
-        try:
-            response = self._make_request(method="GET", endpoint=f"/api/v1/integrations")
-            data = response.json()
+        response = self._make_request(method="GET", endpoint="/api/v2/integrations", params={"full": "true"})
+        data = response.json()
 
-            # Handle different response formats
-            if isinstance(data, dict):
-                # If it's a dict of integrations, convert to list
-                integrations = []
-                for integration_name, integration_info in data.items():
-                    integration_data = {"name": integration_name}
-                    if isinstance(integration_info, dict):
-                        integration_data.update(integration_info)
-                    integrations.append(integration_data)
-                return integrations
-            elif isinstance(data, list):
-                return data
-            else:
-                return []
-        except KubiyaAPIError as e:
-            logger.warning(f"Failed to fetch integrations: {e}")
-            # Return basic integrations if API is not available
-            return [
-                {
-                    "name": "bash",
-                    "type": "shell",
-                    "commands": ["bash", "sh"],
-                    "description": "Bash shell commands",
-                },
-                {
-                    "name": "python",
-                    "type": "runtime",
-                    "commands": ["python", "pip"],
-                    "description": "Python runtime",
-                },
-            ]
+        # Handle different response formats
+        if isinstance(data, list):
+            return data
+        elif isinstance(data, dict) and "integrations" in data:
+            return data["integrations"]
+        else:
+            raise KubiyaAPIError("Unexpected response format from integrations endpoint")
 
     def list_secrets(self) -> List[Dict[str, Any]]:
         """List available secrets in the organization.
@@ -582,20 +735,16 @@ class KubiyaClient:
         Raises:
             KubiyaAPIError: For API errors
         """
-        try:
-            response = self._make_request(method="GET", endpoint="/api/v1/secrets")
-            data = response.json()
+        response = self._make_request(method="GET", endpoint="/api/v2/secrets")
+        data = response.json()
 
-            # Handle different response formats
-            if isinstance(data, list):
-                return data
-            elif isinstance(data, dict) and "secrets" in data:
-                return data["secrets"]
-            else:
-                return []
-        except KubiyaAPIError as e:
-            logger.warning(f"Failed to fetch secrets: {e}")
-            return []
+        # Handle different response formats
+        if isinstance(data, list):
+            return data
+        elif isinstance(data, dict) and "secrets" in data:
+            return data["secrets"]
+        else:
+            raise KubiyaAPIError("Unexpected response format from secrets endpoint")
 
     def get_secrets_metadata(self) -> List[Dict[str, Any]]:
         """Get metadata about available secrets (names only, not values).
@@ -608,20 +757,16 @@ class KubiyaClient:
         Raises:
             KubiyaAPIError: For API errors
         """
-        try:
-            response = self._make_request(method="GET", endpoint="/api/v1/secrets")
-            data = response.json()
+        response = self._make_request(method="GET", endpoint="/api/v1/secrets")
+        data = response.json()
 
-            # Handle different response formats
-            if isinstance(data, list):
-                return data
-            elif isinstance(data, dict) and "secrets" in data:
-                return data["secrets"]
-            else:
-                return []
-        except KubiyaAPIError as e:
-            logger.warning(f"Failed to fetch secrets: {e}")
-            return []
+        # Handle different response formats
+        if isinstance(data, list):
+            return data
+        elif isinstance(data, dict) and "secrets" in data:
+            return data["secrets"]
+        else:
+            raise KubiyaAPIError("Unexpected response format from secrets endpoint")
 
     def get_organization_info(self) -> Dict[str, Any]:
         """Get organization information.
@@ -639,6 +784,34 @@ class KubiyaClient:
             "name": self.org_name or "default",
             "plan": "enterprise",  # Default plan type
         }
+
+    async def execute_workflow_stream(
+        self, workflow_definition: Dict[str, Any], parameters: Optional[Dict[str, Any]] = None
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Execute a workflow and stream results asynchronously.
+        
+        This is a wrapper that creates a StreamingKubiyaClient and executes the workflow.
+        
+        Args:
+            workflow_definition: Workflow definition dict
+            parameters: Workflow parameters
+            
+        Yields:
+            Workflow execution events
+        """
+        # Create streaming client with same config
+        streaming_client = StreamingKubiyaClient(
+            api_key=self.session.headers.get("Authorization", "").replace("UserKey ", ""),
+            base_url=self.base_url,
+            runner=self.runner,
+            timeout=self.timeout,
+            max_retries=3,  # Use default value since we don't store max_retries
+            org_name=self.org_name
+        )
+        
+        # Execute and stream
+        async for event in streaming_client.execute_workflow_stream(workflow_definition, parameters):
+            yield event
 
     def create_agent(
         self,
@@ -706,7 +879,7 @@ class KubiyaClient:
         elif isinstance(data, dict) and "agents" in data:
             return data["agents"]
         else:
-            return []
+            raise KubiyaAPIError("Unexpected response format from agents endpoint")
 
     def execute_agent(
         self,

@@ -102,16 +102,35 @@
             ]
           },
           {
-            "group": "Full Stack Agents",
+            "group": "Full-Stack AI Agents",
             "pages": [
               "full-stack-agents/overview",
-              "full-stack-agents/agent-servers",
-              "providers/adk/getting-started",
-              "providers/adk/agents",
-              "providers/adk/streaming",
-              "providers/fastmcp",
+              "full-stack-agents/architecture",
+              "full-stack-agents/quickstart",
+              "full-stack-agents/examples",
               "full-stack-agents/existing-frameworks/overview",
               "full-stack-agents/existing-frameworks/langgraph"
+            ]
+          },
+          {
+            "group": "MCP Integration",
+            "pages": [
+              "mcp/overview",
+              "mcp/quickstart",
+              "mcp/agent-server",
+              "mcp/authentication",
+              "mcp/tools-reference",
+              "mcp/examples"
+            ]
+          },
+          {
+            "group": "AI Frameworks",
+            "pages": [
+              "frameworks/overview",
+              "frameworks/langchain",
+              "frameworks/openai",
+              "frameworks/claude",
+              "frameworks/custom"
             ]
           },
           {
@@ -119,20 +138,6 @@
             "pages": [
               "frontend",
               "frontend/vercel-ai-sdk"
-            ]
-          },
-          {
-            "group": "Platform & Tools",
-            "pages": [
-              "mcp/overview",
-              "servers/overview"
-            ]
-          },
-          {
-            "group": "Framework Examples",
-            "pages": [
-              "full-stack-agents/existing-frameworks/overview",
-              "full-stack-agents/existing-frameworks/langgraph"
             ]
           },
           {
@@ -151,6 +156,7 @@
           {
             "group": "Resources",
             "pages": [
+              "cli-reference",
               "changelog",
               "migration-guide",
               "updates"
@@ -162,15 +168,6 @@
         "tab": "APIs",
         "groups": [
           {
-            "group": "Agent Server APIs",
-            "pages": [
-              "api-reference/agent-servers/overview",
-              "api-reference/agent-servers/compose",
-              "api-reference/agent-servers/discovery",
-              "api-reference/agent-servers/orchestration"
-            ]
-          },
-          {
             "group": "Kubiya Platform APIs",
             "pages": [
               "api-reference/platform/overview",
@@ -180,6 +177,14 @@
               "api-reference/platform/sources",
               "api-reference/platform/runners",
               "api-reference/platform/knowledge"
+            ]
+          },
+          {
+            "group": "MCP Server APIs",
+            "pages": [
+              "api-reference/mcp/overview",
+              "api-reference/mcp/tools",
+              "api-reference/mcp/protocol"
             ]
           }
         ]
