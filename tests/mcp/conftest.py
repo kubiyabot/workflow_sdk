@@ -16,6 +16,13 @@ from tests.mcp.helpers import (
     generate_test_dsl,
     generate_complex_test_dsl,
 )
+from tests.mcp.mocks import (
+    MockWorkflowAPIClient,
+    FunctionalTestDataGenerator,
+    MockScenarios,
+)
+# Import fixtures from fixtures.py to make them available
+from tests.mcp.fixtures import *
 
 
 @pytest.fixture(scope="session")
@@ -212,6 +219,25 @@ def setup_test_environment(monkeypatch):
 
     for key, value in test_env_vars.items():
         monkeypatch.setenv(key, value)
+
+
+# Functional testing fixtures
+@pytest.fixture
+def mock_api_client():
+    """Fixture providing a mock API client for functional tests."""
+    return MockWorkflowAPIClient()
+
+
+@pytest.fixture
+def functional_test_data():
+    """Fixture providing functional test data generator."""
+    return FunctionalTestDataGenerator()
+
+
+@pytest.fixture
+def mock_scenarios():
+    """Fixture providing pre-configured mock scenarios."""
+    return MockScenarios()
 
 
 @pytest.fixture
