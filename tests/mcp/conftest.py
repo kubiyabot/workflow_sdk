@@ -14,7 +14,7 @@ from tests.mcp.helpers import (
     mcp_test_server,
     create_test_workflow_context,
     generate_test_dsl,
-    generate_complex_test_dsl
+    generate_complex_test_dsl,
 )
 
 
@@ -32,7 +32,7 @@ async def mcp_server() -> AsyncGenerator[MCPTestServer, None]:
     """Fixture to provide a running MCP server for tests."""
     async with mcp_test_server(
         server_module="kubiya_workflow_sdk.mcp.server",
-        debug=os.getenv("MCP_TEST_DEBUG", "false").lower() == "true"
+        debug=os.getenv("MCP_TEST_DEBUG", "false").lower() == "true",
     ) as server:
         yield server
 
@@ -42,15 +42,14 @@ async def mcp_server_with_auth() -> AsyncGenerator[MCPTestServer, None]:
     """Fixture to provide a running MCP server with authentication for tests."""
     # Set up test environment variables for auth
     test_env = os.environ.copy()
-    test_env.update({
-        "KUBIYA_API_KEY": "test_api_key",
-        "KUBIYA_BASE_URL": "https://api.kubiya.ai/api/v1"
-    })
-    
+    test_env.update(
+        {"KUBIYA_API_KEY": "test_api_key", "KUBIYA_BASE_URL": "https://api.kubiya.ai/api/v1"}
+    )
+
     async with mcp_test_server(
         server_module="kubiya_workflow_sdk.mcp.server",
         server_args=["--auth"],
-        debug=os.getenv("MCP_TEST_DEBUG", "false").lower() == "true"
+        debug=os.getenv("MCP_TEST_DEBUG", "false").lower() == "true",
     ) as server:
         yield server
 
@@ -60,13 +59,13 @@ def test_workflow_context() -> Dict[str, Any]:
     """Fixture providing test workflow context."""
     return {
         "workflow_name": "test_workflow",
-        "runner_id": "test_runner", 
+        "runner_id": "test_runner",
         "api_key": "test_api_key",
         "base_url": "https://api.kubiya.ai/api/v1",
         "secrets": {
             "TEST_SECRET": "test_value",
-            "DATABASE_URL": "postgresql://test:test@localhost:5432/test"
-        }
+            "DATABASE_URL": "postgresql://test:test@localhost:5432/test",
+        },
     }
 
 
@@ -85,11 +84,11 @@ def complex_dsl() -> str:
 @pytest.fixture
 def temp_workflow_file(simple_dsl: str) -> str:
     """Fixture providing a temporary workflow file."""
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
         f.write(simple_dsl)
         f.flush()
         yield f.name
-    
+
     # Cleanup
     Path(f.name).unlink(missing_ok=True)
 
@@ -144,9 +143,9 @@ def test_secrets() -> Dict[str, str]:
         "DATABASE_URL": "postgresql://user:pass@localhost:5432/db",
         "REDIS_URL": "redis://localhost:6379/0",
         "JWT_SECRET": "test_jwt_secret",
-        "WEBHOOK_SECRET": "test_webhook_secret"
+        "WEBHOOK_SECRET": "test_webhook_secret",
     }
-    
+
 
 @pytest.fixture
 def test_integrations() -> Dict[str, Any]:
@@ -157,20 +156,20 @@ def test_integrations() -> Dict[str, Any]:
                 "name": "slack",
                 "description": "Slack integration",
                 "docker_image": "kubiya/slack-integration:latest",
-                "required_secrets": ["SLACK_BOT_TOKEN", "SLACK_SIGNING_SECRET"]
+                "required_secrets": ["SLACK_BOT_TOKEN", "SLACK_SIGNING_SECRET"],
             },
             {
                 "name": "github",
-                "description": "GitHub integration", 
+                "description": "GitHub integration",
                 "docker_image": "kubiya/github-integration:latest",
-                "required_secrets": ["GITHUB_TOKEN"]
+                "required_secrets": ["GITHUB_TOKEN"],
             },
             {
                 "name": "jira",
                 "description": "Jira integration",
-                "docker_image": "kubiya/jira-integration:latest", 
-                "required_secrets": ["JIRA_URL", "JIRA_USERNAME", "JIRA_PASSWORD"]
-            }
+                "docker_image": "kubiya/jira-integration:latest",
+                "required_secrets": ["JIRA_URL", "JIRA_USERNAME", "JIRA_PASSWORD"],
+            },
         ]
     }
 
@@ -186,16 +185,16 @@ def test_runners() -> Dict[str, Any]:
                 "status": "healthy",
                 "version": "1.0.0",
                 "capabilities": ["python", "shell", "docker"],
-                "last_heartbeat": "2024-01-01T00:00:00Z"
+                "last_heartbeat": "2024-01-01T00:00:00Z",
             },
             {
-                "id": "runner-2", 
+                "id": "runner-2",
                 "name": "Test Runner 2",
                 "status": "unhealthy",
                 "version": "0.9.0",
                 "capabilities": ["python", "shell"],
-                "last_heartbeat": "2024-01-01T00:00:00Z"
-            }
+                "last_heartbeat": "2024-01-01T00:00:00Z",
+            },
         ]
     }
 
@@ -208,9 +207,9 @@ def setup_test_environment(monkeypatch):
         "KUBIYA_API_KEY": "test_api_key",
         "KUBIYA_BASE_URL": "https://api.kubiya.ai/api/v1",
         "MCP_TEST_MODE": "true",
-        "PYTHONPATH": str(Path(__file__).parent.parent.parent)
+        "PYTHONPATH": str(Path(__file__).parent.parent.parent),
     }
-    
+
     for key, value in test_env_vars.items():
         monkeypatch.setenv(key, value)
 
@@ -225,12 +224,12 @@ def mock_http_responses():
                 "runners": [
                     {
                         "id": "test-runner-1",
-                        "name": "Test Runner 1", 
+                        "name": "Test Runner 1",
                         "status": "healthy",
-                        "version": "1.0.0"
+                        "version": "1.0.0",
                     }
                 ]
-            }
+            },
         },
         "integrations": {
             "status_code": 200,
@@ -239,9 +238,9 @@ def mock_http_responses():
                     {
                         "name": "test-integration",
                         "description": "Test integration",
-                        "docker_image": "test/integration:latest"
+                        "docker_image": "test/integration:latest",
                     }
                 ]
-            }
-        }
+            },
+        },
     }
