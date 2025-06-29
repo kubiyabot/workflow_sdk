@@ -40,7 +40,6 @@ jsonpointer==3.0.0
 jsonschema==4.24.0
 jsonschema-pydantic==0.6
 jsonschema-specifications==2025.4.1
--e file:///Users/akiva/projects/workflow_sdk
 langchain==0.3.26
 langchain-community==0.3.26
 langchain-core==0.3.66
