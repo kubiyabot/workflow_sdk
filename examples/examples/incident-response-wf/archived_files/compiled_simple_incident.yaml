@@ -1,0 +1,199 @@
+name: simple-incident-response
+steps:
+- name: get-slack-token
+  executor: !!python/object:kubiya_workflow_sdk.dsl.step.Step
+    data:
+      name: get-slack-token
+      executor:
+        type: kubiya
+        config:
+          url: api/v1/integration/slack/token/1
+          method: GET
+  output: SLACK_TOKEN
+- name: incident-analysis
+  executor: !!python/object:kubiya_workflow_sdk.dsl.step.Step
+    data:
+      name: incident-analyzer
+      executor:
+        type: inline_agent
+        config:
+          message: "Analyze this incident and provide structured response planning:\n\
+            \nIncident Details:\n- ID: ${incident_id}\n- Title: ${incident_title}\n\
+            - Severity: ${incident_severity}\n- Description: ${incident_body}\n- URL:\
+            \ ${incident_url}\n\nProvide a JSON analysis with:\n1. Incident category\
+            \ (infrastructure/application/network/security)\n2. Investigation priorities\
+            \ (kubernetes: high/medium/low, datadog: high/medium/low)\n3. Urgency\
+            \ level (immediate/high/medium/low)\n4. Estimated resolution time\n5.\
+            \ Key investigation areas\n\nOutput as JSON:\n{\n  \"incident_category\"\
+            : \"infrastructure\",\n  \"urgency_level\": \"high\",\n  \"investigation_priority\"\
+            : {\n    \"kubernetes\": \"high\",\n    \"datadog\": \"high\"\n  },\n\
+            \  \"estimated_resolution_time\": \"1hr\",\n  \"key_areas\": [\"cpu_usage\"\
+            , \"pod_health\", \"resource_limits\"]\n}"
+          agent:
+            name: incident-analyzer
+            ai_instructions: You are an expert SRE analyst. Analyze incidents and
+              provide structured JSON responses for automated workflows.
+            runners: &id001
+            - core-testing-2
+            llm_model: gpt-4o-mini
+            is_debug_mode: true
+  output: INCIDENT_ANALYSIS
+- name: create-slack-channel
+  executor: !!python/object:kubiya_workflow_sdk.dsl.step.Step
+    data:
+      name: create-channel
+      executor:
+        type: docker
+        config:
+          image: curlimages/curl:latest
+          content: "#!/bin/sh\nset -e\necho \"\U0001F527 Creating incident channel...\"\
+            \n\n# Create channel name\nCHANNEL_NAME=\"inc-${incident_id}-$(echo '${incident_title}'\
+            \ | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | cut -c1-20)\"\
+            \n\n# Create channel using Slack API\nRESPONSE=$(curl -s -X POST \"https://slack.com/api/conversations.create\"\
+            \ \\\n  -H \"Authorization: Bearer ${slack_token}\" \\\n  -H \"Content-Type:\
+            \ application/json\" \\\n  -d \"{\n    \\\"name\\\": \\\"$CHANNEL_NAME\\\
+            \",\n    \\\"is_private\\\": false,\n    \\\"topic\\\": \\\"\U0001F6A8\
+            \ ${incident_severity} incident - ${incident_title}\\\"\n  }\")\n\nSUCCESS=$(echo\
+            \ \"$RESPONSE\" | jq -r '.ok')\nif [ \"$SUCCESS\" = \"true\" ]; then\n\
+            \    CHANNEL_ID=$(echo \"$RESPONSE\" | jq -r '.channel.id')\n    echo\
+            \ \"\u2705 Channel created: $CHANNEL_ID\"\n    echo \"$CHANNEL_ID\"\n\
+            else\n    echo \"\u274C Failed to create channel: $RESPONSE\"\n    exit\
+            \ 1\nfi"
+  env:
+    incident_id: ${incident_id}
+    incident_title: ${incident_title}
+    incident_severity: ${incident_severity}
+    slack_token: $SLACK_TOKEN.token
+  output: SLACK_CHANNEL_ID
+- name: kubernetes-investigation
+  executor: !!python/object:kubiya_workflow_sdk.dsl.step.Step
+    data:
+      name: k8s-investigator
+      executor:
+        type: inline_agent
+        config:
+          message: 'Investigate Kubernetes cluster for the incident:
+
+
+            Incident Analysis: $INCIDENT_ANALYSIS
+
+            Channel ID: $SLACK_CHANNEL_ID
+
+
+            Use your kubectl tool to:
+
+            1. Check cluster health
+
+            2. Look for problematic pods
+
+            3. Check resource usage
+
+            4. Post findings to Slack
+
+
+            Focus on the incident category and key areas from the analysis.
+
+            Provide structured JSON findings with status, key_findings, and recommendations.'
+          agent:
+            name: k8s-investigator
+            ai_instructions: You are Claude Code specializing in Kubernetes investigation.
+              Use kubectl to diagnose issues and post findings to Slack.
+            runners: *id001
+            llm_model: gpt-4o-mini
+            is_debug_mode: true
+            tools:
+            - name: kubectl
+              alias: kubectl
+              description: Execute kubectl commands
+              type: docker
+              image: bitnami/kubectl:latest
+              content: "#!/bin/bash\nset -e\n\n# Mock kubectl for demo (in real deployment,\
+                \ configure with service account)\necho \"\U0001F527 Executing: kubectl\
+                \ $command\"\n\ncase \"$command\" in\n    \"get pods --all-namespaces\"\
+                )\n        echo \"NAMESPACE     NAME                     READY   STATUS\
+                \    RESTARTS   AGE\"\n        echo \"default       api-server-1 \
+                \            1/1     Running   0          2d\"\n        echo \"default\
+                \       api-server-2             0/1     Pending   0          1h\"\
+                \n        echo \"default       database-1               1/1     Running\
+                \   1          5d\"\n        ;;\n    \"get nodes\")\n        echo\
+                \ \"NAME       STATUS   ROLES    AGE   VERSION\"\n        echo \"\
+                node-1     Ready    master   10d   v1.28.0\"\n        echo \"node-2\
+                \     Ready    worker   10d   v1.28.0\" \n        echo \"node-3  \
+                \   NotReady worker   10d   v1.28.0\"\n        ;;\n    \"top nodes\"\
+                )\n        echo \"NAME     CPU(cores)   CPU%   MEMORY(bytes)   MEMORY%\"\
+                \n        echo \"node-1   950m         95%    7.5Gi           94%\"\
+                \n        echo \"node-2   800m         80%    6.2Gi           78%\"\
+                \n        echo \"node-3   N/A          N/A    N/A             N/A\"\
+                \n        ;;\n    *)\n        echo \"Mock kubectl output for: $command\"\
+                \n        ;;\nesac"
+              args:
+              - name: command
+                type: string
+                description: kubectl command to execute
+                required: true
+            - name: slack-post
+              alias: slack-post
+              description: Post message to Slack channel
+              type: docker
+              image: curlimages/curl:latest
+              content: "#!/bin/sh\nset -e\necho \"\U0001F4E4 Posting to Slack: $message\"\
+                \n\ncurl -s -X POST \"https://slack.com/api/chat.postMessage\" \\\n\
+                \  -H \"Authorization: Bearer $slack_token\" \\\n  -H \"Content-Type:\
+                \ application/json\" \\\n  -d \"{\n    \\\"channel\\\": \\\"$channel_id\\\
+                \",\n    \\\"text\\\": \\\"\U0001F6A2 Kubernetes Investigation\\\"\
+                ,\n    \\\"blocks\\\": [\n      {\n        \\\"type\\\": \\\"section\\\
+                \",\n        \\\"text\\\": {\n          \\\"type\\\": \\\"mrkdwn\\\
+                \",\n          \\\"text\\\": \\\"\U0001F6A2 **Kubernetes Investigation**\\\
+                \\n\\\\n$message\\\"\n        }\n      }\n    ]\n  }\" > /dev/null\n\
+                \necho \"\u2705 Posted to Slack\""
+              args:
+              - name: channel_id
+                type: string
+                description: Slack channel ID
+                required: true
+              - name: message
+                type: string
+                description: Message to post
+                required: true
+              - name: slack_token
+                type: string
+                description: Slack API token
+                required: true
+  output: K8S_FINDINGS
+- name: generate-report
+  executor: !!python/object:kubiya_workflow_sdk.dsl.step.Step
+    data:
+      name: report-generator
+      executor:
+        type: docker
+        config:
+          image: alpine:latest
+          content: "#!/bin/sh\nset -e\necho \"\U0001F4CB Generating incident report...\"\
+            \n\n# Create comprehensive report\ncat << EOF\n# \U0001F6A8 Incident Response\
+            \ Report\n\n**Incident ID:** $incident_id\n**Title:** $incident_title\
+            \  \n**Severity:** $incident_severity\n**Status:** \u2705 Investigation\
+            \ Complete\n**Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')\n\n## \U0001F4CA\
+            \ Executive Summary\n\n\u2705 **Claude Code Investigation Completed**\n\
+            - AI-driven analysis executed\n- Kubernetes cluster investigated\n- Slack\
+            \ communication established\n- Structured findings generated\n\n## \U0001F50D\
+            \ Key Findings\n\n$k8s_findings\n\n## \u2699\uFE0F Workflow Performance\n\
+            \n- **Claude Code Integration:** \u2705 Successfully executed\n- **Kubernetes\
+            \ Investigation:** \u2705 Completed  \n- **Slack Integration:** \u2705\
+            \ Active communication\n- **Automated Analysis:** \u2705 Structured findings\
+            \ generated\n\n---\n*Report generated by Claude Code Incident Response\
+            \ Workflow*\nEOF\n\necho \"\u2705 Report generated successfully\""
+  env:
+    incident_id: ${incident_id}
+    incident_title: ${incident_title}
+    incident_severity: ${incident_severity}
+    k8s_findings: $K8S_FINDINGS
+description: Simple incident response workflow with Claude Code
+type: chain
+params:
+  incident_id: INC-2024-TEST-001
+  incident_title: Critical CPU spike in production API servers
+  incident_severity: critical
+  incident_body: Multiple production API servers are experiencing critical CPU usage
+    above 95%. Response times have degraded by 300%. Users are reporting timeouts
+    and failed requests.
+  incident_url: https://monitoring.example.com/alerts/critical-cpu-spike

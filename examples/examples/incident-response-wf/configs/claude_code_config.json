@@ -1,0 +1,111 @@
+{
+  "claude_config": {
+    "timeout": 300,
+    "output_format": "json",
+    "system_prompt": "You are an expert Site Reliability Engineer investigating a production incident. Provide comprehensive technical analysis based on available monitoring data and system information.",
+    "append_system_prompt": "Always provide structured analysis with actionable remediation steps prioritized by urgency.",
+    "max_tokens": 4000,
+    "temperature": 0.1
+  },
+  "investigation_framework": {
+    "methodology": [
+      "Start with system baseline analysis using available container tools",
+      "Use ONLY the monitoring tools that are actually configured",
+      "Do NOT attempt to use tools without proper credentials/access",
+      "Correlate findings across available data sources",
+      "Focus on actionable insights based on real data"
+    ],
+    "output_structure": {
+      "executive_summary": "Key findings and immediate concerns",
+      "root_cause": "Analysis based on available monitoring data",
+      "impact_assessment": "Business and technical impact evaluation",
+      "remediation_steps": "Prioritized action items (IMMEDIATE, URGENT, HIGH, MEDIUM)",
+      "monitoring_recommendations": "Improvements for prevention",
+      "confidence_level": "Confidence in the analysis (0-100)"
+    }
+  },
+  "tool_integrations": {
+    "kubernetes": {
+      "enabled": true,
+      "commands": [
+        "kubectl cluster-info --request-timeout=10s",
+        "kubectl get nodes --no-headers",
+        "kubectl get pods --all-namespaces --field-selector=status.phase!=Running",
+        "kubectl top nodes"
+      ],
+      "fallback_message": "Kubernetes analysis requires proper cluster access"
+    },
+    "observe_ai": {
+      "enabled": false,
+      "requires_api_key": true,
+      "api_endpoints": [
+        "/api/v1/metrics/infrastructure",
+        "/api/v1/metrics/application"
+      ],
+      "fallback_message": "Observe.ai analysis requires API key configuration"
+    },
+    "datadog": {
+      "enabled": false,
+      "requires_api_key": true,
+      "api_endpoints": [
+        "/api/v1/hosts",
+        "/api/v1/metrics",
+        "/api/v1/traces"
+      ],
+      "fallback_message": "Datadog analysis requires API key configuration"
+    }
+  },
+  "incident_severity_mapping": {
+    "critical": {
+      "escalation_required": true,
+      "business_impact": "High service availability impact affecting user experience",
+      "response_time": "immediate",
+      "executive_summary_template": "Critical incident requiring immediate escalation and resource scaling"
+    },
+    "high": {
+      "escalation_required": false,
+      "business_impact": "Medium performance impact with degraded user experience",
+      "response_time": "urgent",
+      "executive_summary_template": "High priority performance degradation requiring optimization"
+    },
+    "medium": {
+      "escalation_required": false,
+      "business_impact": "Low service impact with minimal user disruption",
+      "response_time": "standard",
+      "executive_summary_template": "Standard incident with minor issues requiring monitoring"
+    }
+  },
+  "environment_setup": {
+    "base_image": "node:18-bullseye",
+    "required_packages": [
+      "curl",
+      "wget", 
+      "jq",
+      "procps",
+      "python3",
+      "python3-pip"
+    ],
+    "python_packages": [
+      "psutil",
+      "requests",
+      "pyyaml"
+    ],
+    "cli_tools": [
+      {
+        "name": "kubectl",
+        "install_method": "curl",
+        "url": "https://dl.k8s.io/release/stable.txt"
+      },
+      {
+        "name": "helm",
+        "install_method": "script",
+        "url": "https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3"
+      },
+      {
+        "name": "claude",
+        "install_method": "npm",
+        "package": "@anthropic-ai/claude-code"
+      }
+    ]
+  }
+}

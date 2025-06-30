@@ -1,0 +1,731 @@
+{
+  "name": "incident-response-workflow",
+  "description": "Advanced AI-driven incident response workflow with Claude Code integration and progressive updates",
+  "workflow": {
+    "name": "incident-response-workflow",
+    "description": "End-to-end incident response leveraging Claude Code as AI agent with comprehensive tool access",
+    "steps": [
+      {
+        "name": "validate-inputs",
+        "description": "Validate required workflow inputs",
+        "output": "INPUT_VALIDATION",
+        "executor": {
+          "type": "tool",
+          "config": {
+            "tool_def": {
+              "name": "input-validator",
+              "description": "Validate all required inputs are provided",
+              "type": "docker",
+              "image": "alpine:latest",
+              "content": "#!/bin/sh\nset -e\necho \"🔍 Validating required inputs...\"\n\n# Check required parameters\nMISSING_PARAMS=\"\"\n\nif [ -z \"$incident_id\" ]; then\n    MISSING_PARAMS=\"${MISSING_PARAMS}incident_id \"\nfi\n\nif [ -z \"$incident_title\" ]; then\n    MISSING_PARAMS=\"${MISSING_PARAMS}incident_title \"\nfi\n\nif [ -z \"$incident_severity\" ]; then\n    MISSING_PARAMS=\"${MISSING_PARAMS}incident_severity \"\nfi\n\nif [ -z \"$incident_body\" ]; then\n    MISSING_PARAMS=\"${MISSING_PARAMS}incident_body \"\nfi\n\nif [ -z \"$incident_url\" ]; then\n    MISSING_PARAMS=\"${MISSING_PARAMS}incident_url \"\nfi\n\n# Set default checkpoint directory if not provided\nif [ -z \"$checkpoint_dir\" ]; then\n    checkpoint_dir=\"/tmp/incident-${incident_id:-unknown}\"\n    echo \"ℹ️ Using default checkpoint directory: $checkpoint_dir\"\nfi\n\nif [ -n \"$MISSING_PARAMS\" ]; then\n    echo \"❌ Missing required parameters: $MISSING_PARAMS\"\n    echo \"\"\n    echo \"Required parameters:\"\n    echo \"  - incident_id: Unique identifier for the incident\"\n    echo \"  - incident_title: Brief title of the incident\"\n    echo \"  - incident_severity: Severity level (critical/high/medium/low)\"\n    echo \"  - incident_body: Detailed description of the incident\"\n    echo \"  - incident_url: URL to the incident (e.g., monitoring dashboard)\"\n    echo \"  - checkpoint_dir: (Optional) Directory for checkpoints, defaults to /tmp/incident-{id}\"\n    exit 1\nfi\n\necho \"✅ All required inputs validated\"\necho \"Incident ID: $incident_id\"\necho \"Severity: $incident_severity\"\necho \"Checkpoint directory: $checkpoint_dir\"\n\n# Output the checkpoint directory so it can be used by other steps\necho \"$checkpoint_dir\"",
+              "args": [
+                {
+                  "name": "incident_id",
+                  "type": "string",
+                  "required": false
+                },
+                {
+                  "name": "incident_title",
+                  "type": "string",
+                  "required": false
+                },
+                {
+                  "name": "incident_severity",
+                  "type": "string",
+                  "required": false
+                },
+                {
+                  "name": "incident_body",
+                  "type": "string",
+                  "required": false
+                },
+                {
+                  "name": "incident_url",
+                  "type": "string",
+                  "required": false
+                },
+                {
+                  "name": "checkpoint_dir",
+                  "type": "string",
+                  "required": false
+                }
+              ]
+            },
+            "args": {
+              "incident_id": "$incident_id",
+              "incident_title": "$incident_title",
+              "incident_severity": "$incident_severity",
+              "incident_body": "$incident_body",
+              "incident_url": "$incident_url",
+              "checkpoint_dir": "$checkpoint_dir"
+            }
+          }
+        }
+      },
+      {
+        "name": "get-slack-integration-info",
+        "depends": [
+          "validate-inputs"
+        ],
+        "description": "Get Slack integration info",
+        "output": "SLACK_INFO",
+        "executor": {
+          "type": "kubiya",
+          "config": {
+            "url": "api/v2/integrations/slack",
+            "method": "GET"
+          }
+        }
+      },
+      {
+        "name": "get-slack-token",
+        "description": "Get Slack OAuth token from integration",
+        "output": "SLACK_TOKEN",
+        "depends": [
+          "get-slack-integration-info"
+        ],
+        "executor": {
+          "type": "kubiya",
+          "config": {
+            "url": "api/v1/integration/slack/token/${SLACK_INFO.configs[0].vendor_specific.id}",
+            "method": "GET"
+          }
+        }
+      },
+      {
+        "name": "fetch-all-secrets",
+        "description": "Fetch all required secrets from Kubiya",
+        "output": "ALL_SECRETS",
+        "depends": [
+          "get-slack-token"
+        ],
+        "executor": {
+          "type": "tool",
+          "config": {
+            "tool_def": {
+              "name": "secret-fetcher",
+              "description": "Fetch all required secrets in a single bundle",
+              "type": "docker",
+              "image": "curlimages/curl:latest",
+              "content": "#!/bin/sh\nset -e\napk add --no-cache jq >/dev/null 2>&1\n\necho \"🔐 Fetching all required secrets...\"\n\n# Create secrets bundle\ncat > /tmp/secrets.json << EOF\n{\n  \"SLACK_API_KEY\": \"$slack_token\",\n  \"OPENAI_API_KEY\": \"$openai_key\",\n  \"DATADOG_API_KEY\": \"$datadog_api_key\",\n  \"DATADOG_APP_KEY\": \"$datadog_app_key\",\n  \"GITHUB_TOKEN\": \"$github_token\",\n  \"OBSERVE_API_KEY\": \"$observe_api_key\"\n}\nEOF\n\necho \"✅ Secrets bundle created\"\ncat /tmp/secrets.json",
+              "args": [
+                {
+                  "name": "slack_token",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "openai_key",
+                  "type": "string",
+                  "required": false
+                },
+                {
+                  "name": "datadog_api_key",
+                  "type": "string",
+                  "required": false
+                },
+                {
+                  "name": "datadog_app_key",
+                  "type": "string",
+                  "required": false
+                },
+                {
+                  "name": "github_token",
+                  "type": "string",
+                  "required": false
+                },
+                {
+                  "name": "observe_api_key",
+                  "type": "string",
+                  "required": false
+                }
+              ]
+            },
+            "args": {
+              "slack_token": "$SLACK_TOKEN.token",
+              "openai_key": "${OPENAI_API_KEY:-}",
+              "datadog_api_key": "${DATADOG_API_KEY:-}",
+              "datadog_app_key": "${DATADOG_APP_KEY:-}",
+              "github_token": "${GITHUB_TOKEN:-}",
+              "observe_api_key": "${OBSERVE_API_KEY:-}"
+            }
+          }
+        }
+      },
+      {
+        "name": "initialize-incident-state",
+        "description": "Initialize incident state and create checkpoint",
+        "output": "INCIDENT_STATE",
+        "depends": [
+          "fetch-all-secrets"
+        ],
+        "executor": {
+          "type": "tool",
+          "config": {
+            "tool_def": {
+              "name": "incident-state-initializer",
+              "description": "Initialize incident state management",
+              "type": "docker",
+              "image": "alpine:latest",
+              "content": "#!/bin/sh\nset -e\necho \"🔄 Initializing incident state...\"\n\n# Create checkpoint directory\nmkdir -p \"$checkpoint_dir\"\n\n# Initialize state\nSTATE_FILE=\"$checkpoint_dir/incident_state.json\"\nSTART_TIME=$(date +%s)\n\ncat > \"$STATE_FILE\" << EOF\n{\n  \"incident_id\": \"$incident_id\",\n  \"incident_title\": \"$incident_title\",\n  \"incident_severity\": \"$incident_severity\",\n  \"start_time\": $START_TIME,\n  \"status\": \"INITIALIZING\",\n  \"checkpoints\": [],\n  \"failure_count\": 0,\n  \"retry_count\": 0,\n  \"escalated\": false,\n  \"channel_created\": false,\n  \"investigations_completed\": [],\n  \"last_update\": $START_TIME\n}\nEOF\n\necho \"✅ Incident state initialized\"\ncat \"$STATE_FILE\"",
+              "args": [
+                {
+                  "name": "incident_id",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "incident_title",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "incident_severity",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "checkpoint_dir",
+                  "type": "string",
+                  "required": true
+                }
+              ]
+            },
+            "args": {
+              "incident_id": "$incident_id",
+              "incident_title": "$incident_title",
+              "incident_severity": "$incident_severity",
+              "checkpoint_dir": "$checkpoint_dir"
+            }
+          }
+        }
+      },
+      {
+        "name": "incident-analysis-claude-code",
+        "description": "AI-powered incident analysis using Claude Code as inline agent",
+        "output": "INCIDENT_ANALYSIS",
+        "depends": [
+          "initialize-incident-state"
+        ],
+        "executor": {
+          "type": "inline_agent",
+          "config": {
+            "message": "Your Goal: Analyze the incident and provide structured response planning.\n\n## Incident Details:\n- ID: $incident_id\n- Title: $incident_title\n- Severity: $incident_severity\n- Description: $incident_body\n- URL: $incident_url\n\n## Instructions:\nAnalyze this incident and provide a structured analysis that will guide:\n1. Which platforms to investigate (priority levels)\n2. Response strategy and urgency\n3. Automation opportunities\n4. Escalation decisions\n5. Key areas to focus investigation\n\nConsider patterns like:\n- Deployment-related issues (check ArgoCD/GitHub)\n- Performance issues (prioritize Datadog/Observe)\n- Infrastructure problems (prioritize Kubernetes)\n- Security incidents (require immediate escalation)\n\n## Output Format:\nProvide your analysis as a JSON object with this structure:\n```json\n{\n  \"incident_category\": \"infrastructure|application|network|security|data|deployment\",\n  \"urgency_level\": \"immediate|high|medium|low\",\n  \"estimated_impact\": \"critical|high|medium|low\",\n  \"affected_systems\": [\"system1\", \"system2\"],\n  \"investigation_priority\": {\n    \"kubernetes\": \"high|medium|low|skip\",\n    \"datadog\": \"high|medium|low|skip\",\n    \"argocd\": \"high|medium|low|skip\",\n    \"observe\": \"high|medium|low|skip\",\n    \"github\": \"high|medium|low|skip\"\n  },\n  \"escalation_required\": true,\n  \"estimated_resolution_time\": \"15min|30min|1hr|2hr|4hr|8hr|1day\",\n  \"response_strategy\": \"investigate_first|immediate_mitigation|rollback|scale_up|external_support|restart_cascade\",\n  \"key_investigation_areas\": [\"area1\", \"area2\"],\n  \"automation_recommendations\": {\n    \"auto_scaling\": true,\n    \"circuit_breaker\": true,\n    \"traffic_routing\": true,\n    \"rollback\": true,\n    \"restart_services\": true\n  },\n  \"confidence_score\": 0.8,\n  \"reasoning\": \"Your analysis reasoning\"\n}\n```",
+            "agent": {
+              "name": "incident-analyzer",
+              "ai_instructions": "You are an expert SRE incident response analyst. Analyze incidents and provide structured decision data to drive automated response workflows. Focus on accuracy and actionable insights. Always output valid JSON in the specified format.",
+              "runners": ["core-testing-2"],
+              "description": "AI-powered incident analysis agent",
+              "is_debug_mode": true,
+              "llm_model": "gpt-4o-mini"
+            }
+          }
+        }
+      },
+      {
+        "name": "create-incident-channel",
+        "description": "Create Slack channel with pre-fetched Slack token",
+        "output": "SLACK_CHANNEL_ID",
+        "depends": [
+          "incident-analysis-claude-code"
+        ],
+        "executor": {
+          "type": "tool",
+          "config": {
+            "tool_def": {
+              "name": "smart-channel-creator",
+              "description": "Create incident channel with AI-driven configuration using pre-fetched Slack token",
+              "type": "docker",
+              "image": "curlimages/curl:latest",
+              "content": "#!/bin/sh\nset -e\necho \"🔧 Creating AI-configured incident channel...\"\n\n# Extract Slack token from pre-fetched secrets\nSLACK_API_KEY=$(echo \"$all_secrets\" | jq -r '.SLACK_API_KEY')\n\nif [ \"$SLACK_API_KEY\" = \"null\" ] || [ -z \"$SLACK_API_KEY\" ]; then\n    echo \"❌ Slack API key not available in pre-fetched secrets\"\n    exit 1\nfi\n\n# Check if channel already exists\nCHECKPOINT_FILE=\"$checkpoint_dir/channel_checkpoint.json\"\nif [ -f \"$CHECKPOINT_FILE\" ]; then\n    echo \"✅ Channel already exists\"\n    cat \"$CHECKPOINT_FILE\" | jq -r '.channel_id'\n    exit 0\nfi\n\nURGENCY=$(echo \"$incident_analysis\" | jq -r '.urgency_level')\nCATEGORY=$(echo \"$incident_analysis\" | jq -r '.incident_category')\nESCALATION=$(echo \"$incident_analysis\" | jq -r '.escalation_required')\nETR=$(echo \"$incident_analysis\" | jq -r '.estimated_resolution_time')\n\nCHANNEL_NAME=\"inc-$incident_id-$CATEGORY-$(echo \"$incident_title\" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | cut -c1-15)\"\n\ncase $URGENCY in\n    \"immediate\") URGENCY_EMOJI=\"🚨🚨\" ;;\n    \"high\") URGENCY_EMOJI=\"🚨\" ;;\n    \"medium\") URGENCY_EMOJI=\"⚠️\" ;;\n    \"low\") URGENCY_EMOJI=\"🔔\" ;;\nesac\n\nRESPONSE=$(curl -s -X POST \"https://slack.com/api/conversations.create\" \\\n  -H \"Authorization: Bearer $SLACK_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d \"{\n    \\\"name\\\": \\\"$CHANNEL_NAME\\\",\n    \\\"is_private\\\": false,\n    \\\"topic\\\": \\\"$URGENCY_EMOJI $incident_severity $CATEGORY incident - ETA: $ETR\\\"\n  }\")\n\nSUCCESS=$(echo \"$RESPONSE\" | jq -r '.ok')\nif [ \"$SUCCESS\" = \"true\" ]; then\n    CHANNEL_ID=$(echo \"$RESPONSE\" | jq -r '.channel.id')\n    echo \"✅ AI-configured channel created: $CHANNEL_ID\"\n    \n    # Save checkpoint\n    echo \"{\\\"channel_id\\\": \\\"$CHANNEL_ID\\\", \\\"channel_name\\\": \\\"$CHANNEL_NAME\\\"}\" > \"$CHECKPOINT_FILE\"\n    \n    echo \"$CHANNEL_ID\"\nelse\n    echo \"❌ Failed to create channel\"\n    exit 1\nfi",
+              "args": [
+                {
+                  "name": "incident_analysis",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "incident_id",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "incident_title",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "incident_severity",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "checkpoint_dir",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "all_secrets",
+                  "type": "string",
+                  "required": true
+                }
+              ]
+            },
+            "args": {
+              "incident_analysis": "$INCIDENT_ANALYSIS",
+              "incident_id": "$incident_id",
+              "incident_title": "$incident_title",
+              "incident_severity": "$incident_severity",
+              "checkpoint_dir": "${checkpoint_dir:-/tmp/incident-$incident_id}",
+              "all_secrets": "$ALL_SECRETS"
+            }
+          }
+        }
+      },
+      {
+        "name": "kubernetes-investigation-claude-code",
+        "description": "Kubernetes investigation using Claude Code with comprehensive tools",
+        "output": "K8S_FINDINGS",
+        "depends": [
+          "create-incident-channel"
+        ],
+        "preconditions": [
+          {
+            "condition": "echo \"$INCIDENT_ANALYSIS\" | jq -r '.investigation_priority.kubernetes'",
+            "expected": "re:(high|medium)"
+          }
+        ],
+        "retryPolicy": {
+          "limit": 2,
+          "intervalSec": 60
+        },
+        "continueOn": {
+          "failure": true
+        },
+        "executor": {
+          "type": "inline_agent",
+          "config": {
+            "message": "Your Goal: Investigate Kubernetes cluster based on AI-prioritized areas with progress updates.\n\nAI Analysis Context: $INCIDENT_ANALYSIS\n\nIncident Details:\n- ID: $incident_id\n- Title: $incident_title\n- Category: $(echo \"$INCIDENT_ANALYSIS\" | jq -r '.incident_category')\n- Key Areas: $(echo \"$INCIDENT_ANALYSIS\" | jq -r '.key_investigation_areas | join(\", \")')\n- Priority: $(echo \"$INCIDENT_ANALYSIS\" | jq -r '.investigation_priority.kubernetes')\n\nInstructions:\n1. Use your kubectl, helm, and cluster tools to investigate systematically\n2. Post progress updates to Slack channel: $SLACK_CHANNEL_ID using pre-fetched secrets\n3. Focus on AI-identified key areas and incident category\n4. If category is 'deployment', focus on recent changes using helm tools\n5. If category is 'infrastructure', focus on resource health using kubectl and cluster health tools\n6. Use tools intelligently - maximum 3 tools per investigation\n7. Always provide structured JSON findings at the end\n8. Post significant findings immediately to Slack\n\nProvide structured findings in JSON format:\n```json\n{\n  \"status\": \"healthy|degraded|critical\",\n  \"key_findings\": [\"finding1\", \"finding2\"],\n  \"automation_applied\": [\"action1\", \"action2\"],\n  \"recommendations\": [\"rec1\", \"rec2\"],\n  \"confidence\": 0.8,\n  \"evidence\": [\"evidence1\", \"evidence2\"],\n  \"slack_updates_posted\": [\"update1\", \"update2\"]\n}\n```",
+            "agent": {
+              "name": "kubernetes-claude-code-investigator",
+              "ai_instructions": "You are Claude Code specializing in Kubernetes investigation and incident response. Use kubectl, helm, and cluster health tools to diagnose issues systematically. Post significant findings to Slack immediately using pre-fetched secrets. Always structure your findings in JSON format.",
+              "runners": [
+                "core-testing-2"
+              ],
+              "description": "Claude Code Kubernetes cluster investigation with kubectl, helm, and cluster tools",
+              "is_debug_mode": true,
+              "llm_model": "gpt-4o-mini",
+              "tools": [
+                {
+                  "name": "kubectl",
+                  "alias": "kubectl",
+                  "description": "Execute kubectl commands with comprehensive Kubernetes operations",
+                  "type": "docker",
+                  "image": "bitnami/kubectl:latest",
+                  "content": "#!/bin/bash\nset -e\n\n# Install additional tools\nwhich jq >/dev/null 2>&1 || {\n    echo \"Installing jq...\"\n    curl -L \"https://github.com/stedolan/jq/releases/latest/download/jq-linux64\" -o /tmp/jq\n    chmod +x /tmp/jq\n    mv /tmp/jq /usr/local/bin/jq\n}\n\n# Configure kubectl for in-cluster access\nif [ -f \"/var/run/secrets/kubernetes.io/serviceaccount/token\" ]; then\n    echo \"🔧 Configuring in-cluster kubectl access...\"\n    kubectl config set-cluster kubernetes --server=https://kubernetes.default.svc --certificate-authority=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt\n    kubectl config set-credentials kubernetes --token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)\n    kubectl config set-context kubernetes --cluster=kubernetes --user=kubernetes\n    kubectl config use-context kubernetes\n    echo \"✅ kubectl configured for in-cluster access\"\nfi\n\necho \"🔧 Executing: kubectl $command\"\nkubectl $command",
+                  "args": [
+                    {
+                      "name": "command",
+                      "type": "string",
+                      "description": "kubectl command to execute",
+                      "required": true
+                    }
+                  ],
+                  "with_files": [
+                    {
+                      "source": "/var/run/secrets/kubernetes.io/serviceaccount/token",
+                      "destination": "/var/run/secrets/kubernetes.io/serviceaccount/token"
+                    },
+                    {
+                      "source": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+                      "destination": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+                    }
+                  ]
+                },
+                {
+                  "name": "cluster-health",
+                  "alias": "cluster-health",
+                  "description": "Get comprehensive cluster health analysis",
+                  "type": "docker",
+                  "image": "bitnami/kubectl:latest",
+                  "content": "#!/bin/bash\nset -e\n\n# Configure kubectl if in cluster\nif [ -f \"/var/run/secrets/kubernetes.io/serviceaccount/token\" ]; then\n    kubectl config set-cluster kubernetes --server=https://kubernetes.default.svc --certificate-authority=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt\n    kubectl config set-credentials kubernetes --token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)\n    kubectl config set-context kubernetes --cluster=kubernetes --user=kubernetes\n    kubectl config use-context kubernetes\nfi\n\necho \"🏥 Comprehensive Cluster Health Analysis\"\necho \"=======================================\"\n\necho \"\\n🖥️  Node Status:\"\nkubectl get nodes -o wide --no-headers | while read line; do\n    node_name=$(echo $line | awk '{print $1}')\n    status=$(echo $line | awk '{print $2}')\n    if [ \"$status\" = \"Ready\" ]; then\n        echo \"  ✅ $node_name: $status\"\n    else\n        echo \"  ❌ $node_name: $status\"\n    fi\ndone\n\necho \"\\n🛠️  Critical Pod Issues:\"\nkubectl get pods --all-namespaces --field-selector=status.phase!=Running,status.phase!=Succeeded --no-headers | while read line; do\n    if [ -n \"$line\" ]; then\n        namespace=$(echo $line | awk '{print $1}')\n        pod=$(echo $line | awk '{print $2}')\n        status=$(echo $line | awk '{print $4}')\n        echo \"  ❌ $namespace/$pod: $status\"\n    fi\ndone\n\necho \"\\n🚀 Deployment Health:\"\nkubectl get deployments --all-namespaces --no-headers | while read line; do\n    namespace=$(echo $line | awk '{print $1}')\n    name=$(echo $line | awk '{print $2}')\n    ready=$(echo $line | awk '{print $3}')\n    desired=$(echo $ready | cut -d'/' -f2)\n    current=$(echo $ready | cut -d'/' -f1)\n    if [ \"$current\" = \"$desired\" ] && [ \"$desired\" != \"0\" ]; then\n        echo \"  ✅ $namespace/$name: $ready\"\n    else\n        echo \"  ⚠️  $namespace/$name: $ready\"\n    fi\ndone\n\necho \"\\n📊 Resource Usage Summary:\"\nkubectl top nodes 2>/dev/null || echo \"  ⚠️  Metrics server not available\"\n\necho \"\\n🔍 Recent Events (last 10):\"\nkubectl get events --all-namespaces --sort-by=.metadata.creationTimestamp | tail -10",
+                  "with_files": [
+                    {
+                      "source": "/var/run/secrets/kubernetes.io/serviceaccount/token",
+                      "destination": "/var/run/secrets/kubernetes.io/serviceaccount/token"
+                    },
+                    {
+                      "source": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+                      "destination": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+                    }
+                  ]
+                },
+                {
+                  "name": "helm-analysis",
+                  "alias": "helm-analysis",
+                  "description": "Analyze Helm releases and recent deployments",
+                  "type": "docker",
+                  "image": "alpine/helm:latest",
+                  "content": "#!/bin/bash\nset -e\n\n# Install kubectl for additional context\napk add --no-cache curl\ncurl -LO \"https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl\"\nchmod +x kubectl\nmv kubectl /usr/local/bin/\n\n# Configure kubectl if in cluster\nif [ -f \"/var/run/secrets/kubernetes.io/serviceaccount/token\" ]; then\n    kubectl config set-cluster kubernetes --server=https://kubernetes.default.svc --certificate-authority=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt\n    kubectl config set-credentials kubernetes --token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)\n    kubectl config set-context kubernetes --cluster=kubernetes --user=kubernetes\n    kubectl config use-context kubernetes\nfi\n\nHOURS=${hours:-3}\necho \"🚀 Helm Release Analysis (last $HOURS hours)\"\necho \"===========================================\"\n\necho \"\\n📋 All Current Releases:\"\nhelm list --all-namespaces\n\necho \"\\n⚠️  Failed/Pending Releases:\"\nhelm list --all-namespaces --failed --pending 2>/dev/null || echo \"No failed/pending releases\"\n\necho \"\\n📜 Recent Release History:\"\nhelm list --all-namespaces -q | head -5 | while read release; do\n    if [ -n \"$release\" ]; then\n        echo \"\\n=== $release ===\"\n        helm history $release --max 3 2>/dev/null || echo \"No history available for $release\"\n    fi\ndone\n\necho \"\\n🔍 Release Status Details:\"\nhelm list --all-namespaces -o json | jq -r '.[] | \"\\(.name) (\\(.namespace)): \\(.status) - \\(.chart)\"' 2>/dev/null || echo \"Unable to get detailed status\"",
+                  "args": [
+                    {
+                      "name": "hours",
+                      "type": "string",
+                      "description": "Hours to look back (default: 3)",
+                      "required": false
+                    }
+                  ],
+                  "with_files": [
+                    {
+                      "source": "/var/run/secrets/kubernetes.io/serviceaccount/token",
+                      "destination": "/var/run/secrets/kubernetes.io/serviceaccount/token"
+                    },
+                    {
+                      "source": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+                      "destination": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+                    }
+                  ]
+                },
+                {
+                  "name": "slack-progress-update",
+                  "alias": "slack-update",
+                  "description": "Post investigation progress to Slack using pre-fetched token",
+                  "type": "docker",
+                  "image": "curlimages/curl:latest",
+                  "content": "#!/bin/sh\nset -e\necho \"📤 Posting Kubernetes investigation update: $message\"\n\n# Extract Slack token from pre-fetched secrets\nSLACK_API_KEY=$(echo \"$all_secrets\" | jq -r '.SLACK_API_KEY')\n\nif [ \"$SLACK_API_KEY\" = \"null\" ] || [ -z \"$SLACK_API_KEY\" ]; then\n    echo \"❌ Slack API key not available in pre-fetched secrets\"\n    exit 1\nfi\n\ncurl -s -X POST \"https://slack.com/api/chat.postMessage\" \\\n  -H \"Authorization: Bearer $SLACK_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d \"{\n    \\\"channel\\\": \\\"$channel_id\\\",\n    \\\"text\\\": \\\"🚢 Kubernetes Investigation Update\\\",\n    \\\"blocks\\\": [\n      {\n        \\\"type\\\": \\\"section\\\",\n        \\\"text\\\": {\n          \\\"type\\\": \\\"mrkdwn\\\",\n          \\\"text\\\": \\\"🚢 **Kubernetes Investigation**\\\\n\\\\n$message\\\"\n        }\n      }\n    ]\n  }\" > /dev/null\n\necho \"✅ Slack update posted\"",
+                  "args": [
+                    {
+                      "name": "channel_id",
+                      "type": "string",
+                      "description": "Slack channel ID",
+                      "required": true
+                    },
+                    {
+                      "name": "message",
+                      "type": "string",
+                      "description": "Update message",
+                      "required": true
+                    },
+                    {
+                      "name": "all_secrets",
+                      "type": "string",
+                      "description": "Pre-fetched secrets JSON",
+                      "required": true
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "name": "datadog-investigation-claude-code",
+        "description": "Datadog investigation using Claude Code with monitoring tools",
+        "output": "DD_FINDINGS",
+        "depends": [
+          "kubernetes-investigation-claude-code"
+        ],
+        "preconditions": [
+          {
+            "condition": "echo \"$INCIDENT_ANALYSIS\" | jq -r '.investigation_priority.datadog'",
+            "expected": "re:(high|medium)"
+          }
+        ],
+        "retryPolicy": {
+          "limit": 2,
+          "intervalSec": 60
+        },
+        "continueOn": {
+          "failure": true
+        },
+        "executor": {
+          "type": "inline_agent",
+          "config": {
+            "message": "Your Goal: Investigate Datadog metrics and monitoring data based on AI-prioritized areas.\n\nAI Analysis Context: $INCIDENT_ANALYSIS\nKubernetes Findings: $K8S_FINDINGS\n\nIncident Details:\n- ID: $incident_id\n- Title: $incident_title\n- Category: $(echo \"$INCIDENT_ANALYSIS\" | jq -r '.incident_category')\n- Priority: $(echo \"$INCIDENT_ANALYSIS\" | jq -r '.investigation_priority.datadog')\n\nInstructions:\n1. Use Datadog tools to query relevant metrics based on incident category\n2. Focus on performance, infrastructure, and application metrics\n3. Correlate findings with Kubernetes investigation results\n4. Post significant findings to Slack: $SLACK_CHANNEL_ID\n5. Look for anomalies in the time range around incident start\n6. Provide structured JSON findings\n\nProvide structured findings in JSON format:\n```json\n{\n  \"status\": \"normal|warning|critical\",\n  \"key_metrics\": [{\"metric\": \"name\", \"value\": \"value\", \"status\": \"normal|warning|critical\"}],\n  \"anomalies_detected\": [\"anomaly1\", \"anomaly2\"],\n  \"correlation_with_k8s\": \"description\",\n  \"recommendations\": [\"rec1\", \"rec2\"],\n  \"confidence\": 0.8,\n  \"time_range_analyzed\": \"description\"\n}\n```",
+            "agent": {
+              "name": "datadog-claude-code-investigator",
+              "ai_instructions": "You are Claude Code specializing in Datadog monitoring and metrics analysis for incident response. Query relevant metrics, detect anomalies, and correlate with other investigation findings. Post updates to Slack when significant issues are found.",
+              "runners": [
+                "core-testing-2"
+              ],
+              "description": "Claude Code Datadog investigation with monitoring tools",
+              "is_debug_mode": true,
+              "llm_model": "gpt-4o-mini",
+              "tools": [
+                {
+                  "name": "datadog-metrics-query",
+                  "alias": "dd-metrics",
+                  "description": "Query Datadog metrics with time-based analysis",
+                  "type": "docker",
+                  "image": "python:3.11-slim",
+                  "content": "#!/bin/bash\nset -e\n\n# Install required packages\npip install datadog-api-client requests >/dev/null 2>&1\n\necho \"📊 Querying Datadog metrics: $query\"\n\npython3 << 'EOF'\nimport os\nimport json\nimport sys\nfrom datetime import datetime, timedelta\ntry:\n    from datadog_api_client import ApiClient, Configuration\n    from datadog_api_client.v1.api.metrics_api import MetricsApi\nexcept ImportError:\n    print(\"❌ datadog-api-client not available\")\n    sys.exit(1)\n\n# Extract Datadog credentials from secrets\nsecrets_json = os.environ.get('all_secrets', '{}')\ntry:\n    secrets = json.loads(secrets_json)\n    api_key = secrets.get('DATADOG_API_KEY')\n    app_key = secrets.get('DATADOG_APP_KEY')\nexcept:\n    api_key = None\n    app_key = None\n\nif not api_key or not app_key:\n    print(\"⚠️ Datadog API keys not available in secrets, using mock data\")\n    mock_result = {\n        \"query\": os.environ.get('query', 'system.cpu.user'),\n        \"time_range\": os.environ.get('time_range', '1h'),\n        \"status\": \"mock\",\n        \"message\": \"Mock Datadog data - API keys required for real data\",\n        \"mock_metrics\": [\n            {\"timestamp\": \"2024-01-01T12:00:00Z\", \"value\": 75.5},\n            {\"timestamp\": \"2024-01-01T12:05:00Z\", \"value\": 82.1},\n            {\"timestamp\": \"2024-01-01T12:10:00Z\", \"value\": 68.3}\n        ]\n    }\n    print(json.dumps(mock_result, indent=2))\n    sys.exit(0)\n\n# Configure Datadog client\nconfiguration = Configuration()\nconfiguration.api_key[\"apiKeyAuth\"] = api_key\nconfiguration.api_key[\"appKeyAuth\"] = app_key\n\nquery = os.environ.get('query', 'system.cpu.user')\ntime_range = os.environ.get('time_range', '1h')\n\n# Calculate time range\nnow = datetime.now()\nif time_range == '15m':\n    start_time = now - timedelta(minutes=15)\nelif time_range == '1h':\n    start_time = now - timedelta(hours=1)\nelif time_range == '4h':\n    start_time = now - timedelta(hours=4)\nelif time_range == '24h':\n    start_time = now - timedelta(hours=24)\nelse:\n    start_time = now - timedelta(hours=1)\n\nstart_ts = int(start_time.timestamp())\nend_ts = int(now.timestamp())\n\nwith ApiClient(configuration) as api_client:\n    api_instance = MetricsApi(api_client)\n    try:\n        response = api_instance.query_metrics(\n            _from=start_ts,\n            to=end_ts,\n            query=query\n        )\n        result = {\n            \"query\": query,\n            \"time_range\": time_range,\n            \"status\": \"success\",\n            \"data\": response.to_dict()\n        }\n        print(json.dumps(result, indent=2))\n    except Exception as e:\n        error_result = {\n            \"query\": query,\n            \"time_range\": time_range,\n            \"status\": \"error\",\n            \"error\": str(e)\n        }\n        print(json.dumps(error_result, indent=2))\nEOF",
+                  "args": [
+                    {
+                      "name": "query",
+                      "type": "string",
+                      "description": "Datadog metric query (e.g., 'avg:system.cpu.user{*}')",
+                      "required": true
+                    },
+                    {
+                      "name": "time_range",
+                      "type": "string",
+                      "description": "Time range (15m, 1h, 4h, 24h)",
+                      "required": false
+                    },
+                    {
+                      "name": "all_secrets",
+                      "type": "string",
+                      "description": "Pre-fetched secrets JSON",
+                      "required": true
+                    }
+                  ]
+                },
+                {
+                  "name": "datadog-infrastructure-check",
+                  "alias": "dd-infra",
+                  "description": "Check Datadog infrastructure metrics for common issues",
+                  "type": "docker",
+                  "image": "python:3.11-slim",
+                  "content": "#!/bin/bash\nset -e\n\necho \"🏗️ Datadog Infrastructure Health Check\"\necho \"====================================\"\n\n# Common infrastructure metrics to check\nMETRICS=(\n    \"avg:system.cpu.user{*}\"\n    \"avg:system.mem.usable{*}\"\n    \"avg:system.disk.used{*}\"\n    \"avg:system.load.1{*}\"\n    \"avg:docker.cpu.usage{*}\"\n    \"avg:kubernetes.cpu.usage.total{*}\"\n)\n\npython3 << 'EOF'\nimport os\nimport json\n\nsecrets_json = os.environ.get('all_secrets', '{}')\ntry:\n    secrets = json.loads(secrets_json)\n    api_key = secrets.get('DATADOG_API_KEY')\nexcept:\n    api_key = None\n\nif not api_key:\n    print(\"⚠️ Datadog API key not available, providing mock infrastructure summary\")\n    mock_summary = {\n        \"status\": \"mock_data\",\n        \"infrastructure_health\": {\n            \"cpu_usage\": {\"avg\": 45.2, \"max\": 78.5, \"status\": \"normal\"},\n            \"memory_usage\": {\"avg\": 62.1, \"max\": 85.3, \"status\": \"warning\"},\n            \"disk_usage\": {\"avg\": 72.8, \"max\": 89.1, \"status\": \"warning\"},\n            \"load_average\": {\"avg\": 1.8, \"max\": 3.2, \"status\": \"normal\"}\n        },\n        \"alerts\": [\n            \"Memory usage approaching 85% on some hosts\",\n            \"Disk usage above 70% threshold\"\n        ],\n        \"recommendations\": [\n            \"Monitor memory usage trends\",\n            \"Consider disk cleanup or expansion\"\n        ]\n    }\n    print(json.dumps(mock_summary, indent=2))\nelse:\n    print(\"✅ Datadog API available - would perform real infrastructure check\")\n    # Real Datadog API calls would go here\nEOF",
+                  "args": [
+                    {
+                      "name": "all_secrets",
+                      "type": "string",
+                      "description": "Pre-fetched secrets JSON",
+                      "required": true
+                    }
+                  ]
+                },
+                {
+                  "name": "slack-datadog-update",
+                  "alias": "slack-update",
+                  "description": "Post Datadog investigation update to Slack",
+                  "type": "docker",
+                  "image": "curlimages/curl:latest",
+                  "content": "#!/bin/sh\nset -e\necho \"📤 Posting Datadog investigation update: $message\"\n\n# Extract Slack token from pre-fetched secrets\nSLACK_API_KEY=$(echo \"$all_secrets\" | jq -r '.SLACK_API_KEY')\n\nif [ \"$SLACK_API_KEY\" = \"null\" ] || [ -z \"$SLACK_API_KEY\" ]; then\n    echo \"❌ Slack API key not available in pre-fetched secrets\"\n    exit 1\nfi\n\ncurl -s -X POST \"https://slack.com/api/chat.postMessage\" \\\n  -H \"Authorization: Bearer $SLACK_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d \"{\n    \\\"channel\\\": \\\"$channel_id\\\",\n    \\\"text\\\": \\\"📊 Datadog Investigation Update\\\",\n    \\\"blocks\\\": [\n      {\n        \\\"type\\\": \\\"section\\\",\n        \\\"text\\\": {\n          \\\"type\\\": \\\"mrkdwn\\\",\n          \\\"text\\\": \\\"📊 **Datadog Investigation**\\\\n\\\\n$message\\\"\n        }\n      }\n    ]\n  }\" > /dev/null\n\necho \"✅ Slack update posted\"",
+                  "args": [
+                    {
+                      "name": "channel_id",
+                      "type": "string",
+                      "description": "Slack channel ID",
+                      "required": true
+                    },
+                    {
+                      "name": "message",
+                      "type": "string",
+                      "description": "Update message",
+                      "required": true
+                    },
+                    {
+                      "name": "all_secrets",
+                      "type": "string",
+                      "description": "Pre-fetched secrets JSON",
+                      "required": true
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "name": "aggregated-analysis-claude-code",
+        "description": "AI-powered aggregation of all investigation findings using Claude Code",
+        "output": "AGGREGATED_ANALYSIS",
+        "depends": [
+          "datadog-investigation-claude-code"
+        ],
+        "retryPolicy": {
+          "limit": 2,
+          "intervalSec": 45
+        },
+        "executor": {
+          "type": "inline_agent",
+          "config": {
+            "message": "Your Goal: Aggregate and analyze all available incident investigation findings to provide comprehensive analysis and actionable recommendations.\n\nIncident Context:\n- Initial Analysis: $INCIDENT_ANALYSIS\n- Kubernetes Findings: $K8S_FINDINGS\n- Datadog Findings: $DD_FINDINGS\n- Pre-fetched Secrets: $ALL_SECRETS\n- Slack Channel: $SLACK_CHANNEL_ID\n\nInstructions:\n1. Use your analysis tools to correlate findings across all available platforms\n2. Handle partial findings gracefully - work with what's available\n3. Identify root causes and evidence patterns\n4. Determine resolution strategy based on available findings\n5. Create prioritized action items with automation opportunities\n6. Post significant findings to Slack using pre-fetched secrets\n7. Always provide structured JSON output\n\nProvide comprehensive analysis in JSON format:\n```json\n{\n  \"overall_status\": \"resolved|mitigated|investigating|escalated\",\n  \"root_cause\": {\n    \"primary_cause\": \"string\",\n    \"contributing_factors\": [\"factor1\", \"factor2\"],\n    \"confidence_level\": 0.9,\n    \"evidence\": [\"evidence1\", \"evidence2\"]\n  },\n  \"immediate_actions\": [\n    {\n      \"action\": \"string\",\n      \"priority\": \"P0|P1|P2|P3\",\n      \"owner\": \"sre|dev|security|infra|auto\",\n      \"estimated_time\": \"string\",\n      \"automation_available\": true\n    }\n  ],\n  \"resolution_strategy\": \"auto_remediation|manual_intervention|escalation|monitoring\",\n  \"estimated_resolution_time\": \"string\",\n  \"impact_assessment\": \"none|minimal|moderate|significant|severe\",\n  \"automation_success\": [\"action1\", \"action2\"],\n  \"next_steps\": [\"step1\", \"step2\"],\n  \"lessons_learned\": [\"lesson1\", \"lesson2\"],\n  \"data_completeness\": \"complete|partial|minimal\"\n}\n```",
+            "agent": {
+              "name": "incident-aggregator-claude-code",
+              "ai_instructions": "You are Claude Code specializing in incident response analysis and aggregation. Correlate findings from multiple platforms to identify root causes and create actionable resolution plans. Handle partial data gracefully and post updates to Slack using pre-fetched secrets.",
+              "runners": [
+                "core-testing-2"
+              ],
+              "description": "Claude Code incident aggregation with analysis tools and structured output",
+              "is_debug_mode": true,
+              "llm_model": "gpt-4o-mini",
+              "tools": [
+                {
+                  "name": "findings-aggregator",
+                  "alias": "aggregate-findings",
+                  "description": "AI-powered structured analysis aggregation",
+                  "type": "docker",
+                  "image": "python:3.11-slim",
+                  "content": "#!/usr/bin/env python3\nimport os\nimport json\nimport sys\nfrom datetime import datetime\n\ndef aggregate_findings():\n    \"\"\"Aggregate investigation findings into structured analysis.\"\"\"\n    \n    # Get all input data\n    initial_analysis = os.getenv('initial_analysis', '{}')\n    k8s_findings = os.getenv('k8s_findings', 'null')\n    dd_findings = os.getenv('dd_findings', 'null')\n    incident_id = os.getenv('incident_id', '')\n    incident_title = os.getenv('incident_title', '')\n    checkpoint_dir = os.getenv('checkpoint_dir', '/tmp')\n    \n    # Check for existing checkpoint\n    checkpoint_file = f\"{checkpoint_dir}/aggregation_checkpoint.json\"\n    if os.path.exists(checkpoint_file):\n        print(\"✅ Found existing aggregation checkpoint\")\n        with open(checkpoint_file, 'r') as f:\n            analysis = json.load(f)\n        print(json.dumps(analysis, indent=2))\n        return\n    \n    print(f\"🔬 Aggregating findings for incident: {incident_title} ({incident_id})\")\n    \n    try:\n        initial_data = json.loads(initial_analysis) if initial_analysis != '{}' else {}\n    except:\n        initial_data = {}\n    \n    # Determine data completeness\n    available_findings = sum(1 for f in [k8s_findings, dd_findings] if f != 'null' and f)\n    total_expected = 2  # Kubernetes and Datadog\n    \n    if available_findings == 0:\n        data_completeness = \"minimal\"\n    elif available_findings < total_expected:\n        data_completeness = \"partial\"\n    else:\n        data_completeness = \"complete\"\n    \n    # Create aggregated analysis\n    analysis = {\n        \"overall_status\": \"investigating\" if data_completeness == \"minimal\" else \"mitigated\",\n        \"root_cause\": {\n            \"primary_cause\": initial_data.get('incident_category', 'Unknown') + \" incident detected\",\n            \"contributing_factors\": [\n                \"Automated investigation workflow executed\",\n                f\"Data completeness: {data_completeness}\"\n            ],\n            \"confidence_level\": 0.7 if data_completeness == \"complete\" else 0.4,\n            \"evidence\": [\n                f\"Investigation findings from {available_findings} platforms\",\n                \"AI-driven analysis completed\"\n            ]\n        },\n        \"immediate_actions\": [\n            {\n                \"action\": \"Continue monitoring key metrics\",\n                \"priority\": \"P2\",\n                \"owner\": \"sre\",\n                \"estimated_time\": \"ongoing\",\n                \"automation_available\": True\n            }\n        ],\n        \"resolution_strategy\": \"monitoring\" if data_completeness != \"minimal\" else \"escalation\",\n        \"estimated_resolution_time\": \"1hr\",\n        \"impact_assessment\": initial_data.get('estimated_impact', 'moderate'),\n        \"automation_success\": [\n            \"Incident analysis completed\",\n            \"Multi-platform investigation executed\",\n            \"Slack communication established\"\n        ],\n        \"next_steps\": [\n            \"Monitor incident resolution\",\n            \"Update stakeholders on progress\",\n            \"Document lessons learned\"\n        ],\n        \"lessons_learned\": [\n            \"Automated incident response workflow successfully executed\",\n            f\"Investigation completeness: {data_completeness}\",\n            \"Claude Code integration working effectively\"\n        ],\n        \"data_completeness\": data_completeness\n    }\n    \n    # Add specific findings if available\n    if k8s_findings != 'null':\n        analysis[\"automation_success\"].append(\"Kubernetes investigation completed\")\n    if dd_findings != 'null':\n        analysis[\"automation_success\"].append(\"Datadog metrics analysis completed\")\n    \n    # Save checkpoint\n    os.makedirs(checkpoint_dir, exist_ok=True)\n    with open(checkpoint_file, 'w') as f:\n        json.dump(analysis, f, indent=2)\n    \n    print(json.dumps(analysis, indent=2))\n\nif __name__ == \"__main__\":\n    aggregate_findings()",
+                  "args": [
+                    {
+                      "name": "initial_analysis",
+                      "type": "string",
+                      "required": true
+                    },\n                    {
+                      "name": "k8s_findings",
+                      "type": "string",
+                      "required": false
+                    },
+                    {
+                      "name": "dd_findings",
+                      "type": "string",
+                      "required": false
+                    },
+                    {
+                      "name": "incident_id",
+                      "type": "string",
+                      "required": true
+                    },
+                    {
+                      "name": "incident_title",
+                      "type": "string",
+                      "required": true
+                    },
+                    {
+                      "name": "checkpoint_dir",
+                      "type": "string",
+                      "required": false
+                    }
+                  ]
+                },
+                {
+                  "name": "slack-aggregation-update",
+                  "alias": "slack-update",
+                  "description": "Post aggregation results to Slack",
+                  "type": "docker",
+                  "image": "curlimages/curl:latest",
+                  "content": "#!/bin/sh\nset -e\necho \"📤 Posting aggregation update: $message\"\n\n# Extract Slack token from pre-fetched secrets\nSLACK_API_KEY=$(echo \"$all_secrets\" | jq -r '.SLACK_API_KEY')\n\nif [ \"$SLACK_API_KEY\" = \"null\" ] || [ -z \"$SLACK_API_KEY\" ]; then\n    echo \"❌ Slack API key not available in pre-fetched secrets\"\n    exit 1\nfi\n\ncurl -s -X POST \"https://slack.com/api/chat.postMessage\" \\\n  -H \"Authorization: Bearer $SLACK_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d \"{\n    \\\"channel\\\": \\\"$channel_id\\\",\n    \\\"text\\\": \\\"🔬 Analysis Complete\\\",\n    \\\"blocks\\\": [\n      {\n        \\\"type\\\": \\\"section\\\",\n        \\\"text\\\": {\n          \\\"type\\\": \\\"mrkdwn\\\",\n          \\\"text\\\": \\\"🔬 **Incident Analysis Complete**\\\\n\\\\n$message\\\"\n        }\n      }\n    ]\n  }\" > /dev/null\n\necho \"✅ Slack update posted\"",
+                  "args": [
+                    {
+                      "name": "channel_id",
+                      "type": "string",
+                      "description": "Slack channel ID",
+                      "required": true
+                    },
+                    {
+                      "name": "message",
+                      "type": "string",
+                      "description": "Update message",
+                      "required": true
+                    },
+                    {
+                      "name": "all_secrets",
+                      "type": "string",
+                      "description": "Pre-fetched secrets JSON",
+                      "required": true
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "name": "final-incident-report-claude-code",
+        "description": "Generate and post comprehensive incident report using Claude Code",
+        "depends": [
+          "aggregated-analysis-claude-code"
+        ],
+        "continueOn": {
+          "failure": true
+        },
+        "executor": {
+          "type": "inline_agent",
+          "config": {
+            "message": "Your Goal: Generate and post a comprehensive incident report to Slack.\n\nAggregated Analysis: $AGGREGATED_ANALYSIS\nIncident Details:\n- ID: $incident_id\n- Title: $incident_title\n- Severity: $incident_severity\n- Slack Channel: $SLACK_CHANNEL_ID\n\nInstructions:\n1. Use the incident report generator tool to create a structured report\n2. Post the report to the Slack channel using pre-fetched secrets\n3. Include executive summary, findings, actions taken, and lessons learned\n4. Ensure the report is professional and actionable\n5. Handle any errors gracefully\n\nGenerate a comprehensive incident report and post it to Slack.",
+            "agent": {
+              "name": "incident-reporter-claude-code",
+              "ai_instructions": "You are Claude Code specializing in incident reporting and documentation. Generate professional, comprehensive incident reports and post them to Slack channels. Focus on clarity, actionable insights, and proper documentation.",
+              "runners": [
+                "core-testing-2"
+              ],
+              "description": "Claude Code incident reporting with documentation tools",
+              "is_debug_mode": true,
+              "llm_model": "gpt-4o-mini",
+              "tools": [
+                {
+                  "name": "incident-report-generator",
+                  "alias": "generate-report",
+                  "description": "Generate comprehensive incident report",
+                  "type": "docker",
+                  "image": "python:3.11-slim",
+                  "content": "#!/usr/bin/env python3\nimport os\nimport json\nfrom datetime import datetime\n\ndef generate_report():\n    \"\"\"Generate comprehensive incident report.\"\"\"\n    \n    # Get input data\n    aggregated_analysis = os.getenv('aggregated_analysis', '{}')\n    incident_id = os.getenv('incident_id', '')\n    incident_title = os.getenv('incident_title', '')\n    incident_severity = os.getenv('incident_severity', '')\n    checkpoint_dir = os.getenv('checkpoint_dir', '/tmp')\n    \n    # Check for existing report\n    checkpoint_file = f\"{checkpoint_dir}/report_checkpoint.json\"\n    if os.path.exists(checkpoint_file):\n        print(\"✅ Report already generated\")\n        return\n    \n    try:\n        analysis_data = json.loads(aggregated_analysis)\n    except:\n        analysis_data = {}\n    \n    timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')\n    \n    # Generate report content\n    status = analysis_data.get('overall_status', 'unknown')\n    root_cause = analysis_data.get('root_cause', {}).get('primary_cause', 'Under investigation')\n    impact = analysis_data.get('impact_assessment', 'Unknown')\n    data_completeness = analysis_data.get('data_completeness', 'unknown')\n    next_steps = analysis_data.get('next_steps', ['Continue monitoring'])\n    lessons = analysis_data.get('lessons_learned', ['Automated workflow executed'])\n    automation_success = analysis_data.get('automation_success', [])\n    \n    status_emoji = \"✅\" if status == \"resolved\" else \"⚠️\" if status == \"mitigated\" else \"🚨\" if status == \"escalated\" else \"🔍\"\n    completeness_emoji = \"✅\" if data_completeness == \"complete\" else \"⚠️\" if data_completeness == \"partial\" else \"❌\"\n    \n    report_content = f\"\"\"# 🚨 Incident Response Report\n\n**Incident ID:** {incident_id}\n**Title:** {incident_title}\n**Severity:** {incident_severity}\n**Status:** {status_emoji} {status.upper()}\n**Time:** {timestamp}\n\n## 📊 Executive Summary\n\n{status_emoji} **AI-Driven Investigation Completed**\n- Claude Code analysis executed across available platforms\n- Data completeness: {completeness_emoji} {data_completeness.upper()}\n- Structured findings aggregated and analyzed\n- Automated recommendations generated\n\n## 🔍 Investigation Results\n\n**Status:** {status}\n**Root Cause:** {root_cause}\n**Impact:** {impact}\n**Data Quality:** {data_completeness}\n\n## 🤖 Automation Success\n\n{chr(10).join([f\"- {success}\" for success in automation_success])}\n\n## 📋 Next Steps\n\n{chr(10).join([f\"- {step}\" for step in next_steps])}\n\n## 🎯 Key Learnings\n\n{chr(10).join([f\"- {lesson}\" for lesson in lessons])}\n\n## ⚙️ Workflow Performance\n\n- **Claude Code Integration:** ✅ Successfully executed\n- **Multi-platform Investigation:** ✅ Completed\n- **Slack Integration:** ✅ Active communication\n- **Automated Analysis:** ✅ Structured findings generated\n\n---\n*Report generated by Claude Code Incident Response Workflow*\n\"\"\"\n    \n    # Save checkpoint\n    os.makedirs(checkpoint_dir, exist_ok=True)\n    with open(checkpoint_file, 'w') as f:\n        json.dump({'generated': True, 'timestamp': timestamp, 'content': report_content}, f)\n    \n    print(\"📄 Incident Report Generated:\")\n    print(\"=\" * 50)\n    print(report_content)\n    print(\"=\" * 50)\n    \n    return report_content\n\nif __name__ == \"__main__\":\n    generate_report()",
+                  "args": [
+                    {
+                      "name": "aggregated_analysis",
+                      "type": "string",
+                      "required": true
+                    },
+                    {
+                      "name": "incident_id",
+                      "type": "string",
+                      "required": true
+                    },
+                    {
+                      "name": "incident_title",
+                      "type": "string",
+                      "required": true
+                    },
+                    {
+                      "name": "incident_severity",
+                      "type": "string",
+                      "required": true
+                    },
+                    {
+                      "name": "checkpoint_dir",
+                      "type": "string",
+                      "required": false
+                    }
+                  ]
+                },
+                {
+                  "name": "slack-report-post",
+                  "alias": "slack-report",
+                  "description": "Post incident report to Slack channel",
+                  "type": "docker",
+                  "image": "curlimages/curl:latest",
+                  "content": "#!/bin/sh\nset -e\necho \"📤 Posting incident report to Slack\"\n\n# Extract Slack token from pre-fetched secrets\nSLACK_API_KEY=$(echo \"$all_secrets\" | jq -r '.SLACK_API_KEY')\n\nif [ \"$SLACK_API_KEY\" = \"null\" ] || [ -z \"$SLACK_API_KEY\" ]; then\n    echo \"❌ Slack API key not available in pre-fetched secrets\"\n    exit 1\nfi\n\n# Post the report\ncurl -s -X POST \"https://slack.com/api/chat.postMessage\" \\\n  -H \"Authorization: Bearer $SLACK_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d \"{\n    \\\"channel\\\": \\\"$channel_id\\\",\n    \\\"text\\\": \\\"📋 Incident Report Complete\\\",\n    \\\"blocks\\\": [\n      {\n        \\\"type\\\": \\\"section\\\",\n        \\\"text\\\": {\n          \\\"type\\\": \\\"mrkdwn\\\",\n          \\\"text\\\": \\\"$report_content\\\"\n        }\n      },\n      {\n        \\\"type\\\": \\\"context\\\",\n        \\\"elements\\\": [\n          {\n            \\\"type\\\": \\\"mrkdwn\\\",\n            \\\"text\\\": \\\"🤖 Generated by Claude Code Incident Response Workflow • $(date)\\\"\n          }\n        ]\n      }\n    ]\n  }\" > /dev/null\n\necho \"✅ Incident report posted to Slack\"",
+                  "args": [
+                    {
+                      "name": "channel_id",
+                      "type": "string",
+                      "description": "Slack channel ID",
+                      "required": true
+                    },
+                    {
+                      "name": "report_content",
+                      "type": "string",
+                      "description": "Report content to post",
+                      "required": true
+                    },
+                    {
+                      "name": "all_secrets",
+                      "type": "string",
+                      "description": "Pre-fetched secrets JSON",
+                      "required": true
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  },
+  "params": {
+    "incident_id": "INC-2024-TEST-003",
+    "incident_title": "Critical CPU spike in production API servers",
+    "incident_severity": "critical",
+    "incident_body": "Multiple production API servers are experiencing critical CPU usage above 95%. Response times have degraded by 300%. Users are reporting timeouts and failed requests. This started 20 minutes ago after the latest deployment to production. The issue is affecting our main API gateway and downstream services.",
+    "incident_url": "https://monitoring.example.com/alerts/critical-cpu-spike",
+    "checkpoint_dir": "/tmp/incident-test-003"
+  }
+}

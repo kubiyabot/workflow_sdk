@@ -1,0 +1,4 @@
+[console_scripts]
+kubiya = kubiya_workflow_sdk.cli:cli
+kubiya-mcp = kubiya_workflow_sdk.mcp.server:main
+kubiya-server = kubiya_workflow_sdk.server.__main__:main

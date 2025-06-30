@@ -1,0 +1,6 @@
+{
+  "name": "datadog-incident-response",
+  "steps": [
+    {
+      "name": "parse-datadog-event",
+      "executor": 

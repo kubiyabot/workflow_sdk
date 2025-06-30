@@ -1,0 +1,255 @@
+# Multi-tool incident response container with Claude Code
+FROM python:3.11-slim
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PATH="/opt/bin:${PATH}"
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    git \
+    jq \
+    bc \
+    unzip \
+    gpg \
+    lsb-release \
+    ca-certificates \
+    apt-transport-https \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create opt directories
+RUN mkdir -p /opt/bin /opt/tools /opt/scripts
+
+# Install kubectl
+RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+    && chmod +x kubectl \
+    && mv kubectl /opt/bin/
+
+# Install Helm
+RUN curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash \
+    && mv /usr/local/bin/helm /opt/bin/
+
+# Install ArgoCD CLI
+RUN curl -sSL -o /opt/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64 \
+    && chmod +x /opt/bin/argocd
+
+# Install Datadog CLI (dogshell)
+RUN pip install datadog-api-client datadogpy
+
+# Install Claude Code (if available as package, otherwise we'll mount it)
+RUN pip install anthropic litellm pydantic requests slack-sdk
+
+# Install Observe CLI (placeholder - would need actual CLI)
+RUN echo '#!/bin/bash\necho "Observe CLI placeholder - configure with actual Observe CLI"' > /opt/bin/observe \
+    && chmod +x /opt/bin/observe
+
+# Install GitHub CLI
+RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list \
+    && apt-get update \
+    && apt-get install gh -y \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create common tools script
+RUN cat > /opt/scripts/setup_tools.sh << 'EOF'
+#!/bin/bash
+set -e
+
+echo "🔧 Setting up incident response tools..."
+
+# Setup kubectl context if in cluster
+if [ -f "/var/run/secrets/kubernetes.io/serviceaccount/token" ]; then
+    echo "📦 Configuring in-cluster kubectl..."
+    kubectl config set-cluster kubernetes --server=https://kubernetes.default.svc --certificate-authority=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    kubectl config set-credentials kubernetes --token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+    kubectl config set-context kubernetes --cluster=kubernetes --user=kubernetes
+    kubectl config use-context kubernetes
+    echo "✅ kubectl configured for in-cluster access"
+fi
+
+# Verify tools
+echo "🔍 Verifying tool availability..."
+echo "kubectl: $(kubectl version --client --short 2>/dev/null || echo 'Not available')"
+echo "helm: $(helm version --short 2>/dev/null || echo 'Not available')"
+echo "argocd: $(argocd version --client --short 2>/dev/null || echo 'Not available')"
+echo "gh: $(gh --version | head -n1 2>/dev/null || echo 'Not available')"
+echo "python: $(python --version 2>/dev/null || echo 'Not available')"
+
+echo "✅ Tools setup complete"
+EOF
+
+RUN chmod +x /opt/scripts/setup_tools.sh
+
+# Create Claude Code wrapper script
+RUN cat > /opt/scripts/claude_code_wrapper.py << 'EOF'
+#!/usr/bin/env python3
+"""
+Claude Code wrapper for incident response workflows.
+Provides a standardized interface for using Claude Code within containers.
+"""
+
+import os
+import sys
+import json
+import subprocess
+from typing import Dict, Any, List
+
+
+class ClaudeCodeWrapper:
+    """Wrapper for Claude Code functionality in containers."""
+    
+    def __init__(self, api_key: str = None):
+        self.api_key = api_key or os.environ.get('ANTHROPIC_API_KEY')
+        if not self.api_key:
+            raise ValueError("ANTHROPIC_API_KEY is required")
+    
+    def execute_investigation(
+        self, 
+        prompt: str, 
+        tools: List[str] = None,
+        context: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute an investigation using Claude Code capabilities.
+        
+        Args:
+            prompt: Investigation prompt
+            tools: List of available tools
+            context: Additional context data
+            
+        Returns:
+            Investigation results
+        """
+        
+        # Available tools mapping
+        available_tools = {
+            'kubectl': self._run_kubectl,
+            'helm': self._run_helm,
+            'argocd': self._run_argocd,
+            'datadog': self._query_datadog,
+            'github': self._run_github,
+            'observe': self._run_observe
+        }
+        
+        # Build investigation context
+        investigation_context = {
+            "prompt": prompt,
+            "available_tools": list(available_tools.keys()),
+            "context": context or {}
+        }
+        
+        # Simulate Claude Code decision making
+        # In real implementation, this would call Claude Code API
+        results = {
+            "status": "completed",
+            "findings": [],
+            "actions_taken": [],
+            "recommendations": [],
+            "raw_output": ""
+        }
+        
+        # Execute tools based on prompt analysis
+        if tools:
+            for tool in tools:
+                if tool in available_tools:
+                    try:
+                        tool_result = available_tools[tool](prompt, context)
+                        results["actions_taken"].append(f"Executed {tool}")
+                        results["findings"].extend(tool_result.get("findings", []))
+                    except Exception as e:
+                        results["actions_taken"].append(f"Failed to execute {tool}: {str(e)}")
+        
+        return results
+    
+    def _run_kubectl(self, prompt: str, context: Dict) -> Dict:
+        """Execute kubectl commands based on prompt analysis."""
+        try:
+            # Analyze prompt for kubectl operations
+            if "pods" in prompt.lower():
+                result = subprocess.run(['kubectl', 'get', 'pods', '--all-namespaces'], 
+                                      capture_output=True, text=True)
+                return {"findings": [f"Pod status: {result.stdout}"]}
+            elif "nodes" in prompt.lower():
+                result = subprocess.run(['kubectl', 'get', 'nodes'], 
+                                      capture_output=True, text=True)
+                return {"findings": [f"Node status: {result.stdout}"]}
+            else:
+                result = subprocess.run(['kubectl', 'cluster-info'], 
+                                      capture_output=True, text=True)
+                return {"findings": [f"Cluster info: {result.stdout}"]}
+        except Exception as e:
+            return {"findings": [f"kubectl error: {str(e)}"]}
+    
+    def _run_helm(self, prompt: str, context: Dict) -> Dict:
+        """Execute helm commands."""
+        try:
+            result = subprocess.run(['helm', 'list', '--all-namespaces'], 
+                                  capture_output=True, text=True)
+            return {"findings": [f"Helm releases: {result.stdout}"]}
+        except Exception as e:
+            return {"findings": [f"helm error: {str(e)}"]}
+    
+    def _run_argocd(self, prompt: str, context: Dict) -> Dict:
+        """Execute argocd commands."""
+        try:
+            # ArgoCD commands would require authentication setup
+            return {"findings": ["ArgoCD integration requires authentication setup"]}
+        except Exception as e:
+            return {"findings": [f"argocd error: {str(e)}"]}
+    
+    def _query_datadog(self, prompt: str, context: Dict) -> Dict:
+        """Query Datadog metrics."""
+        try:
+            # Datadog queries would require API setup
+            return {"findings": ["Datadog integration requires API key setup"]}
+        except Exception as e:
+            return {"findings": [f"datadog error: {str(e)}"]}
+    
+    def _run_github(self, prompt: str, context: Dict) -> Dict:
+        """Execute GitHub CLI commands."""
+        try:
+            # GitHub operations would require authentication
+            return {"findings": ["GitHub integration requires authentication setup"]}
+        except Exception as e:
+            return {"findings": [f"github error: {str(e)}"]}
+    
+    def _run_observe(self, prompt: str, context: Dict) -> Dict:
+        """Execute Observe queries."""
+        try:
+            return {"findings": ["Observe integration requires configuration"]}
+        except Exception as e:
+            return {"findings": [f"observe error: {str(e)}"]}
+
+
+def main():
+    """CLI interface for Claude Code wrapper."""
+    if len(sys.argv) < 2:
+        print("Usage: claude_code_wrapper.py '<prompt>' [tools...]")
+        sys.exit(1)
+    
+    prompt = sys.argv[1]
+    tools = sys.argv[2:] if len(sys.argv) > 2 else ['kubectl', 'helm']
+    
+    try:
+        wrapper = ClaudeCodeWrapper()
+        results = wrapper.execute_investigation(prompt, tools)
+        print(json.dumps(results, indent=2))
+    except Exception as e:
+        print(json.dumps({"error": str(e)}, indent=2))
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
+EOF
+
+RUN chmod +x /opt/scripts/claude_code_wrapper.py
+
+# Set default working directory
+WORKDIR /opt
+
+# Default command runs setup script
+CMD ["/opt/scripts/setup_tools.sh"]

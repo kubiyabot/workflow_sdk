@@ -1,0 +1,32 @@
+# Production Incident Response Workflow Dependencies
+
+# Core dependencies
+pydantic>=2.0.0,<3.0.0
+requests>=2.25.0
+aiohttp>=3.8.0
+python-dateutil>=2.8.0
+
+# Kubiya SDK (assuming it's available)
+# kubiya-workflow-sdk>=1.0.0
+
+# CLI and configuration
+click>=8.0.0
+PyYAML>=6.0
+python-dotenv>=1.0.0
+
+# Development and testing
+pytest>=7.0.0
+pytest-cov>=4.0.0
+pytest-asyncio>=0.21.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.0.0
+
+# Optional: Enhanced JSON processing
+orjson>=3.8.0
+
+# Optional: Rich terminal output
+rich>=13.0.0
+
+# Optional: Progress bars
+tqdm>=4.65.0
