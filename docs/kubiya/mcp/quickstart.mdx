@@ -1,336 +1,390 @@
 ---
 title: MCP Quickstart
-description: Get started with Kubiya MCP in 5 minutes
+description: Get started with Kubiya MCP in 5 minutes - Zero dependencies, runs anywhere
 ---
 
-# MCP Quickstart Guide
+# Kubiya MCP Quickstart
 
-Get up and running with Kubiya's Model Context Protocol (MCP) implementation in just 5 minutes. This guide will show you how to use AI to create and execute workflows.
+Connect any AI assistant to the **first LLM-native automation platform** in **5 minutes**. Experience **True Serverless Container Tools** and **LLM-Friendly DAG Workflows** that run **entirely on your infrastructure** with **zero dependencies**.
 
-## Prerequisites
+## ⚡ Prerequisites
 
-- Python 3.9+
-- Kubiya API key ([get one here](https://app.kubiya.ai/settings/api-keys))
-- LLM API key (OpenAI, Anthropic, or Together)
+- **Kubiya API key** ([get one here](https://app.kubiya.ai/settings))
+- **No other dependencies** - the Kubiya CLI is self-contained!
 
-## Installation
+## 🚀 Installation
 
 ```bash
-# Install with MCP support
-pip install kubiya-workflow-sdk[all]
+# Install Kubiya CLI (works on macOS, Linux, Windows)
+curl -fsSL https://raw.githubusercontent.com/kubiyabot/cli/main/install.sh | bash
 
-# Or just the core SDK
-pip install kubiya-workflow-sdk
+# Verify installation
+kubiya --version
+
+# Set your API key
+export KUBIYA_API_KEY="kb-your-api-key-here"
 ```
 
-## Quick Start: Agent Server
+## 🎯 Method 1: Claude Desktop (Most Popular)
 
-The fastest way to get started is with the Agent Server - an OpenAI-compatible API that any AI can use.
-
-### 1. Set Environment Variables
+### 1. Start the MCP Server
 
 ```bash
-export KUBIYA_API_KEY="your-kubiya-api-key"
-export TOGETHER_API_KEY="your-together-api-key"  # Or OPENAI_API_KEY, ANTHROPIC_API_KEY
-```
-
-### 2. Start the Agent Server
-
-```bash
-# Start with default model
-kubiya mcp agent --provider together --port 8000
-
-# Or specify a model
-kubiya mcp agent --provider anthropic --model claude-3-5-sonnet-20241022 --port 8000
+# Start the MCP server (runs in background)
+kubiya mcp serve
 ```
 
 You'll see:
 ```
-╭───────────── Starting Agent Server ──────────────╮
-│ Kubiya MCP Agent Server                          │
-│                                                  │
-│ Provider: together                               │
-│ Model: meta-llama/Llama-3.3-70B-Instruct-Turbo  │
-│ Endpoint: http://0.0.0.0:8000                    │
-│ Kubiya API: ✅ Configured                        │
-╰──────────────────────────────────────────────────╯
+🚀 Kubiya MCP Server starting...
+📡 Mode: stdio (for AI assistants)
+🔑 API Key: ✅ Configured
+🛠️  Tools: 21+ LLM-optimized tools available
+📊 Workflows: LLM-friendly DAG engine ready
+🏠 Infrastructure: Your runners detected
+🛡️  Policies: Disabled (set KUBIYA_OPA_ENFORCE=true to enable)
+✅ Ready for LLM connections
 ```
 
-### 3. Create Your First Workflow
+### 2. Configure Claude Desktop
 
-Now you can use any OpenAI-compatible client:
+Add this to your Claude Desktop config file:
 
-```python
-from openai import OpenAI
-
-# Connect to the agent server
-client = OpenAI(
-    base_url="http://localhost:8000/v1",
-    api_key="not-needed"  # API keys are set via environment
-)
-
-# Ask AI to create a workflow
-response = client.chat.completions.create(
-    model="kubiya-workflow-agent",
-    messages=[{
-        "role": "user",
-        "content": "Create a workflow that checks disk space and alerts if any disk is over 80% full"
-    }],
-    stream=True  # Get real-time updates
-)
-
-# Stream the response
-for chunk in response:
-    if chunk.choices[0].delta.content:
-        print(chunk.choices[0].delta.content, end="")
-```
-
-The AI will:
-1. Generate a workflow using Kubiya's DSL
-2. Compile it to a valid manifest
-3. Execute it (if requested)
-4. Stream real-time progress
-
-## Example Workflows
-
-### System Monitoring
-
-```python
-response = client.chat.completions.create(
-    model="kubiya-workflow-agent",
-    messages=[{
-        "role": "user",
-        "content": """
-        Create a workflow that:
-        1. Checks CPU, memory, and disk usage
-        2. Sends a Slack alert if any metric is above 80%
-        3. Logs all metrics to a file
-        """
-    }]
-)
-```
-
-### Database Backup
-
-```python
-response = client.chat.completions.create(
-    model="kubiya-workflow-agent",
-    messages=[{
-        "role": "user",
-        "content": """
-        Create a workflow to backup PostgreSQL databases:
-        1. Connect to database server
-        2. Run pg_dump for all databases
-        3. Compress the backups
-        4. Upload to S3 with timestamp
-        5. Delete local files
-        6. Send completion notification
-        """
-    }]
-)
-```
-
-### CI/CD Pipeline
-
-```python
-response = client.chat.completions.create(
-    model="kubiya-workflow-agent",
-    messages=[{
-        "role": "user",
-        "content": """
-        Create a CI/CD pipeline that:
-        1. Runs unit tests with pytest
-        2. Builds Docker image if tests pass
-        3. Pushes to registry
-        4. Deploys to Kubernetes staging
-        5. Runs smoke tests
-        6. Promotes to production on success
-        """
-    }]
-)
-```
-
-## Streaming Events
-
-The agent server streams workflow execution events in real-time:
-
-```python
-# Execute with streaming
-response = client.chat.completions.create(
-    model="kubiya-workflow-agent",
-    messages=[{
-        "role": "user",
-        "content": "Create and execute a workflow that counts from 1 to 5"
-    }],
-    stream=True
-)
-
-for chunk in response:
-    content = chunk.choices[0].delta.content
-    if content:
-        # Events come in special format for execution updates
-        if content.startswith("2:"):  # Execution event
-            import json
-            event = json.loads(content[2:])
-            print(f"Event: {event['type']} - {event.get('message', '')}")
-        else:
-            print(content, end="")
-```
-
-## Using with Different Clients
-
-### cURL
-
-```bash
-curl -X POST http://localhost:8000/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "kubiya-workflow-agent",
-    "messages": [
-      {
-        "role": "user",
-        "content": "Create a workflow that lists all running Docker containers"
-      }
-    ],
-    "stream": true
-  }'
-```
-
-### JavaScript/TypeScript
-
-```javascript
-const response = await fetch('http://localhost:8000/v1/chat/completions', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    model: 'kubiya-workflow-agent',
-    messages: [
-      { role: 'user', content: 'Create a workflow to check website uptime' }
-    ],
-    stream: true
-  })
-});
-
-const reader = response.body.getReader();
-const decoder = new TextDecoder();
-
-while (true) {
-  const { done, value } = await reader.read();
-  if (done) break;
-  
-  const chunk = decoder.decode(value);
-  console.log(chunk);
-}
-```
-
-### Vercel AI SDK
-
-```typescript
-import { openai } from '@ai-sdk/openai';
-import { streamText } from 'ai';
-
-const result = await streamText({
-  model: openai('kubiya-workflow-agent', {
-    baseURL: 'http://localhost:8000/v1',
-  }),
-  messages: [
-    {
-      role: 'user',
-      content: 'Create a workflow to deploy my Node.js app',
-    },
-  ],
-});
-
-for await (const chunk of result.textStream) {
-  process.stdout.write(chunk);
-}
-```
-
-## Direct MCP Server Usage
-
-For lower-level control, use the MCP server directly via stdio:
-
-```bash
-# Start MCP server
-kubiya mcp server
-```
-
-This starts a stdio-based MCP server that tools like Claude Desktop can connect to directly.
-
-### Claude Desktop Configuration
-
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
 ```json
 {
   "mcpServers": {
     "kubiya": {
       "command": "kubiya",
-      "args": ["mcp", "server"],
+      "args": ["mcp", "serve"],
       "env": {
-        "KUBIYA_API_KEY": "your-api-key"
+        "KUBIYA_API_KEY": "kb-your-api-key-here"
       }
     }
   }
 }
 ```
 
-## Available Providers
+### 3. Restart Claude Desktop
 
-The agent server supports multiple LLM providers:
+Restart Claude Desktop and you'll see the 🔌 MCP icon - Kubiya is connected!
 
-| Provider | Models | Environment Variable |
-|----------|--------|---------------------|
-| OpenAI | gpt-4, gpt-4-turbo, gpt-3.5-turbo | OPENAI_API_KEY |
-| Anthropic | claude-3-opus, claude-3-sonnet, claude-3-haiku | ANTHROPIC_API_KEY |
-| Together | Llama-3.3-70B, DeepSeek-V3, Mixtral | TOGETHER_API_KEY |
-| Groq | llama-3.3-70b, mixtral-8x7b | GROQ_API_KEY |
-| Ollama | Any local model | (No API key needed) |
+### 4. Try It Out
 
-## Interactive Testing
+In Claude, ask:
 
-Test MCP tools interactively:
+> "Can you list the available runners and check their health status?"
 
-```bash
-# Interactive chat mode
-kubiya mcp chat --provider anthropic
+> "Create a tool that checks disk space and send me the results"
 
-# Test specific tools
-kubiya mcp test
+> "Execute a kubectl command to get all pods in the cluster"
+
+## 🎯 Method 2: Cursor IDE
+
+### 1. Configure Cursor
+
+Add to your Cursor settings (`.cursor-settings.json`):
+
+```json
+{
+  "mcp.servers": {
+    "kubiya": {
+      "command": "kubiya",
+      "args": ["mcp", "serve"],
+      "env": {
+        "KUBIYA_API_KEY": "kb-your-api-key-here"
+      }
+    }
+  }
+}
 ```
 
-## Next Steps
+### 2. Use in Cursor
 
-- [MCP Tools Reference](./tools-reference.mdx) - Learn about all available MCP tools
-- [Agent Server Guide](./agent-server.mdx) - Advanced agent server configuration
-- [Authentication](./authentication.mdx) - Security and API key management
-- [Examples](./examples.mdx) - More integration examples
+Open the Composer and ask:
 
-## Troubleshooting
+> "Use Kubiya to deploy my application to staging"
+
+> "Check the health of our Kubernetes cluster using Kubiya tools"
+
+## 🎯 Method 3: Custom LLM Integration
+
+For custom applications, use the MCP protocol directly:
+
+```python
+import asyncio
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import StdioServerTransport
+
+async def use_kubiya():
+    # Connect to Kubiya MCP server
+    server_params = StdioServerParameters(
+        command="kubiya",
+        args=["mcp", "serve"],
+        env={"KUBIYA_API_KEY": "kb-your-key"}
+    )
+    
+    async with StdioServerTransport(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            # Initialize connection
+            await session.initialize()
+            
+            # List available tools
+            tools = await session.list_tools()
+            print(f"Available tools: {[t.name for t in tools.tools]}")
+            
+            # Execute a simple tool
+            result = await session.call_tool(
+                "execute_tool",
+                {
+                    "tool_name": "hello-world",
+                    "args": {"content": "echo 'Hello from Kubiya!'"},
+                    "runner": "auto"
+                }
+            )
+            print(result.content)
+
+# Run it
+asyncio.run(use_kubiya())
+```
+
+## 🛠️ What You Can Do Now
+
+### 1. **Execute Any Tool**
+
+```python
+# In Claude/AI assistant:
+"Execute a Python script that analyzes this CSV data"
+
+# Kubiya will:
+# 1. Create a Python container
+# 2. Run your analysis script
+# 3. Return results with live streaming
+```
+
+### 2. **Manage Infrastructure**
+
+```python
+# In your AI:
+"Check the health of our Kubernetes cluster and restart any failed pods"
+
+# Kubiya executes:
+# 1. kubectl get pods --all-namespaces --field-selector=status.phase=Failed
+# 2. kubectl delete pod <failed-pods>
+# 3. kubectl get pods --watch
+```
+
+### 3. **Run Workflows**
+
+```python
+# Natural language request:
+"Deploy version 2.1.0 to staging, run tests, and promote to production if successful"
+
+# Kubiya handles the entire pipeline:
+# 1. docker build -t app:2.1.0
+# 2. kubectl apply -f k8s/staging/
+# 3. Run integration tests  
+# 4. If tests pass: kubectl apply -f k8s/production/
+```
+
+### 4. **Data Processing**
+
+```python
+# Ask your AI:
+"Process the sales data from S3, clean it, and load it into our data warehouse"
+
+# Kubiya pipeline:
+# 1. Download from S3
+# 2. pandas/numpy processing
+# 3. Data validation
+# 4. Load to warehouse
+# 5. Data quality checks
+```
+
+## 🚀 Advanced Configuration
+
+### Enable Platform APIs
+
+For full platform management capabilities:
+
+```bash
+# Enable platform APIs (runner management, etc.)
+kubiya mcp serve --allow-platform-apis
+```
+
+This enables additional tools:
+- `create_runner` - Create new runners
+- `delete_runner` - Remove runners
+- `create_integration` - Add integrations
+- `create_source` - Add tool sources
+
+### Enable Policy Enforcement
+
+For enterprise security:
+
+```bash
+# Enable OPA policy enforcement
+export KUBIYA_OPA_ENFORCE=true
+kubiya mcp serve --allow-platform-apis
+```
+
+This adds policy validation before executing any tool or workflow.
+
+### Custom Configuration
+
+Create `~/.kubiya/mcp-server.json`:
+
+```json
+{
+  "allow_platform_apis": true,
+  "enable_opa_policies": true,
+  "whitelisted_tools": [
+    {
+      "name": "Safe kubectl",
+      "tool_name": "kubectl",
+      "description": "Read-only Kubernetes access",
+      "integrations": ["k8s/readonly"]
+    }
+  ]
+}
+```
+
+## 🎯 Real-World Examples
+
+### DevOps Assistant
+
+> **You**: "Our application seems slow, can you investigate?"
+> 
+> **AI + Kubiya**: 
+> 1. Checks application metrics
+> 2. Analyzes logs for errors
+> 3. Examines resource usage
+> 4. Identifies bottlenecks
+> 5. Suggests optimizations
+
+### Data Engineering Helper
+
+> **You**: "Process today's user analytics and update the dashboard"
+> 
+> **AI + Kubiya**:
+> 1. Extracts data from multiple sources
+> 2. Runs ETL transformations
+> 3. Validates data quality
+> 4. Updates data warehouse
+> 5. Refreshes BI dashboards
+
+### Security Operations
+
+> **You**: "Check for any security issues in our infrastructure"
+> 
+> **AI + Kubiya**:
+> 1. Scans for vulnerabilities
+> 2. Checks access controls
+> 3. Reviews audit logs
+> 4. Validates compliance
+> 5. Generates security report
+
+## 🔧 Available Tools
+
+The Kubiya MCP server exposes **21+ powerful tools**:
+
+### **Core Execution**
+- `execute_tool` - Run any containerized tool
+- `create_on_demand_tool` - Build custom tools on-the-fly
+- `execute_workflow` - Run complete workflows
+- `execute_whitelisted_tool` - Run pre-approved tools
+
+### **Platform Management**
+- `list_runners` - List execution infrastructure
+- `check_runner_health` - Monitor system health
+- `find_available_runner` - Auto-select optimal runners
+- `list_agents` - Discover AI agents
+- `chat_with_agent` - Multi-turn conversations
+
+### **Tool & Source Management**
+- `list_sources` - Browse tool repositories
+- `execute_tool_from_source` - Run tools from Git repos
+- `discover_source` - Preview tools before use
+- `list_integrations` - See available integrations
+
+### **Knowledge & Security**
+- `search_kb` - Search organizational knowledge
+- `list_kb` - Browse documentation
+- `list_secrets` - View available credentials
+
+## 🔍 Troubleshooting
 
 ### Common Issues
 
-1. **Model not specified error**
+1. **MCP Connection Failed**
    ```bash
-   # Always specify a model or use default
-   kubiya mcp agent --provider together --model "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+   # Check if server is running
+   kubiya mcp serve --debug
+   
+   # Verify API key
+   echo $KUBIYA_API_KEY
    ```
 
-2. **API key not found**
+2. **No Tools Available**
    ```bash
-   # Make sure to export your API keys
-   export KUBIYA_API_KEY="your-key"
-   export TOGETHER_API_KEY="your-key"
+   # Make sure API key is valid
+   kubiya runner list  # Should show available runners
+   
+   # Check configuration
+   cat ~/.kubiya/mcp-server.json
    ```
 
-3. **Port already in use**
+3. **Permission Denied**
    ```bash
-   # Use a different port
-   kubiya mcp agent --provider together --port 8001
+   # Check if policies are blocking execution
+   export KUBIYA_OPA_ENFORCE=false
+   
+   # Or test permissions
+   kubiya policy test-tool --tool kubectl --args '{"command": "get pods"}'
    ```
 
-### Getting Help
+### Debug Mode
 
-- Check the [documentation](https://docs.kubiya.ai)
-- Join our [Discord community](https://discord.gg/kubiya)
-- Open an [issue on GitHub](https://github.com/kubiya-ai/workflow-sdk/issues) 
+Enable detailed logging:
+
+```bash
+# Start with debug logging
+kubiya --debug mcp serve
+
+# Or via environment
+export LOG_LEVEL=DEBUG
+kubiya mcp serve
+```
+
+## 🎯 Next Steps
+
+<CardGroup cols={2}>
+  <Card title="🔧 Tools Reference" icon="wrench" href="/mcp/tools-reference">
+    Complete documentation of all 21+ MCP tools
+  </Card>
+  
+  <Card title="🛡️ Authentication & Policies" icon="shield" href="/mcp/authentication">
+    Setup enterprise security and access control
+  </Card>
+  
+  <Card title="💡 Examples & Use Cases" icon="lightbulb" href="/mcp/examples">
+    Real-world integration examples and patterns
+  </Card>
+  
+  <Card title="🏗️ Full Stack Agents" icon="building" href="/mcp/full-stack-agents">
+    Build complete AI applications with Kubiya
+  </Card>
+</CardGroup>
+
+## 🆘 Getting Help
+
+- **Documentation**: [https://docs.kubiya.ai](https://docs.kubiya.ai)
+- **GitHub**: [https://github.com/kubiyabot/cli](https://github.com/kubiyabot/cli)
+- **Discord**: [Join our community](https://discord.gg/kubiya)
+- **API Keys**: [Get your API key](https://app.kubiya.ai/settings)
+
+---
+
+**🎉 Congratulations!** You've connected your AI assistant to the full power of Kubiya. Your AI can now execute tools, manage infrastructure, run workflows, and handle complex automation tasks with enterprise-grade security and reliability.

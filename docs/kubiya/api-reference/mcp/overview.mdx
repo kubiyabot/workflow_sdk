@@ -1,0 +1,44 @@
+---
+title: "MCP Server API Overview"
+description: "Overview of Kubiya's Model Context Protocol (MCP) server API endpoints and capabilities"
+icon: "server"
+---
+
+# MCP Server API Overview
+
+Kubiya's MCP server provides a comprehensive set of tools for AI assistants to interact with the Kubiya platform through the Model Context Protocol. This section documents the core API endpoints and their usage.
+
+## API Categories
+
+### Tool Execution
+- **execute_tool**: Execute container-based tools with live streaming
+- **create_on_demand_tool**: Create and execute tools from definitions
+- **execute_whitelisted_tool**: Execute pre-approved tools with security controls
+
+### Workflow Management
+- **execute_workflow**: Run complete multi-step workflows
+- **list_workflows**: Discover available workflows
+- **get_workflow_status**: Monitor workflow execution
+
+### Infrastructure Management
+- **list_runners**: List available execution runners
+- **check_runner_health**: Monitor runner health status
+- **find_available_runner**: Auto-select optimal runners
+
+### Agent Interaction
+- **list_agents**: Discover available AI agents
+- **chat_with_agent**: Engage in multi-turn conversations
+- **execute_agent_task**: Run agent-specific tasks
+
+## Authentication
+
+All MCP server interactions require a valid Kubiya API key configured in the environment:
+
+```bash
+export KUBIYA_API_KEY="kb-your-api-key"
+```
+
+## Next Steps
+
+- [Tools Reference](/mcp/tools-reference) - Complete tool documentation
+- [Protocol Details](/api-reference/mcp/protocol) - MCP protocol implementation

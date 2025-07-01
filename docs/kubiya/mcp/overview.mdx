@@ -1,282 +1,415 @@
 ---
 title: MCP Integration
-description: Connect any AI tool to Kubiya workflows with the Model Context Protocol
+description: Connect any AI tool to Kubiya with the Model Context Protocol - Zero dependencies, runs anywhere
 icon: plug
 ---
 
-# MCP Integration
+# Kubiya MCP Server
 
-Connect Kubiya to any AI assistant (Claude, ChatGPT, Cursor) using the Model Context Protocol (MCP). Write simple workflows and let AI execute them on behalf of authenticated users.
+Connect any AI assistant (Claude, ChatGPT, Cursor, or custom LLMs) to the **full power of Kubiya** using the Model Context Protocol (MCP). The Kubiya CLI includes a comprehensive MCP server that requires **zero dependencies** and can run anywhere with just a single `KUBIYA_API_KEY`.
 
-## Identity-Aware Workflow Execution
+## 🚀 Why Kubiya MCP?
 
-When users interact with Kubiya through the Composer UI or other interfaces, the MCP server ensures workflows execute with their identity. This provides:
+<CardGroup cols={2}>
+  <Card title="🏢 Enterprise-Ready AI" icon="building">
+    **Serverless Agents** with production-grade execution, policy enforcement, and audit trails
+  </Card>
+  <Card title="🛠️ Serverless Tools" icon="wrench">
+    **Container-based tools** that run anywhere - from simple scripts to complex applications
+  </Card>
+  <Card title="🏃 Local & Cloud Runners" icon="server">
+    Execute on **your infrastructure** or use **Kubiya-hosted runners** for instant scalability
+  </Card>
+  <Card title="🛡️ Policy Enforcement" icon="shield">
+    **OPA-based policies** with pre-execution validation and comprehensive access control
+  </Card>
+</CardGroup>
 
-- **User Attribution** - Every workflow run is tied to the user who initiated it
-- **Permission Enforcement** - Users can only execute workflows they have access to
-- **Audit Compliance** - Complete traceability of who did what and when
-- **Multi-tenant Isolation** - Users' workflows and data remain separate
+## ✨ Zero Setup Required
 
-## Quick Start (6 Lines of Code!)
+Unlike other MCP servers, Kubiya requires **no additional dependencies**:
+
+```bash
+# That's it! Just the Kubiya CLI
+curl -fsSL https://raw.githubusercontent.com/kubiyabot/cli/main/install.sh | bash
+
+# Set your API key
+export KUBIYA_API_KEY="kb-..."
+
+# Start MCP server (runs anywhere!)
+kubiya mcp serve
+```
+
+## 🎯 Key Capabilities for LLMs
+
+### 1. **Serverless AI Agents**
+- **Conversational Agents**: Multi-turn conversations with memory and context
+- **Tool-Calling Agents**: Agents that can execute workflows and tools autonomously  
+- **Custom Agent Logic**: Define agent behavior, personality, and capabilities
+- **Identity-Aware**: Execute with proper user attribution and permissions
+
+### 2. **🏠 Execution on Your Infrastructure**
+
+**Critical difference**: Your data and workloads never leave your environment.
+
+```mermaid
+graph TB
+    subgraph "❌ Traditional AI Platforms"
+        YData1["🏢 Your Data"]
+        ThirdParty["☁️ Third-Party Cloud<br/>❌ Data leaves network<br/>❌ Compliance risks<br/>❌ Vendor lock-in"]
+        
+        YData1 --> ThirdParty
+    end
+    
+    subgraph "✅ Kubiya Architecture"
+        YData2["🏢 Your Data"]
+        YInfra["🏠 Your Infrastructure<br/>✅ Data stays local<br/>✅ Full compliance<br/>✅ Complete control"]
+        
+        YData2 --> YInfra
+    end
+    
+    classDef bad fill:#ffebee
+    classDef good fill:#e8f5e8
+    
+    class ThirdParty bad
+    class YInfra good
+```
+
+**🔒 Security & Compliance**:
+- **🏠 Data Locality**: Everything executes in your environment
+- **🛡️ Zero Trust**: Policy validation before execution
+- **📋 Compliance Ready**: GDPR, HIPAA, SOC2 in your infrastructure
+- **🔐 Air-Gap Capable**: Works completely offline
+
+### 3. **🧠 LLM-Native Design**
+
+Every component designed for AI agent interaction:
+
+```mermaid
+mindmap
+  root)🧠 LLM-Native Features(
+    📝 Documentation
+      Natural Language
+      Examples & Use Cases
+      Common Failures
+      Alternative Suggestions
+    🔍 Discovery
+      Semantic Search
+      Intent-Based Matching
+      Context Awareness
+      Auto-Suggestions
+    🎯 Execution
+      Self-Describing Steps
+      Progress Streaming
+      Error Context
+      Success Metrics
+    🔄 Adaptation
+      Dynamic Modification
+      Learning from Usage
+      Improvement Hints
+      Pattern Recognition
+```
+
+## 🔧 21+ LLM-Optimized MCP Tools
+
+Every tool designed for AI agent understanding and execution:
+
+### Core Execution Tools
+| Tool | Description | Use Case |
+|------|-------------|----------|
+| `execute_tool` | Run any tool with live streaming | Execute Docker containers, scripts, APIs |
+| `create_on_demand_tool` | Create and run tools from definitions | Build custom automation on-the-fly |
+| `execute_workflow` | Run complete workflows | Complex multi-step automation |
+| `execute_whitelisted_tool` | Run pre-approved tools | Secure, controlled tool execution |
+
+### Platform Management
+| Tool | Description | Use Case |
+|------|-------------|----------|
+| `list_runners` | List available runners | Check execution infrastructure |
+| `check_runner_health` | Health status of runners | Monitor system health |
+| `find_available_runner` | Auto-select best runner | Optimal execution placement |
+| `list_agents` | List AI agents | Discover available agents |
+| `chat_with_agent` | Conversational agent interaction | Multi-turn AI conversations |
+
+### Tool & Source Management  
+| Tool | Description | Use Case |
+|------|-------------|----------|
+| `list_sources` | List tool repositories | Discover available tools |
+| `execute_tool_from_source` | Run tools from specific sources | Execute from GitHub/GitLab repos |
+| `discover_source` | Explore source contents | Preview tools before execution |
+| `list_integrations` | List available integrations | See AWS, K8s, DB connections |
+
+### Knowledge & Security
+| Tool | Description | Use Case |
+|------|-------------|----------|
+| `search_kb` | Search knowledge base | Find documentation, procedures |
+| `list_kb` | Browse knowledge entries | Explore organizational knowledge |
+| `list_secrets` | List available secrets | Check available credentials |
+
+## 📋 Quick Setup Examples
+
+### Claude Desktop Integration
+
+```json
+{
+  "mcpServers": {
+    "kubiya": {
+      "command": "kubiya",
+      "args": ["mcp", "serve"],
+      "env": {
+        "KUBIYA_API_KEY": "kb-your-api-key-here"
+      }
+    }
+  }
+}
+```
+
+### Cursor Integration
+
+```json
+{
+  "mcp.servers": {
+    "kubiya": {
+      "command": "kubiya",
+      "args": ["mcp", "serve"],
+      "env": {
+        "KUBIYA_API_KEY": "kb-your-api-key-here"
+      }
+    }
+  }
+}
+```
+
+### Custom LLM Integration (Python)
 
 ```python
 import asyncio
-from mcp_use import MCPClient
-from mcp_use.adapters.langchain_adapter import LangChainAdapter
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import StdioServerTransport
 
-# Configure and connect to Kubiya
-client = MCPClient.from_dict({
-    "mcpServers": {
-        "kubiya": {
-            "command": "python3",
-            "args": ["-m", "kubiya_workflow_sdk.mcp.server"]
-        }
-    }
-})
+async def use_kubiya_tools():
+    # Connect to Kubiya MCP server
+    server_params = StdioServerParameters(
+        command="kubiya",
+        args=["mcp", "serve"],
+        env={"KUBIYA_API_KEY": "kb-your-key"}
+    )
+    
+    async with StdioServerTransport(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            # Initialize
+            await session.initialize()
+            
+            # List available tools
+            tools = await session.list_tools()
+            print(f"Available tools: {[t.name for t in tools.tools]}")
+            
+            # Execute a tool
+            result = await session.call_tool(
+                "execute_tool",
+                {
+                    "tool_name": "kubectl",
+                    "args": {"command": "get pods -A"},
+                    "runner": "auto"
+                }
+            )
+            print(result.content)
 
-# That's it! Now use the tools
-adapter = LangChainAdapter()
-tools = await adapter.create_tools(client)
+# Run it
+asyncio.run(use_kubiya_tools())
 ```
 
-## What Can You Do?
+## 🛠️ Real-World Examples
 
-The Kubiya MCP server exposes these powerful tools to any AI:
-
-### 🔧 Available Tools
-
-| Tool | What it does | Example |
-|------|--------------|---------|
-| `define_workflow` | Create workflows from simple Python code | Create deployment pipelines |
-| `execute_workflow` | Run workflows with parameters | Deploy to production |
-| `list_workflows` | See all your workflows | Check available automations |
-| `validate_workflow` | Check workflow syntax | Validate before running |
-| `export_workflow` | Export as YAML/JSON | Share with team |
-| `get_execution` | Track workflow status | Monitor deployments |
-
-## Creating Workflows - It's Simple!
-
-No decorators, no complexity. Just simple, clean Python:
-
-### Hello World
-```python
-from kubiya_workflow_sdk.dsl import Workflow
-
-wf = Workflow("hello-world")
-wf.description("My first workflow!")
-wf.step("greet", "echo 'Hello, Kubiya!'")
-wf.step("date", "date")
-```
-
-### Real-World Example: Deploy Pipeline
-```python
-from kubiya_workflow_sdk.dsl import Workflow
-
-wf = Workflow("deploy-app")
-wf.description("Deploy application to production")
-
-# Add parameters
-wf.params(app="myapp", env="staging", version="latest")
-
-# Build and test
-wf.step("build", "docker build -t {{app}}:{{version}} .")
-wf.step("test", "docker run {{app}}:{{version}} npm test")
-
-# Deploy based on environment
-wf.step("deploy-staging", 
-    "kubectl apply -f k8s/staging/",
-    condition="{{env}} == 'staging'"
-)
-wf.step("deploy-prod",
-    "kubectl apply -f k8s/production/", 
-    condition="{{env}} == 'production'"
-)
-
-# Verify deployment
-wf.step("verify", "curl https://{{app}}-{{env}}.example.com/health")
-```
-
-## Connect Your AI Assistant
-
-### Option 1: Use with Any LangChain LLM
+### 1. **Infrastructure Automation**
 
 ```python
-from langchain_openai import ChatOpenAI
-from mcp_use import MCPAgent, MCPClient
+# In Claude/ChatGPT, just say:
+"Create a tool that checks our Kubernetes cluster health and restarts any failed pods"
 
-# Setup
-client = MCPClient.from_dict({
-    "mcpServers": {
-        "kubiya": {
-            "command": "python3",
-            "args": ["-m", "kubiya_workflow_sdk.mcp.server"],
-            "env": {"KUBIYA_API_KEY": "your-key"}  # For execution
-        }
-    }
-})
-
-# Create AI agent
-llm = ChatOpenAI(model="gpt-4")
-agent = MCPAgent(llm=llm, client=client)
-
-# Let AI create workflows!
-result = await agent.run(
-    "Create a workflow that backs up my database every night"
-)
+# Kubiya will create and execute:
+# - kubectl get pods --all-namespaces --field-selector=status.phase=Failed
+# - kubectl delete pod <failed-pods> --grace-period=0
+# - kubectl get pods --watch (to verify restart)
 ```
 
-### Option 2: Direct Tool Usage (No LLM)
+### 2. **DevOps Workflows**
 
 ```python
-# Get tools
-adapter = LangChainAdapter()
-tools = await adapter.create_tools(client)
+# Ask your AI:
+"Deploy our application to staging with version 2.1.0, run tests, and promote to production if successful"
 
-# Find the tool you need
-define_tool = next(t for t in tools if t.name == "define_workflow")
-
-# Create workflow directly
-result = await define_tool.ainvoke({
-    "name": "backup-db",
-    "code": '''
-from kubiya_workflow_sdk.dsl import Workflow
-
-wf = Workflow("backup-db")
-wf.step("dump", "pg_dump mydb > backup.sql")
-wf.step("compress", "gzip backup.sql")
-wf.step("upload", "aws s3 cp backup.sql.gz s3://backups/")
-'''
-})
+# Kubiya executes the complete workflow:
+# - docker build -t app:2.1.0
+# - kubectl apply -f k8s/staging/ 
+# - run integration tests
+# - if tests pass: kubectl apply -f k8s/production/
+# - send notification to Slack
 ```
 
-## Real Examples That Work
+### 3. **Data Engineering**
 
-### 1. Data Processing Pipeline
 ```python
-wf = Workflow("process-data")
-wf.params(input="/data/raw", output="/data/processed")
+# Natural language request:
+"Process the daily sales data, validate it, transform it to our schema, and load it into the warehouse"
 
-# Process files in parallel
-wf.parallel_steps(
-    "process-files",
-    items=["file1.csv", "file2.csv", "file3.csv"],
-    command="python process.py {{input}}/{{item}} {{output}}/{{item}}"
-)
+# Kubiya handles the entire pipeline:
+# - Download data from S3
+# - Python/pandas data validation
+# - ETL transformations  
+# - Load to Snowflake/BigQuery
+# - Data quality checks
+# - Alerting on failures
 ```
 
-### 2. Infrastructure Automation
-```python
-wf = Workflow("setup-infra")
-wf.params(provider="aws", region="us-east-1")
+## 🚀 Advanced Features
 
-wf.step("terraform-init", "terraform init")
-wf.step("terraform-plan", "terraform plan -out=tfplan")
-wf.step("terraform-apply", "terraform apply tfplan")
-```
-
-### 3. CI/CD Pipeline
-```python
-wf = Workflow("ci-pipeline")
-wf.step("checkout", "git checkout main")
-wf.step("install", "npm install")
-wf.step("lint", "npm run lint")
-wf.step("test", "npm test")
-wf.step("build", "npm run build")
-wf.step("deploy", "npm run deploy:prod", condition="{{branch}} == 'main'")
-```
-
-## Installation
+### **Policy-Based Access Control**
 
 ```bash
-# Install the SDK and mcp-use
-pip install kubiya-workflow-sdk mcp-use
+# Enable policy enforcement
+export KUBIYA_OPA_ENFORCE=true
 
-# For AI agents, also install your preferred LLM
-pip install langchain-openai  # For OpenAI
-pip install langchain-anthropic  # For Claude
+# Create policies via CLI
+kubiya policy create --name "prod-access" --file policy.rego
+
+# Test permissions
+kubiya policy test-tool --tool kubectl --args '{"command": "delete pod"}' --runner prod
 ```
 
-## Running the MCP Server
+### **Runner Auto-Selection**
 
-The MCP server starts automatically when you connect, but you can also run it standalone:
+```python
+# Automatic runner selection based on:
+# - Health status
+# - Current load  
+# - Geographic location
+# - Resource requirements
+{
+  "tool_name": "heavy-computation",
+  "runner": "auto",  # Kubiya picks the best runner
+  "args": {"dataset": "large"}
+}
+```
+
+### **Platform API Access**
 
 ```bash
-# Run the server
-python -m kubiya_workflow_sdk.mcp.server
+# Enable full platform capabilities  
+kubiya mcp serve --allow-platform-apis
+
+# Now AI can manage:
+# - Create/delete runners
+# - Manage integrations
+# - Control agent deployments
+# - Administer knowledge base
 ```
 
-## Authentication Options
+## 🔧 Configuration Options
 
-The MCP server supports two authentication approaches:
+### Environment Variables
 
-### 1. Simple API Key (Getting Started)
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `KUBIYA_API_KEY` | **Required** - Your Kubiya API key | None |
+| `KUBIYA_API_URL` | Kubiya API endpoint | `https://api.kubiya.ai` |
+| `KUBIYA_OPA_ENFORCE` | Enable policy enforcement | `false` |
+| `KUBIYA_DEFAULT_RUNNER` | Default runner for execution | `auto` |
+| `KUBIYA_MCP_ALLOW_PLATFORM_APIS` | Enable platform management tools | `false` |
 
-Perfect for development and simple integrations:
+### MCP Server Options
 
-```python
-# Pass API key as parameter
-result = await execute_tool.ainvoke({
-    "name": "my-workflow",
-    "params": {"env": "production"},
-    "api_key": "your-kubiya-api-key"
-})
+```bash
+# Basic server
+kubiya mcp serve
 
-# Or use environment variable
-export KUBIYA_API_KEY="your-api-key"
+# With platform APIs enabled
+kubiya mcp serve --allow-platform-apis
+
+# With policy enforcement  
+KUBIYA_OPA_ENFORCE=true kubiya mcp serve
+
+# Custom configuration file
+kubiya mcp serve --config ~/.kubiya/mcp-config.json
 ```
 
-### 2. OAuth/OIDC Authentication (Production)
+### Configuration File (`~/.kubiya/mcp-server.json`)
 
-For enterprise deployments with proper authentication:
-
-```python
-# Run server with OAuth/OIDC
-python -m kubiya_workflow_sdk.mcp.server_auth \
-  --auth-server https://your-auth-server.com \
-  --auth-type oidc
+```json
+{
+  "allow_platform_apis": true,
+  "enable_opa_policies": true,
+  "whitelisted_tools": [
+    {
+      "name": "Safe kubectl",
+      "tool_name": "kubectl", 
+      "description": "Read-only Kubernetes access",
+      "integrations": ["k8s/readonly"]
+    }
+  ]
+}
 ```
 
-Learn more in the [Authentication Guide](/mcp/authentication).
+## 🎯 Use Cases for AI Applications
 
-## Tool Overview
+### **1. Enterprise Automation Assistant**
+- **User**: "Please backup our production database and notify the team"
+- **AI + Kubiya**: Executes secure backup workflow with proper credentials and notifications
 
-The server exposes 8 powerful tools:
+### **2. DevOps Copilot** 
+- **User**: "The app is down in production, please investigate and fix"
+- **AI + Kubiya**: Checks logs, identifies issues, applies fixes, and reports back
 
-| Tool | Purpose | Requires API Key |
-|------|---------|------------------|
-| `define_workflow` | Create workflows from code | No |
-| `create_workflow_from_json` | Create from JSON/YAML | No |
-| `execute_workflow` | Run workflows | Yes (via parameter) |
-| `get_execution` | Check execution status | No |
-| `list_workflows` | List all workflows | No |
-| `validate_workflow` | Validate workflow syntax | No |
-| `export_workflow` | Export to YAML/JSON | No |
-| `validate_workflow_code` | Validate Python code | No |
+### **3. Data Analysis Agent**
+- **User**: "Analyze last month's sales trends and create a report"
+- **AI + Kubiya**: Queries databases, runs analysis scripts, generates visualizations
 
-## What's Next?
+### **4. Infrastructure Management**
+- **User**: "Scale up our Kubernetes cluster for the upcoming traffic spike"
+- **AI + Kubiya**: Safely scales infrastructure with proper validation and monitoring
 
-<Cards>
-  <Card title="Try Examples" icon="code" href="https://github.com/kubiyabot/workflow_sdk/tree/main/examples/mcp_integration">
-    Ready-to-run examples
+## 🔒 Security & Compliance
+
+### **Identity-Aware Execution**
+- Every action is tied to the authenticated user
+- Granular permissions via OPA policies
+- Complete audit trails for compliance
+
+### **Secure by Default**
+- Tools run in isolated containers
+- Secrets are encrypted and managed securely
+- Network policies control access
+
+### **Enterprise Features**
+- SSO/OIDC integration
+- Role-based access control (RBAC)
+- SOC2 compliant infrastructure
+- Air-gapped deployment options
+
+## 📚 Next Steps
+
+<CardGroup cols={2}>
+  <Card title="🚀 Quick Start" icon="rocket" href="/mcp/quickstart">
+    Get started in 5 minutes
   </Card>
-  <Card title="DSL Reference" icon="book" href="/workflows/dsl-reference">
-    Learn the workflow DSL
+  <Card title="🔧 Tools Reference" icon="wrench" href="/mcp/tools-reference">
+    Complete tool documentation
   </Card>
-  <Card title="API Keys" icon="key" href="https://app.kubiya.ai/settings">
-    Get your API key
+  <Card title="🛡️ Authentication" icon="shield" href="/mcp/authentication">
+    Setup authentication and policies
   </Card>
-</Cards>
+  <Card title="💡 Examples" icon="lightbulb" href="/mcp/examples">
+    Real-world integration examples
+  </Card>
+</CardGroup>
 
-## FAQ
+## 🆘 Support & Community
 
-**Q: Do I need decorators?**  
-A: No! Just use the simple DSL: `wf = Workflow("name")` and add steps.
+- **Documentation**: [https://docs.kubiya.ai](https://docs.kubiya.ai)
+- **GitHub**: [https://github.com/kubiyabot/cli](https://github.com/kubiyabot/cli)
+- **Discord**: [Join our community](https://discord.gg/kubiya)
+- **API Keys**: [Get your API key](https://app.kubiya.ai/settings)
 
-**Q: Can I use this with Claude/ChatGPT/Cursor?**  
-A: Yes! Any tool that supports MCP or LangChain can connect.
+---
 
-**Q: Do I need an API key?**  
-A: Only for executing workflows. Creating and validating workflows works without a key.
-
-**Q: Is it production-ready?**  
-A: Yes! The MCP server is battle-tested and ready for production use. 
+**Ready to supercharge your AI with enterprise-grade automation?** The Kubiya MCP server brings the full power of the Kubiya platform to any AI assistant with zero setup complexity.
