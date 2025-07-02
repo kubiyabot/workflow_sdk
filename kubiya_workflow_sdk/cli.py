@@ -151,7 +151,7 @@ def agent(provider, model, api_key, kubiya_key, port, host):
 def chat(provider, model, api_key, kubiya_key):
     """Interactive chat with Kubiya MCP server."""
     import asyncio
-    from .mcp.interactive_chat import run_interactive_chat
+    from kubiya_workflow_sdk.mcp.interactive_chat import run_interactive_chat
     
     if kubiya_key:
         os.environ["KUBIYA_API_KEY"] = kubiya_key
@@ -201,7 +201,7 @@ def chat(provider, model, api_key, kubiya_key):
 def test(provider, model, api_key, kubiya_key, scenario, interactive, output):
     """Test MCP server with an AI agent."""
     import asyncio
-    from .mcp.test_agent import run_mcp_test
+    from kubiya_workflow_sdk.mcp.test_agent import run_mcp_test
     
     # Set up environment
     if kubiya_key:

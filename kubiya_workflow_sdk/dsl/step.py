@@ -9,7 +9,6 @@ Properly handles:
 """
 
 from typing import Dict, Any, List, Optional, Union
-from dataclasses import dataclass, field
 
 
 class Step:
@@ -41,6 +40,7 @@ class Step:
         self,
         name: str,
         command: Optional[str] = None,
+        description: Optional[str] = None,
         script: Optional[str] = None,
         run: Optional[str] = None,
         params: Optional[str] = None,
@@ -50,6 +50,8 @@ class Step:
 
         if command:
             self.data["command"] = command
+        if description:
+            self.data["description"] = description
         if script:
             self.data["script"] = script
         if run:
@@ -62,6 +64,11 @@ class Step:
             if value is not None:
                 self.data[key] = value
 
+    def description(self, desc: str) -> "Step":
+        """Set step description."""
+        self.data["description"] = desc
+        return self
+
     # Executor configurations
     def shell(self, command: str) -> "Step":
         """Configure as shell executor."""
@@ -71,6 +78,11 @@ class Step:
     def python(self, script: str) -> "Step":
         """Configure as Python script."""
         self.data["command"] = "python"
+        self.data["script"] = script
+        return self
+
+    def script(self, script: str) -> "Step":
+        """Configure as a script."""
         self.data["script"] = script
         return self
 
@@ -92,13 +104,15 @@ class Step:
         type: str,
         image: str,
         content: str,
-        args: List[Dict[str, Any]],
+        args: Dict[str, Any],
+        timeout: Optional[int] = None,
         description: Optional[str] = None,
         with_files: Optional[List[Dict[str, str]]] = None,
         with_services: Optional[List[Dict[str, Any]]] = None,
+        **kwargs,
     ) -> "Step":
         """Define a tool inline with full specification and optional bounded services."""
-        tool_def = {"name": name, "type": type, "image": image, "content": content, "args": args}
+        tool_def = {"name": name, "type": type, "image": image, "content": content}
 
         if description:
             tool_def["description"] = description
@@ -107,7 +121,13 @@ class Step:
         if with_services:
             tool_def["with_services"] = with_services
 
-        self.data["executor"] = {"type": "tool", "config": {"tool_def": tool_def}}
+        tool_def = tool_def | kwargs
+
+        self.data["executor"] = {"type": "tool", "config": {"tool_def": tool_def, "args": args}}
+
+        if timeout:
+            self.data["executor"]["config"]["timeout"] = timeout
+
         return self
 
     def tool(self, tool_name: str, args: Optional[Dict[str, Any]] = None, **kwargs) -> "Step":
@@ -186,9 +206,12 @@ class Step:
         }
         return self
 
-    def jq(self, query: str) -> "Step":
+    def jq(self, query: Optional[str]) -> "Step":
         """Configure as jq executor for JSON processing."""
-        self.data["executor"] = {"type": "jq", "config": {"query": query}}
+        config = dict()
+        if query is None:
+            config["query"] = query
+        self.data["executor"] = {"type": "jq", "config": config}
         return self
 
     # Tool/executor arguments
@@ -214,7 +237,7 @@ class Step:
                 deps.append(dep)
 
         if deps:
-            self.data["depends"] = deps if len(deps) > 1 else deps[0]
+            self.data["depends"] = deps
         return self
 
     # Parallel execution
