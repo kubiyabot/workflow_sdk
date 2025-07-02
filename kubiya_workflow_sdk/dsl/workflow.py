@@ -10,12 +10,11 @@ Supports all Kubiya workflow capabilities:
 - And more...
 """
 
-from typing import Dict, Any, List, Optional, Union
-from dataclasses import dataclass, field
+from typing import Dict, Any, List, Optional, Union, Callable
 from enum import Enum
 import yaml
 import json
-from datetime import datetime
+from kubiya_workflow_sdk.dsl.step import Step
 
 
 class WorkflowType(str, Enum):
@@ -101,11 +100,12 @@ print("Hello from script")
             self.data["dotenv"] = list(files)
         return self
 
-    def step(self, name: str, command: Optional[str] = None, **kwargs) -> "Workflow":
+    def step(self, name: str, command: Optional[str] = None, *, callback: Optional[Callable[[Step], None]] = None,  **kwargs) -> "Workflow":
         """Add a basic step."""
-        from .step import Step
-
         step = Step(name, command, **kwargs)
+        if callback:
+            callback(step)
+
         self.data["steps"].append(step.to_dict())
         return self
 
