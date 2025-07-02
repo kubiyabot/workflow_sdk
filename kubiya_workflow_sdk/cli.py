@@ -3,15 +3,10 @@ Kubiya Workflow SDK CLI - Command line interface for MCP server and agent manage
 """
 
 import click
-import json
 import sys
 import os
-from pathlib import Path
-from typing import Optional
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
-from rich import print as rprint
 import logging
 
 console = Console()
