@@ -1,527 +1,723 @@
 ---
 title: CLI Reference
-description: Complete reference for Kubiya CLI commands
+description: Complete reference for the Kubiya CLI - Enterprise automation from the command line
 ---
 
-# CLI Reference
+# Kubiya CLI Reference
 
-The Kubiya CLI provides commands for managing workflows, running the MCP server, and interacting with the Kubiya platform.
+The Kubiya CLI is a comprehensive command-line interface for managing the full Kubiya platform, including **Serverless Agents**, **Serverless Tools**, **Local Runners**, **Policy Management**, and **MCP Server** functionality.
 
-## Installation
+## 🚀 Installation
 
 ```bash
-# Install the SDK with CLI
-pip install kubiya-workflow-sdk[all]
+# Install Kubiya CLI (zero dependencies)
+curl -fsSL https://raw.githubusercontent.com/kubiyabot/cli/main/install.sh | bash
 
 # Verify installation
 kubiya --version
+
+# Set your API key
+export KUBIYA_API_KEY="kb-your-api-key-here"
 ```
 
-## Global Options
+## 🎯 Global Options
 
 These options work with all commands:
 
 | Option | Description |
 |--------|-------------|
-| `--help` | Show help message |
-| `--version` | Show version |
-| `--debug` | Enable debug logging |
-| `--quiet` | Suppress output |
+| `--help, -h` | Show help message |
+| `--version` | Show version information |
+| `--config` | Custom config file path |
+| `--api-key` | Override API key |
+| `--api-url` | Override API endpoint |
 
-## MCP Commands
+## 🤖 Agent Management
 
-Commands for Model Context Protocol (MCP) functionality.
+Manage serverless AI agents with conversational capabilities.
 
-### kubiya mcp agent
+### kubiya agent list
 
-Start an OpenAI-compatible agent server.
+List all available agents in your organization.
 
 ```bash
-kubiya mcp agent [OPTIONS]
+kubiya agent list [OPTIONS]
 ```
 
 **Options:**
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--provider` | LLM provider (openai, anthropic, together, groq, ollama) | Required |
-| `--model` | Specific model to use | Provider default |
-| `--port` | HTTP port | 8000 |
-| `--host` | Host to bind to | 0.0.0.0 |
-| `--api-key` | Provider API key | From environment |
-
-**Examples:**
-
-```bash
-# Start with Together AI
-kubiya mcp agent --provider together --port 8000
-
-# Start with specific model
-kubiya mcp agent --provider anthropic --model claude-3-5-sonnet-20241022
-
-# Start with custom host
-kubiya mcp agent --provider openai --host localhost --port 3000
-```
-
-### kubiya mcp server
-
-Start the MCP server with stdio transport.
-
-```bash
-kubiya mcp server [OPTIONS]
-```
-
-**Options:**
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--api-key` | Kubiya API key | From KUBIYA_API_KEY |
-| `--base-url` | API base URL | https://api.kubiya.ai |
+- `--output, -o`: Output format (`text`, `json`, `yaml`)
+- `--limit`: Maximum number of results (default: 50)
 
 **Example:**
-
 ```bash
-# Start MCP server
-kubiya mcp server
-
-# With custom API endpoint
-kubiya mcp server --base-url http://localhost:8001
-```
-
-### kubiya mcp chat
-
-Interactive chat mode for testing MCP tools.
-
-```bash
-kubiya mcp chat [OPTIONS]
-```
-
-**Options:**
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--provider` | LLM provider | together |
-| `--model` | Model to use | Provider default |
-| `--api-key` | Provider API key | From environment |
-
-**Example:**
-
-```bash
-# Interactive chat
-kubiya mcp chat --provider anthropic
-
-# With specific model
-kubiya mcp chat --provider openai --model gpt-4
-```
-
-### kubiya mcp test
-
-Run MCP tool tests.
-
-```bash
-kubiya mcp test [OPTIONS]
-```
-
-**Options:**
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--tools` | Specific tools to test | All tools |
-| `--verbose` | Verbose output | False |
-
-**Example:**
-
-```bash
-# Test all tools
-kubiya mcp test
-
-# Test specific tools
-kubiya mcp test --tools compile_workflow,execute_workflow
-
-# Verbose mode
-kubiya mcp test --verbose
-```
-
-## Workflow Commands
-
-Commands for managing and executing workflows.
-
-### kubiya validate
-
-Validate workflow syntax.
-
-```bash
-kubiya validate WORKFLOW_FILE [OPTIONS]
-```
-
-**Arguments:**
-
-- `WORKFLOW_FILE`: Path to workflow Python file
-
-**Options:**
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--format` | Output format (json, yaml, text) | text |
-| `--strict` | Strict validation | False |
-
-**Example:**
-
-```bash
-# Validate workflow
-kubiya validate my_workflow.py
+# List all agents
+kubiya agent list
 
 # JSON output
-kubiya validate my_workflow.py --format json
-
-# Strict mode
-kubiya validate my_workflow.py --strict
+kubiya agent list --output json
 ```
 
-### kubiya run
+### kubiya agent describe
 
-Execute a workflow.
-
-```bash
-kubiya run WORKFLOW_FILE [OPTIONS]
-```
-
-**Arguments:**
-
-- `WORKFLOW_FILE`: Path to workflow file or workflow name
-
-**Options:**
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--params` | Workflow parameters (KEY=value) | None |
-| `--runner` | Runner to use | kubiya-hosted |
-| `--dry-run` | Simulate execution | False |
-| `--stream` | Stream output | True |
-| `--format` | Output format | text |
-
-**Examples:**
+Get detailed information about a specific agent.
 
 ```bash
-# Run workflow
-kubiya run backup.py
-
-# With parameters
-kubiya run deploy.py --params VERSION=1.2.0 --params ENV=staging
-
-# Dry run
-kubiya run risky_operation.py --dry-run
-
-# Specific runner
-kubiya run data_processing.py --runner docker-runner-1
-```
-
-### kubiya list
-
-List workflows or executions.
-
-```bash
-kubiya list [TYPE] [OPTIONS]
-```
-
-**Arguments:**
-
-- `TYPE`: What to list (workflows, executions, runners)
-
-**Options:**
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--limit` | Maximum results | 20 |
-| `--offset` | Result offset | 0 |
-| `--status` | Filter by status | All |
-| `--search` | Search term | None |
-
-**Examples:**
-
-```bash
-# List workflows
-kubiya list workflows
-
-# List recent executions
-kubiya list executions --limit 10
-
-# List failed executions
-kubiya list executions --status failed
-
-# Search workflows
-kubiya list workflows --search backup
-```
-
-### kubiya logs
-
-View execution logs.
-
-```bash
-kubiya logs EXECUTION_ID [OPTIONS]
-```
-
-**Arguments:**
-
-- `EXECUTION_ID`: Execution ID to view
-
-**Options:**
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--follow` | Follow log output | False |
-| `--tail` | Number of lines | All |
-| `--step` | Specific step | All steps |
-
-**Examples:**
-
-```bash
-# View logs
-kubiya logs exec-123456
-
-# Follow logs
-kubiya logs exec-123456 --follow
-
-# Last 50 lines
-kubiya logs exec-123456 --tail 50
-
-# Specific step
-kubiya logs exec-123456 --step deploy
-```
-
-### kubiya export
-
-Export workflow definition.
-
-```bash
-kubiya export WORKFLOW [OPTIONS]
-```
-
-**Arguments:**
-
-- `WORKFLOW`: Workflow name or file
-
-**Options:**
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--format` | Export format (yaml, json) | yaml |
-| `--output` | Output file | stdout |
-
-**Examples:**
-
-```bash
-# Export to YAML
-kubiya export my_workflow.py
-
-# Export to JSON
-kubiya export my_workflow.py --format json
-
-# Save to file
-kubiya export my_workflow.py --output workflow.yaml
-```
-
-## Configuration Commands
-
-### kubiya config
-
-Manage CLI configuration.
-
-```bash
-kubiya config [SUBCOMMAND]
-```
-
-**Subcommands:**
-
-#### kubiya config set
-
-Set configuration value.
-
-```bash
-kubiya config set KEY VALUE
+kubiya agent describe [AGENT_NAME] [OPTIONS]
 ```
 
 **Example:**
-
 ```bash
-# Set API key
-kubiya config set api_key your-key-here
-
-# Set default runner
-kubiya config set default_runner docker-runner-1
+kubiya agent describe devops-assistant --output yaml
 ```
 
-#### kubiya config get
+## 🛠️ Tool Management
 
-Get configuration value.
+Execute and manage serverless container-based tools.
+
+### kubiya tool list
+
+List available tools from all sources.
 
 ```bash
-kubiya config get KEY
+kubiya tool list [OPTIONS]
+```
+
+**Options:**
+- `--source`: Filter by source UUID
+- `--output, -o`: Output format (`text`, `json`, `yaml`)
+
+**Example:**
+```bash
+# List all tools
+kubiya tool list
+
+# List tools from specific source
+kubiya tool list --source abc-123-def
+```
+
+### kubiya tool exec
+
+Execute a tool with live streaming output.
+
+```bash
+kubiya tool exec [OPTIONS]
+```
+
+**Options:**
+- `--name`: Tool name (required)
+- `--runner`: Runner to use (`auto`, `default`, or specific runner)
+- `--content`: Tool content/script
+- `--type`: Tool type (`docker`, `python`, `bash`, etc.)
+- `--image`: Docker image
+- `--args`: Tool arguments in `KEY=VALUE` format
+- `--env`: Environment variables in `KEY=VALUE` format
+- `--integration`: Integration templates to apply
+- `--with-file`: File mappings in `source:destination` format
+- `--with-volume`: Volume mappings
+- `--timeout`: Execution timeout in seconds
+- `--skip-policy-check`: Skip policy validation
+- `--json`: Tool definition as JSON
+- `--json-file`: Tool definition from JSON file
+
+**Examples:**
+```bash
+# Execute a simple bash tool
+kubiya tool exec --name "hello" --content "echo Hello World"
+
+# Execute with Docker image
+kubiya tool exec --name "python-script" --type docker --image python:3.11 \
+  --content "print('Hello from Python')"
+
+# Execute with integrations
+kubiya tool exec --name "k8s-pods" --content "kubectl get pods -A" \
+  --integration k8s/incluster
+
+# Execute with AWS credentials
+kubiya tool exec --name "aws-s3" --content "aws s3 ls" \
+  --integration aws/creds
+
+# Execute from JSON file
+kubiya tool exec --json-file ./my-tool.json
+
+# Skip policy validation
+kubiya tool exec --name "test" --content "date" --skip-policy-check
+```
+
+### kubiya tool search
+
+Search for tools across all sources.
+
+```bash
+kubiya tool search [QUERY] [OPTIONS]
 ```
 
 **Example:**
-
 ```bash
-# Get API endpoint
-kubiya config get api_endpoint
-
-# Get all config
-kubiya config get
+kubiya tool search "kubernetes deployment"
 ```
 
-#### kubiya config list
+### kubiya tool describe
 
-List all configuration.
+Get detailed information about a specific tool.
 
 ```bash
-kubiya config list
+kubiya tool describe [TOOL_NAME] [OPTIONS]
 ```
 
-## Environment Variables
+## 🏃 Runner Management
 
-The CLI respects these environment variables:
+Manage execution infrastructure and monitor health.
 
-| Variable | Description |
-|----------|-------------|
-| `KUBIYA_API_KEY` | Kubiya API key |
-| `KUBIYA_BASE_URL` | API base URL |
-| `OPENAI_API_KEY` | OpenAI API key |
-| `ANTHROPIC_API_KEY` | Anthropic API key |
-| `TOGETHER_API_KEY` | Together AI API key |
-| `GROQ_API_KEY` | Groq API key |
-| `LOG_LEVEL` | Logging level (DEBUG, INFO, WARNING, ERROR) |
-| `MCP_USE_ANONYMIZED_TELEMETRY` | Disable telemetry (false) |
+### kubiya runner list
 
-## Configuration File
+List all available runners.
+
+```bash
+kubiya runner list [OPTIONS]
+```
+
+**Options:**
+- `--output, -o`: Output format
+- `--health`: Filter by health status
+
+**Example:**
+```bash
+# List all runners with health status
+kubiya runner list --output json
+```
+
+### kubiya runner describe
+
+Get detailed runner information including health metrics.
+
+```bash
+kubiya runner describe [RUNNER_NAME]
+```
+
+### kubiya runner create
+
+Create a new runner deployment.
+
+```bash
+kubiya runner create [OPTIONS]
+```
+
+**Options:**
+- `--name`: Runner name (required)
+- `--type`: Runner type
+- `--description`: Runner description
+
+## 🔄 Workflow Management
+
+Execute workflows from YAML or JSON files with comprehensive control.
+
+### kubiya workflow execute
+
+Execute a workflow from a file (supports both YAML and JSON with auto-detection).
+
+```bash
+kubiya workflow execute [WORKFLOW_FILE] [OPTIONS]
+```
+
+**Options:**
+- `--runner`: Runner to use for execution
+- `--var`: Workflow variables in `KEY=VALUE` format
+- `--watch, -w`: Watch execution output (default: true)
+- `--skip-policy-check`: Skip policy validation
+
+**Examples:**
+```bash
+# Execute YAML workflow
+kubiya workflow execute deploy.yaml
+
+# Execute JSON workflow
+kubiya workflow execute backup.json
+
+# Execute with variables
+kubiya workflow execute deploy.yaml --var env=production --var version=2.1.0
+
+# Execute with specific runner
+kubiya workflow execute migrate.json --runner prod-runner
+
+# Skip policy validation
+kubiya workflow execute deploy.yaml --skip-policy-check
+```
+
+### kubiya workflow test
+
+Test a workflow by executing it with validation.
+
+```bash
+kubiya workflow test [WORKFLOW_FILE] [OPTIONS]
+```
+
+**Options:**
+- `--runner`: Runner for testing
+- `--var`: Test variables
+
+**Examples:**
+```bash
+# Test YAML workflow
+kubiya workflow test my-workflow.yaml
+
+# Test JSON workflow
+kubiya workflow test my-workflow.json
+
+# Test with variables
+kubiya workflow test backup.yaml --var env=staging
+```
+
+### kubiya workflow generate
+
+Generate workflows from natural language descriptions.
+
+```bash
+kubiya workflow generate [DESCRIPTION] [OPTIONS]
+```
+
+### kubiya workflow compose
+
+Compose and execute workflows from natural language.
+
+```bash
+kubiya workflow compose [DESCRIPTION] [OPTIONS]
+```
+
+## 🛡️ Policy Management (OPA)
+
+Comprehensive Open Policy Agent (OPA) integration for access control.
+
+### kubiya policy list
+
+List all OPA policies.
+
+```bash
+kubiya policy list [OPTIONS]
+```
+
+**Options:**
+- `--output, -o`: Output format (`text`, `json`)
+
+### kubiya policy create
+
+Create a new OPA policy.
+
+```bash
+kubiya policy create [OPTIONS]
+```
+
+**Options:**
+- `--name, -n`: Policy name (required)
+- `--env, -e`: Target environments (comma-separated)
+- `--file, -f`: Policy file path
+- `--policy, -p`: Policy content directly
+- `--validate`: Validate policy before creating (default: true)
+
+**Example:**
+```bash
+# Create from file
+kubiya policy create --name "prod-access" --env "production" --file policy.rego
+
+# Create with inline policy
+kubiya policy create --name "dev-access" --policy "package tools; allow = true"
+```
+
+### kubiya policy get
+
+Get details of a specific policy.
+
+```bash
+kubiya policy get [POLICY_NAME] [OPTIONS]
+```
+
+### kubiya policy update
+
+Update an existing policy.
+
+```bash
+kubiya policy update [POLICY_NAME] [OPTIONS]
+```
+
+### kubiya policy delete
+
+Delete a policy.
+
+```bash
+kubiya policy delete [POLICY_NAME] [OPTIONS]
+```
+
+**Options:**
+- `--confirm`: Confirm deletion
+
+### kubiya policy validate
+
+Validate a policy without creating it.
+
+```bash
+kubiya policy validate [OPTIONS]
+```
+
+### kubiya policy test-tool
+
+Test tool execution permissions.
+
+```bash
+kubiya policy test-tool [OPTIONS]
+```
+
+**Options:**
+- `--tool, -t`: Tool name (required)
+- `--args`: Tool arguments as JSON
+- `--args-file`: Tool arguments from file
+- `--runner, -r`: Runner name
+
+**Example:**
+```bash
+kubiya policy test-tool --tool kubectl --args '{"command": "get pods"}' --runner prod
+```
+
+### kubiya policy test-workflow
+
+Test workflow execution permissions.
+
+```bash
+kubiya policy test-workflow [OPTIONS]
+```
+
+**Options:**
+- `--file, -f`: Workflow definition file (required)
+- `--params`: Workflow parameters as JSON
+- `--runner, -r`: Runner name
+
+## 🔧 MCP Server
+
+Model Context Protocol server for AI integration.
+
+### kubiya mcp serve
+
+Start the MCP server for AI assistant integration.
+
+```bash
+kubiya mcp serve [OPTIONS]
+```
+
+**Options:**
+- `--allow-platform-apis`: Enable platform management tools
+- `--config`: Configuration file path
+- `--port`: Server port (for HTTP mode)
+- `--host`: Server host (for HTTP mode)
+
+**Examples:**
+```bash
+# Basic MCP server (stdio)
+kubiya mcp serve
+
+# With platform APIs enabled
+kubiya mcp serve --allow-platform-apis
+
+# With policy enforcement
+KUBIYA_OPA_ENFORCE=true kubiya mcp serve
+
+# Custom configuration
+kubiya mcp serve --config ~/.kubiya/mcp-config.json
+```
+
+### kubiya mcp setup
+
+Setup MCP integration for various AI assistants.
+
+```bash
+kubiya mcp setup [ASSISTANT] [OPTIONS]
+```
+
+**Supported assistants:**
+- `claude`: Claude Desktop
+- `cursor`: Cursor IDE
+- `vscode`: VS Code (Continue extension)
+- `custom`: Custom integration
+
+## 📚 Knowledge Management
+
+Manage and query the organizational knowledge base.
+
+### kubiya knowledge query
+
+Query the knowledge base with intelligent search.
+
+```bash
+kubiya knowledge query [QUERY] [OPTIONS]
+```
+
+**Options:**
+- `--limit`: Maximum results
+- `--output, -o`: Output format
+
+## 🔗 Source Management
+
+Manage tool sources and repositories.
+
+### kubiya source list
+
+List all tool sources.
+
+```bash
+kubiya source list [OPTIONS]
+```
+
+### kubiya source add
+
+Add a new tool source.
+
+```bash
+kubiya source add [URL] [OPTIONS]
+```
+
+### kubiya source discover
+
+Discover tools in a source without adding it.
+
+```bash
+kubiya source discover [URL] [OPTIONS]
+```
+
+## 🔑 Secrets Management
+
+Manage secrets and credentials securely.
+
+### kubiya secret list
+
+List available secrets.
+
+```bash
+kubiya secret list [OPTIONS]
+```
+
+## 🎮 Interactive Mode
+
+### kubiya browse
+
+Interactive browser for sources and tools.
+
+```bash
+kubiya browse
+```
+
+### kubiya chat
+
+Interactive chat mode with AI agents.
+
+```bash
+kubiya chat [OPTIONS]
+```
+
+**Options:**
+- `--agent`: Specific agent to chat with
+- `--interactive`: Enable interactive mode
+
+## 🔧 Configuration
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `KUBIYA_API_KEY` | **Required** - Your Kubiya API key | None |
+| `KUBIYA_API_URL` | Kubiya API endpoint | `https://api.kubiya.ai` |
+| `KUBIYA_DEFAULT_RUNNER` | Default runner for tool execution | `auto` |
+| `KUBIYA_OPA_ENFORCE` | Enable policy enforcement | `false` |
+| `KUBIYA_TOOL_TIMEOUT` | Default tool timeout in seconds | `300` |
+| `KUBIYA_TOOL_OUTPUT_FORMAT` | Default output format | `text` |
+| `KUBIYA_SKIP_HEALTH_CHECK` | Skip runner health checks | `false` |
+
+### Configuration File
 
 The CLI stores configuration in `~/.kubiya/config.yaml`:
 
 ```yaml
-api_key: your-api-key
-api_endpoint: https://api.kubiya.ai
-default_runner: kubiya-hosted
-default_provider: together
-log_level: INFO
+api_key: kb-your-api-key
+api_url: https://api.kubiya.ai  
+default_runner: auto
+log_level: info
+output_format: text
 ```
 
-## Common Workflows
+### MCP Server Configuration
 
-### Starting an AI Agent
+MCP server configuration in `~/.kubiya/mcp-server.json`:
 
-```bash
-# 1. Set API keys
-export KUBIYA_API_KEY="your-key"
-export TOGETHER_API_KEY="your-key"
-
-# 2. Start agent server
-kubiya mcp agent --provider together --port 8000
-
-# 3. Use with any OpenAI client
-curl -X POST http://localhost:8000/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{"model": "kubiya-workflow-agent", "messages": [{"role": "user", "content": "Create a backup workflow"}]}'
+```json
+{
+  "allow_platform_apis": true,
+  "enable_opa_policies": true,
+  "enable_runners": true,
+  "whitelisted_tools": [
+    {
+      "name": "Safe kubectl",
+      "tool_name": "kubectl",
+      "description": "Read-only Kubernetes access", 
+      "integrations": ["k8s/readonly"]
+    }
+  ]
+}
 ```
 
-### Creating and Running Workflows
+## 🚀 Common Workflows
+
+### 1. Setting up MCP for Claude Desktop
 
 ```bash
-# 1. Create workflow file (backup.py)
-cat > backup.py << EOF
-from kubiya_workflow_sdk.dsl import Workflow
+# 1. Install Kubiya CLI
+curl -fsSL https://raw.githubusercontent.com/kubiyabot/cli/main/install.sh | bash
 
-wf = Workflow("backup")
-wf.step("backup-db", "pg_dump mydb > backup.sql")
-wf.step("upload", "aws s3 cp backup.sql s3://backups/")
+# 2. Set API key
+export KUBIYA_API_KEY="kb-your-key"
+
+# 3. Setup Claude integration
+kubiya mcp setup claude
+
+# 4. Start using in Claude Desktop!
+```
+
+### 2. Tool Development and Testing
+
+```bash
+# 1. Create tool definition
+cat > my-tool.json << EOF
+{
+  "name": "disk-usage",
+  "type": "docker",
+  "image": "alpine",
+  "content": "df -h"
+}
 EOF
 
-# 2. Validate
-kubiya validate backup.py
+# 2. Test locally
+kubiya tool exec --json-file my-tool.json
 
-# 3. Run
-kubiya run backup.py
-
-# 4. Check status
-kubiya list executions --limit 1
+# 3. Test with policy validation
+kubiya policy test-tool --tool disk-usage --runner prod
 ```
 
-### Setting up Claude Desktop
+### 3. Workflow Deployment Pipeline
 
 ```bash
-# 1. Install SDK
-pip install kubiya-workflow-sdk[all]
+# 1. Create workflow
+cat > deploy.yaml << EOF
+name: "deploy-app"
+description: "Deploy application"
+steps:
+  - name: "build"
+    command: "docker build -t app:{{version}} ."
+  - name: "deploy"
+    command: "kubectl apply -f k8s/"
+EOF
 
-# 2. Add to Claude config
-echo '{
-  "mcpServers": {
-    "kubiya": {
-      "command": "kubiya",
-      "args": ["mcp", "server"],
-      "env": {
-        "KUBIYA_API_KEY": "'$KUBIYA_API_KEY'"
-      }
-    }
-  }
-}' > ~/Library/Application\ Support/Claude/claude_desktop_config.json
+# 2. Test workflow
+kubiya workflow test deploy.yaml --var version=1.0.0
 
-# 3. Restart Claude Desktop
+# 3. Execute with policy checks
+kubiya workflow execute deploy.yaml --var version=1.0.0 --runner prod
 ```
 
-## Troubleshooting
+### 4. Policy-Based Access Control
+
+```bash
+# 1. Create policy
+cat > prod-policy.rego << EOF
+package tools
+
+allow {
+    input.action == "tool_execution"
+    input.runner == "production"
+    input.user.role == "devops"
+}
+EOF
+
+# 2. Deploy policy
+kubiya policy create --name "prod-access" --env "production" --file prod-policy.rego
+
+# 3. Enable enforcement
+export KUBIYA_OPA_ENFORCE=true
+
+# 4. Test access
+kubiya policy test-tool --tool kubectl --runner production
+```
+
+## 🔍 Troubleshooting
 
 ### Common Issues
 
-1. **Command not found**
-   ```bash
-   # Ensure SDK is installed
-   pip install kubiya-workflow-sdk[all]
-   
-   # Check PATH
-   which kubiya
-   ```
-
-2. **API key errors**
+1. **API Key Not Set**
    ```bash
    # Check environment
    echo $KUBIYA_API_KEY
    
-   # Set in config
-   kubiya config set api_key your-key
+   # Get from app
+   open https://app.kubiya.ai/settings
    ```
 
-3. **Connection errors**
+2. **Runner Health Issues**
    ```bash
-   # Check API endpoint
-   kubiya config get api_endpoint
+   # Check runner status
+   kubiya runner list --health
    
-   # Test connection
-   curl https://api.kubiya.ai/health
+   # Get detailed health info
+   kubiya runner describe kubiya-hosted
+   ```
+
+3. **Policy Errors**
+   ```bash
+   # Validate policy syntax
+   kubiya policy validate --file policy.rego
+   
+   # Test specific permissions
+   kubiya policy test-tool --tool kubectl --args '{"command": "get pods"}'
+   ```
+
+4. **MCP Connection Issues**
+   ```bash
+   # Test MCP server
+   kubiya mcp serve --debug
+   
+   # Check configuration
+   cat ~/.kubiya/mcp-server.json
    ```
 
 ### Debug Mode
 
-Enable debug logging for troubleshooting:
+Enable detailed logging for troubleshooting:
 
 ```bash
-# Via flag
-kubiya --debug mcp agent --provider together
+# Global debug flag
+kubiya --debug tool exec --name test --content "echo debug"
 
-# Via environment
+# Environment variable
 export LOG_LEVEL=DEBUG
-kubiya mcp agent --provider together
+kubiya tool exec --name test --content "echo debug"
 ```
 
-## Getting Help
+## 🆘 Getting Help
 
 ```bash
 # General help
 kubiya --help
 
-# Command help
-kubiya mcp --help
-kubiya mcp agent --help
+# Command-specific help
+kubiya tool --help
+kubiya tool exec --help
 
-# Online resources
-# Documentation: https://docs.kubiya.ai
-# GitHub: https://github.com/kubiya-ai/workflow-sdk
-# Discord: https://discord.gg/kubiya
-``` 
+# Subcommand help
+kubiya policy create --help
+kubiya workflow execute --help
+```
+
+## 📚 Additional Resources
+
+- **Documentation**: [https://docs.kubiya.ai](https://docs.kubiya.ai)
+- **GitHub**: [https://github.com/kubiyabot/cli](https://github.com/kubiyabot/cli)
+- **API Keys**: [Get your API key](https://app.kubiya.ai/settings)
+- **Discord**: [Join our community](https://discord.gg/kubiya)
+- **Examples**: [GitHub Examples](https://github.com/kubiyabot/cli/tree/main/examples)
+
+---
+
+The Kubiya CLI provides enterprise-grade automation capabilities with comprehensive policy enforcement, making it perfect for production AI applications that need reliable, secure, and auditable execution.

@@ -1,0 +1,164 @@
+---
+title: "MCP Tools API Reference"
+description: "Complete reference for all MCP tools available in the Kubiya server"
+icon: "wrench"
+---
+
+# MCP Tools API Reference
+
+This document provides detailed specifications for all tools available through Kubiya's MCP server.
+
+## Core Execution Tools
+
+### execute_tool
+Execute container-based tools with live streaming output.
+
+**Parameters:**
+- `tool_name` (string): Name of the tool to execute
+- `args` (object): Tool-specific arguments
+- `runner` (string, optional): Target runner (defaults to "auto")
+- `integrations` (array, optional): Required integrations
+
+**Example:**
+```json
+{
+  "tool_name": "kubectl",
+  "args": {
+    "command": "get pods -A"
+  },
+  "runner": "auto",
+  "integrations": ["k8s/default"]
+}
+```
+
+### create_on_demand_tool
+Create and execute tools from dynamic definitions.
+
+**Parameters:**
+- `tool_definition` (object): Complete tool specification
+- `execute_immediately` (boolean, optional): Execute after creation
+
+**Example:**
+```json
+{
+  "tool_definition": {
+    "name": "custom-script",
+    "image": "python:3.11",
+    "command": "python -c \"print('Hello World')\""
+  },
+  "execute_immediately": true
+}
+```
+
+## Workflow Tools
+
+### execute_workflow
+Execute complete multi-step workflows.
+
+**Parameters:**
+- `workflow_name` (string): Name of the workflow
+- `parameters` (object, optional): Workflow parameters
+- `runner` (string, optional): Target runner
+
+### list_workflows
+List available workflows.
+
+**Returns:**
+Array of workflow objects with name, description, and parameters.
+
+## Infrastructure Tools
+
+### list_runners
+List all available execution runners.
+
+**Returns:**
+Array of runner objects with name, status, and capabilities.
+
+### check_runner_health
+Check health status of specific runners.
+
+**Parameters:**
+- `runner_names` (array, optional): Specific runners to check
+
+## Agent Tools
+
+### chat_with_agent
+Engage in conversational interaction with AI agents.
+
+**Parameters:**
+- `agent_name` (string): Name of the agent
+- `message` (string): Message to send
+- `conversation_id` (string, optional): Conversation context
+
+### list_agents
+List available AI agents.
+
+**Returns:**
+Array of agent objects with name, description, and capabilities.
+
+## Knowledge Tools
+
+### search_kb
+Search the organizational knowledge base.
+
+**Parameters:**
+- `query` (string): Search query
+- `limit` (number, optional): Maximum results
+
+### list_kb
+Browse knowledge base entries.
+
+**Parameters:**
+- `category` (string, optional): Filter by category
+- `limit` (number, optional): Maximum results
+
+## Source Management Tools
+
+### list_sources
+List available tool sources (repositories).
+
+### execute_tool_from_source
+Execute tools from specific source repositories.
+
+**Parameters:**
+- `source_name` (string): Source repository name
+- `tool_path` (string): Path to tool within source
+- `args` (object): Tool arguments
+
+## Integration Tools
+
+### list_integrations
+List available integrations for connecting to external systems.
+
+**Returns:**
+Array of integration objects with name, type, and configuration details.
+
+### list_secrets
+List available secrets for authentication.
+
+**Returns:**
+Array of secret names (values are never exposed).
+
+## Error Handling
+
+All tools return standardized error responses:
+
+```json
+{
+  "error": {
+    "code": "TOOL_EXECUTION_FAILED",
+    "message": "Detailed error description",
+    "details": {
+      "tool_name": "kubectl",
+      "exit_code": 1,
+      "stderr": "Error output"
+    }
+  }
+}
+```
+
+## Rate Limits
+
+- Standard tier: 100 requests per minute
+- Enterprise tier: 1000 requests per minute
+- Burst limit: 5x the standard rate for 30 seconds
