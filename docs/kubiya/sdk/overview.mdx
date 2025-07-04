@@ -174,7 +174,7 @@ wf.to_yaml()
 
 ### 5. **Clients and Executors**
 
-Extensible provider architecture:
+Here we can see an example how to execute a multistep workflow using the Kubiya SDK client.:
 
 ```python
 from kubiya_workflow_sdk import KubiyaClient, workflow
@@ -207,6 +207,12 @@ for event in client.execute_workflow(wf.to_dict(), stream=True):
 ## Advanced SDK Features
 
 ### Complex dependent steps and async client
+
+In this example, we will create a more complex workflow that includes multiple steps, dependencies, and outputs.
+The workflow will fetch data from an API, perform a health check on a server, and generate a final summary based on the results.
+Last 2 steps use Docker containers to run shell scripts. It is possible to use any Docker image, but in this example we will use the `alpine:latest` image for simplicity.
+
+At the end we will use the async `StreamingKubiyaClient` to execute the workflow and stream the results.
 
 ```python
 from kubiya_workflow_sdk import StreamingKubiyaClient, workflow
@@ -265,6 +271,7 @@ wf = (
             )
     )
 
+# Execute the workflow using the async client
 try:
     async with StreamingKubiyaClient(api_key="your Kubiya API key") as client:
         async for event in client.execute_workflow_stream(wf.to_dict()):
