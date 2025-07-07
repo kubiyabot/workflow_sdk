@@ -464,8 +464,8 @@ class KubiyaClient:
         logger.debug(f"Request body: {json.dumps(request_body, indent=2)}")
 
         # Use the runner from the workflow definition if specified, otherwise use default
-        runner = workflow_definition.get("runner", self.runner)
-        del request_body["runner"]
+        runner = workflow_definition.get('runner', self.runner)
+        request_body.pop("runner", None)
 
         # Execute the workflow
         endpoint = f"/api/v1/workflow?runner={runner}&operation=execute_workflow"
