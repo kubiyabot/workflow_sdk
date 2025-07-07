@@ -9,7 +9,7 @@ class ExecutorType(str, Enum):
     LOCAL = "local"
     DOCKER = "docker"
     SSH = "ssh"
-    HTTP = "http" 
+    HTTP = "http"
     MAIL = "mail"
     JQ = "jq"
     DAG = "dag"
@@ -66,7 +66,7 @@ class MailExecutorConfig(BaseModel):
     subject: str
     message: str
     attachments: Optional[List[str]] = None
-    
+
     model_config = ConfigDict(populate_by_name=True)
 
 
@@ -95,7 +95,7 @@ class AgentExecutorConfig(BaseModel):
 # Tool definition
 class ToolDef(BaseModel):
     name: str
-    description: str = ''
+    description: str = ""
     type: str
     image: str
     content: str
@@ -113,15 +113,17 @@ class ToolExecutorConfig(BaseModel):
 # Executor base model
 class Executor(BaseModel):
     type: ExecutorType
-    config: Optional[Union[
-        DockerExecutorConfig,
-        SSHExecutorConfig, 
-        HTTPExecutorConfig,
-        MailExecutorConfig,
-        JQExecutorConfig,
-        DAGExecutorConfig,
-        ToolExecutorConfig,
-        KubiyaExecutorConfig,
-        AgentExecutorConfig,
-        Dict[str, Any]  # Fallback for custom executors
-    ]] = None
+    config: Optional[
+        Union[
+            DockerExecutorConfig,
+            SSHExecutorConfig,
+            HTTPExecutorConfig,
+            MailExecutorConfig,
+            JQExecutorConfig,
+            DAGExecutorConfig,
+            ToolExecutorConfig,
+            KubiyaExecutorConfig,
+            AgentExecutorConfig,
+            Dict[str, Any],  # Fallback for custom executors
+        ]
+    ] = None
