@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, Optional, Union
-from pydantic import BaseModel, Field, field_validator, ConfigDict, RootModel
+from pydantic import BaseModel, Field, field_validator, ConfigDict, RootModel, field_serializer
 from .scheduling import WorkflowType
 from .data import Parameter, EnvironmentVariable, WorkflowParams, EnvironmentVariables
 from .control_flow import Precondition, RetryPolicy
@@ -87,6 +87,14 @@ class Workflow(BaseModel):
             # Convert dict format to list format
             return [{"name": k, **step_def} for k, step_def in v.items()]
         return v
+
+    @field_serializer('params')
+    def dump_params(self, v):
+        return v.model_dump()
+
+    @field_serializer('env')
+    def dump_env(self, v):
+        return v.model_dump()
 
 
 # Multi-workflow file support
