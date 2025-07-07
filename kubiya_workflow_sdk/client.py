@@ -457,15 +457,13 @@ class KubiyaClient:
         if parameters:
             workflow_definition["parameters"] = parameters
 
+        # Use the runner from the workflow definition if specified, otherwise use default
+        runner = workflow_definition.pop('runner', self.runner)
         # Prepare request body - workflow fields at top level
         request_body = {**workflow_definition}  # Spread workflow fields at top level
 
         logger.info("Executing workflow...")
         logger.debug(f"Request body: {json.dumps(request_body, indent=2)}")
-
-        # Use the runner from the workflow definition if specified, otherwise use default
-        runner = workflow_definition.get("runner", self.runner)
-        del request_body["runner"]
 
         # Execute the workflow
         endpoint = f"/api/v1/workflow?runner={runner}&operation=execute_workflow"
