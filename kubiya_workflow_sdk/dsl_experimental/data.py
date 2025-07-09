@@ -27,7 +27,16 @@ class Parameter(BaseModel):
 
 
 class WorkflowParams(RootModel[list[Parameter]]):
+    def model_dump(self, *args, **kwargs) -> dict:
+        return {r.name: r.value for r in self.root}
 
+
+class Secret(BaseModel):
+    name: str
+    value: Any
+
+
+class WorkflowSecrets(RootModel[list[Secret]]):
     def model_dump(self, *args, **kwargs) -> dict:
         return {r.name: r.value for r in self.root}
 
@@ -40,6 +49,5 @@ class EnvironmentVariable(BaseModel):
 
 
 class EnvironmentVariables(RootModel[list[EnvironmentVariable]]):
-
     def model_dump(self, *args, **kwargs) -> dict:
         return {r.name: r.value for r in self.root}

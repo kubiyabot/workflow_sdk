@@ -92,6 +92,11 @@ class AgentExecutorConfig(BaseModel):
     context: Optional[Dict[str, Any]] = None
 
 
+class Volume(BaseModel):
+    name: str
+    path: str
+
+
 # Tool definition
 class ToolDef(BaseModel):
     name: str
@@ -100,6 +105,7 @@ class ToolDef(BaseModel):
     image: str
     content: str
     with_files: Optional[List[FileDefinition]] = None
+    with_volumes: Optional[list[Volume]] = None
     args: Optional[List[ArgDefinition]] = None
     secrets: Optional[List[str]] = None
 

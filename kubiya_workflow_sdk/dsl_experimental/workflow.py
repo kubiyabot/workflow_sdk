@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional, Union
-from pydantic import BaseModel, Field, field_validator, ConfigDict, RootModel, field_serializer
+from pydantic import BaseModel, Field, field_validator, ConfigDict, field_serializer
 from .scheduling import WorkflowType
-from .data import Parameter, EnvironmentVariable, WorkflowParams, EnvironmentVariables
+from .data import WorkflowParams, EnvironmentVariables, WorkflowSecrets
 from .control_flow import Precondition, RetryPolicy
 from .step import Step
 from .lifecycle import HandlerOn, SMTPConfig, MailOn, MailConfig
@@ -52,6 +52,7 @@ class Workflow(BaseModel):
     env: Optional[EnvironmentVariables] = None
     dotenv: Optional[Union[str, List[str]]] = None
     preconditions: Optional[List[Union[str, Precondition]]] = None
+    secrets: WorkflowSecrets | None = None
 
     # Steps - the core of the workflow
     steps: List[Step]
@@ -76,7 +77,8 @@ class Workflow(BaseModel):
     max_output_size: int = Field(1048576, alias="maxOutputSize")  # 1MB default
 
     model_config = ConfigDict(
-        populate_by_name=True, extra="allow"  # Allow extra fields for extensibility
+        populate_by_name=True,
+        extra="allow",  # Allow extra fields for extensibility
     )
 
     @field_validator("steps", mode="before")
@@ -88,12 +90,16 @@ class Workflow(BaseModel):
             return [{"name": k, **step_def} for k, step_def in v.items()]
         return v
 
-    @field_serializer('params')
+    @field_serializer("params")
     def dump_params(self, v):
         return v.model_dump()
 
-    @field_serializer('env')
+    @field_serializer("env")
     def dump_env(self, v):
+        return v.model_dump()
+
+    @field_serializer("secrets")
+    def dump_secrets(self, v):
         return v.model_dump()
 
 

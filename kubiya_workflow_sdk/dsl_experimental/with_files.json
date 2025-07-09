@@ -1,0 +1,107 @@
+{
+    "name": "volume-file-sharing-workflow",
+    "description": "A workflow with two tools that share data through a volume - one writes to a file and another reads from it",
+    "steps": [
+        {
+            "name": "write-to-file",
+            "description": "First tool writes data to a file in a shared volume",
+            "executor": {
+                "type": "tool",
+                "config": {
+                    "tool_def": {
+                        "name": "file-writer",
+                        "description": "Writes sample data to a file in the shared volume",
+                        "type": "docker",
+                        "image": "python:3.12-slim-bullseye",
+                        "with_volumes": [
+                            {
+                                "path": "/shared",
+                                "name": "shared-data"
+                            }
+                        ],
+                        "args": [
+                            {
+                                "name": "message",
+                                "type": "string",
+                                "description": "Message to write to the file",
+                                "required": true,
+                                "default": "Hello from the writer tool!"
+                            },
+                            {
+                                "name": "filename",
+                                "type": "string",
+                                "description": "Name of the file to write to",
+                                "required": true,
+                                "default": "shared_data.txt"
+                            }
+                        ],
+                        "with_files": [
+                            {
+                                "destination": "/tmp/writer.py",
+                                "content": "#!/usr/bin/env python3\nimport os\nimport json\nimport datetime\n\n# Get arguments from environment\nmessage = os.environ.get('message', 'Hello from the writer tool!')\nfilename = os.environ.get('filename', 'shared_data.txt')\n\n# Create data to write\ndata = {\n    'message': message,\n    'timestamp': datetime.datetime.now().isoformat(),\n    'writer': 'file-writer-tool',\n    'additional_data': {\n        'numbers': [1, 2, 3, 4, 5],\n        'status': 'success'\n    }\n}\n\n# Write to the shared volume\nfile_path = f'/shared/{filename}'\nwith open(file_path, 'w') as f:\n    json.dump(data, f, indent=2)\n\nprint(f'Successfully wrote data to {file_path}')\nprint(f'Data written: {json.dumps(data, indent=2)}')\n\n# Also create a simple text file\nwith open('/shared/simple.txt', 'w') as f:\n    f.write(f'{message}\\nWritten at: {datetime.datetime.now()}\\n')\n\nprint('Files created in /shared volume:')\nos.system('ls -la /shared/')"
+                            }
+                        ],
+                        "content": "set -e\npython /tmp/writer.py"
+                    },
+                    "args": {
+                        "message": "Data from step 1 - processing pipeline started!",
+                        "filename": "pipeline_data.json"
+                    }
+                }
+            },
+            "output": "WRITE_RESULT"
+        },
+        {
+            "name": "read-from-file",
+            "description": "Second tool reads the data from the file written by the first tool",
+            "executor": {
+                "type": "tool",
+                "config": {
+                    "tool_def": {
+                        "name": "file-reader",
+                        "description": "Reads and processes data from the shared volume file",
+                        "type": "docker",
+                        "image": "python:3.12-slim-bullseye",
+                        "with_volumes": [
+                            {
+                                "path": "/shared",
+                                "name": "shared-data"
+                            }
+                        ],
+                        "args": [
+                            {
+                                "name": "filename",
+                                "type": "string",
+                                "description": "Name of the file to read from",
+                                "required": true,
+                                "default": "shared_data.txt"
+                            },
+                            {
+                                "name": "process_numbers",
+                                "type": "boolean",
+                                "description": "Whether to process the numbers array",
+                                "required": false,
+                                "default": "true"
+                            }
+                        ],
+                        "with_files": [
+                            {
+                                "destination": "/tmp/reader.py",
+                                "content": "#!/usr/bin/env python3\nimport os\nimport json\n\n# Get arguments from environment\nfilename = os.environ.get('filename', 'shared_data.txt')\nprocess_numbers = os.environ.get('process_numbers', 'true').lower() == 'true'\n\nprint('Files available in /shared volume:')\nos.system('ls -la /shared/')\n\n# Read the JSON file\nfile_path = f'/shared/{filename}'\ntry:\n    with open(file_path, 'r') as f:\n        data = json.load(f)\n    \n    print(f'Successfully read data from {file_path}')\n    print(f'Original data: {json.dumps(data, indent=2)}')\n    \n    # Process the data\n    processed_data = {\n        'original_message': data.get('message', ''),\n        'original_timestamp': data.get('timestamp', ''),\n        'reader_timestamp': __import__('datetime').datetime.now().isoformat(),\n        'reader': 'file-reader-tool',\n        'processing_result': {}\n    }\n    \n    # Process numbers if requested and available\n    if process_numbers and 'additional_data' in data and 'numbers' in data['additional_data']:\n        numbers = data['additional_data']['numbers']\n        processed_data['processing_result'] = {\n            'original_numbers': numbers,\n            'sum': sum(numbers),\n            'max': max(numbers),\n            'min': min(numbers),\n            'count': len(numbers),\n            'doubled': [n * 2 for n in numbers]\n        }\n    \n    print(f'Processed result: {json.dumps(processed_data, indent=2)}')\n    \n    # Also read the simple text file if it exists\n    simple_file_path = '/shared/simple.txt'\n    if os.path.exists(simple_file_path):\n        with open(simple_file_path, 'r') as f:\n            simple_content = f.read()\n        print(f'Simple text file content:\\n{simple_content}')\n    \n    # Write processed result back to volume for potential next steps\n    with open('/shared/processed_result.json', 'w') as f:\n        json.dump(processed_data, f, indent=2)\n    \n    print('Processing completed successfully!')\n    \nexcept FileNotFoundError:\n    print(f'Error: File {file_path} not found in shared volume')\n    print('Available files:')\n    os.system('ls -la /shared/')\nexcept json.JSONDecodeError as e:\n    print(f'Error: Failed to parse JSON from {file_path}: {e}')\nexcept Exception as e:\n    print(f'Error: {e}')"
+                            }
+                        ],
+                        "content": "set -e\npython /tmp/reader.py"
+                    },
+                    "args": {
+                        "filename": "pipeline_data.json",
+                        "process_numbers": "true"
+                    }
+                }
+            },
+            "output": "READ_RESULT",
+            "depends": [
+                "write-to-file"
+            ]
+        }
+    ]
+}
