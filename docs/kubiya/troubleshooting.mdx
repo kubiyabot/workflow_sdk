@@ -1,0 +1,270 @@
+---
+title: "Troubleshooting"
+description: "Common issues and solutions for Kubiya platform"
+---
+
+# Troubleshooting
+
+This guide covers common issues and their solutions when working with Kubiya.
+
+## Common Issues
+
+### Authentication Errors
+
+**Problem**: `401 Unauthorized` errors when making API calls
+
+**Solutions**:
+1. Verify API key is correct and not expired
+2. Check API key format (should include `Bearer` prefix)
+3. Ensure proper environment variable configuration
+
+```bash
+# Check API key
+echo $KUBIYA_API_KEY
+
+# Test authentication
+curl -H "Authorization: Bearer $KUBIYA_API_KEY" \
+  https://api.kubiya.ai/v1/health
+```
+
+### Connection Issues
+
+**Problem**: Cannot connect to Kubiya services
+
+**Solutions**:
+1. Check network connectivity
+2. Verify firewall settings
+3. Ensure correct endpoint URLs
+
+```bash
+# Test connectivity
+ping api.kubiya.ai
+
+# Check DNS resolution
+nslookup api.kubiya.ai
+
+# Test specific port
+telnet api.kubiya.ai 443
+```
+
+### Tool Execution Failures
+
+**Problem**: Tools failing to execute properly
+
+**Solutions**:
+1. Check tool dependencies are installed
+2. Verify tool permissions
+3. Review tool configuration
+
+```bash
+# Check tool status
+kubiya tools list
+
+# Test tool execution
+kubiya tools test tool_name
+
+# View tool logs
+kubiya logs --tool tool_name
+```
+
+### Memory/Resource Issues
+
+**Problem**: Out of memory or resource exhaustion
+
+**Solutions**:
+1. Increase container memory limits
+2. Optimize tool execution
+3. Implement resource monitoring
+
+```yaml
+# Docker Compose resource limits
+services:
+  kubiya-agent:
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2'
+```
+
+## Debugging
+
+### Enable Debug Logging
+
+```env
+KUBIYA_LOG_LEVEL=DEBUG
+KUBIYA_DEBUG=true
+```
+
+### View Logs
+
+```bash
+# Docker logs
+docker logs kubiya-agent -f
+
+# Kubernetes logs
+kubectl logs -f deployment/kubiya-agent -n kubiya
+
+# Local logs
+tail -f /var/log/kubiya/agent.log
+```
+
+### Health Checks
+
+```bash
+# Check server health
+curl http://localhost:8000/health
+
+# Check tool discovery
+curl http://localhost:8000/discovery
+
+# Test tool execution
+curl -X POST http://localhost:8000/execute \
+  -H "Content-Type: application/json" \
+  -d '{"tool": "test_tool", "parameters": {}}'
+```
+
+## Performance Issues
+
+### Slow Tool Execution
+
+**Causes**:
+- Network latency
+- Resource constraints
+- Inefficient tool implementation
+
+**Solutions**:
+1. Optimize tool code
+2. Implement caching
+3. Use connection pooling
+
+### High Memory Usage
+
+**Causes**:
+- Memory leaks
+- Large data processing
+- Inefficient algorithms
+
+**Solutions**:
+1. Profile memory usage
+2. Implement garbage collection
+3. Use streaming for large data
+
+## Network Issues
+
+### SSL/TLS Errors
+
+```bash
+# Check SSL certificate
+openssl s_client -connect api.kubiya.ai:443
+
+# Verify certificate chain
+curl -v https://api.kubiya.ai/v1/health
+```
+
+### Proxy Configuration
+
+```env
+# HTTP proxy
+HTTP_PROXY=http://proxy.company.com:8080
+HTTPS_PROXY=http://proxy.company.com:8080
+
+# No proxy for local services
+NO_PROXY=localhost,127.0.0.1,*.local
+```
+
+## Data Issues
+
+### Tool Output Parsing
+
+**Problem**: Cannot parse tool output
+
+**Solutions**:
+1. Check output format
+2. Verify JSON structure
+3. Handle edge cases
+
+```python
+import json
+
+try:
+    result = json.loads(tool_output)
+except json.JSONDecodeError as e:
+    print(f"JSON parsing error: {e}")
+    # Handle non-JSON output
+```
+
+### Missing Dependencies
+
+**Problem**: Required packages not found
+
+**Solutions**:
+1. Install missing dependencies
+2. Update requirements file
+3. Use Docker for consistent environment
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Check installed packages
+pip list
+
+# Update packages
+pip install --upgrade package_name
+```
+
+## Configuration Issues
+
+### Environment Variables
+
+```bash
+# Check all Kubiya environment variables
+env | grep KUBIYA
+
+# Verify configuration
+kubiya config show
+
+# Test configuration
+kubiya config test
+```
+
+### File Permissions
+
+```bash
+# Fix file permissions
+chmod 755 /path/to/kubiya/files
+chown kubiya:kubiya /path/to/kubiya/files
+
+# Check permissions
+ls -la /path/to/kubiya/files
+```
+
+## Getting Help
+
+### Log Collection
+
+```bash
+# Collect system logs
+kubiya logs --collect
+
+# Generate debug report
+kubiya debug --report
+
+# Export configuration
+kubiya config export > config.json
+```
+
+### Support Information
+
+When contacting support, include:
+1. Error messages and logs
+2. Environment details
+3. Steps to reproduce
+4. Configuration files (sanitized)
+
+## Related Documentation
+
+- [Getting Started](/getting-started/installation)
+- [Server Overview](/servers/overview)
+- [Configuration Guide](/concepts/platform-overview)

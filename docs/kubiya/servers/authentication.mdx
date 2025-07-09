@@ -1,0 +1,64 @@
+---
+title: "Server Authentication"
+description: "Authentication methods for Kubiya agent servers"
+---
+
+# Server Authentication
+
+This page covers authentication and authorization for Kubiya agent servers.
+
+## Authentication Methods
+
+### API Key Authentication
+
+The most common authentication method uses API keys in headers.
+
+```bash
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  https://your-server.com/api/endpoint
+```
+
+### JWT Authentication
+
+For user-specific authentication, JWT tokens are supported.
+
+```bash
+curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  https://your-server.com/api/endpoint
+```
+
+## Configuration
+
+### Environment Variables
+
+```env
+KUBIYA_API_KEY=your_api_key_here
+KUBIYA_JWT_SECRET=your_jwt_secret_here
+KUBIYA_AUTH_REQUIRED=true
+```
+
+### Server Configuration
+
+```yaml
+server:
+  auth:
+    required: true
+    methods:
+      - api_key
+      - jwt
+    api_key_header: "Authorization"
+    jwt_secret: "${KUBIYA_JWT_SECRET}"
+```
+
+## Security Best Practices
+
+1. **Use HTTPS**: Always use HTTPS in production
+2. **Rotate Keys**: Regularly rotate API keys
+3. **Scope Permissions**: Use least privilege principle
+4. **Rate Limiting**: Implement rate limiting per API key
+
+## Related Documentation
+
+- [Server Overview](/servers/overview)
+- [Server Endpoints](/servers/endpoints)
+- [Platform Authentication](/api-reference/platform/authentication)

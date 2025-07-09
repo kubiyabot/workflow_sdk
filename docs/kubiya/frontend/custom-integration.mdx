@@ -1,0 +1,660 @@
+---
+title: "Custom Frontend Integration"
+description: "Build custom frontend integrations with Kubiya"
+---
+
+# Custom Frontend Integration
+
+This guide covers building custom frontend integrations with Kubiya using vanilla JavaScript, React, Vue, or other frameworks.
+
+## Core Integration Concepts
+
+### API Client Setup
+
+```javascript
+// kubiya-client.js
+class KubiyaClient {
+  constructor(apiKey, baseURL = 'https://api.kubiya.ai') {
+    this.apiKey = apiKey;
+    this.baseURL = baseURL;
+    this.headers = {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    };
+  }
+
+  async request(endpoint, options = {}) {
+    const url = `${this.baseURL}${endpoint}`;
+    const response = await fetch(url, {
+      headers: this.headers,
+      ...options
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async executeTool(tool, parameters) {
+    return this.request('/v1/tools/execute', {
+      method: 'POST',
+      body: JSON.stringify({ tool, parameters })
+    });
+  }
+
+  async listTools() {
+    return this.request('/v1/tools');
+  }
+
+  async getHealth() {
+    return this.request('/v1/health');
+  }
+}
+
+export default KubiyaClient;
+```
+
+### WebSocket Connection
+
+```javascript
+// kubiya-websocket.js
+class KubiyaWebSocket {
+  constructor(apiKey, baseURL = 'wss://api.kubiya.ai') {
+    this.apiKey = apiKey;
+    this.baseURL = baseURL;
+    this.ws = null;
+    this.listeners = {};
+  }
+
+  connect() {
+    this.ws = new WebSocket(`${this.baseURL}/ws?token=${this.apiKey}`);
+    
+    this.ws.onopen = () => {
+      console.log('Connected to Kubiya WebSocket');
+    };
+
+    this.ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      this.emit(data.type, data);
+    };
+
+    this.ws.onclose = () => {
+      console.log('Disconnected from Kubiya WebSocket');
+      // Implement reconnection logic
+      setTimeout(() => this.connect(), 5000);
+    };
+
+    this.ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+  }
+
+  on(event, callback) {
+    if (!this.listeners[event]) {
+      this.listeners[event] = [];
+    }
+    this.listeners[event].push(callback);
+  }
+
+  emit(event, data) {
+    if (this.listeners[event]) {
+      this.listeners[event].forEach(callback => callback(data));
+    }
+  }
+
+  send(message) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(message));
+    }
+  }
+
+  disconnect() {
+    if (this.ws) {
+      this.ws.close();
+    }
+  }
+}
+
+export default KubiyaWebSocket;
+```
+
+## React Integration
+
+### Custom Hook
+
+```tsx
+// hooks/useKubiya.ts
+import { useState, useEffect, useCallback } from 'react';
+import KubiyaClient from '../lib/kubiya-client';
+
+interface UseKubiyaOptions {
+  apiKey: string;
+  baseURL?: string;
+}
+
+export function useKubiya({ apiKey, baseURL }: UseKubiyaOptions) {
+  const [client] = useState(() => new KubiyaClient(apiKey, baseURL));
+  const [isConnected, setIsConnected] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const execute = useCallback(async (tool: string, parameters: any) => {
+    try {
+      setError(null);
+      const result = await client.executeTool(tool, parameters);
+      return result;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  }, [client]);
+
+  const checkHealth = useCallback(async () => {
+    try {
+      await client.getHealth();
+      setIsConnected(true);
+      setError(null);
+    } catch (err) {
+      setIsConnected(false);
+      setError(err.message);
+    }
+  }, [client]);
+
+  useEffect(() => {
+    checkHealth();
+  }, [checkHealth]);
+
+  return {
+    client,
+    execute,
+    isConnected,
+    error,
+    checkHealth
+  };
+}
+```
+
+### React Component
+
+```tsx
+// components/KubiyaInterface.tsx
+import React, { useState } from 'react';
+import { useKubiya } from '../hooks/useKubiya';
+
+interface KubiyaInterfaceProps {
+  apiKey: string;
+}
+
+export default function KubiyaInterface({ apiKey }: KubiyaInterfaceProps) {
+  const [input, setInput] = useState('');
+  const [output, setOutput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const { execute, isConnected, error } = useKubiya({ apiKey });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    try {
+      const result = await execute('text_processor', { text: input });
+      setOutput(JSON.stringify(result, null, 2));
+    } catch (err) {
+      setOutput(`Error: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="kubiya-interface">
+      <div className="status">
+        Status: {isConnected ? 'Connected' : 'Disconnected'}
+        {error && <div className="error">Error: {error}</div>}
+      </div>
+      
+      <form onSubmit={handleSubmit}>
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Enter text to process..."
+          disabled={isLoading}
+        />
+        <button type="submit" disabled={isLoading || !isConnected}>
+          {isLoading ? 'Processing...' : 'Process'}
+        </button>
+      </form>
+      
+      {output && (
+        <div className="output">
+          <h3>Output:</h3>
+          <pre>{output}</pre>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+## Vue Integration
+
+### Vue Composition API
+
+```vue
+<!-- composables/useKubiya.js -->
+<script>
+import { ref, reactive, onMounted } from 'vue';
+import KubiyaClient from '../lib/kubiya-client';
+
+export function useKubiya(apiKey, baseURL) {
+  const client = new KubiyaClient(apiKey, baseURL);
+  const isConnected = ref(false);
+  const error = ref(null);
+  const isLoading = ref(false);
+
+  const execute = async (tool, parameters) => {
+    isLoading.value = true;
+    error.value = null;
+    
+    try {
+      const result = await client.executeTool(tool, parameters);
+      return result;
+    } catch (err) {
+      error.value = err.message;
+      throw err;
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
+  const checkHealth = async () => {
+    try {
+      await client.getHealth();
+      isConnected.value = true;
+      error.value = null;
+    } catch (err) {
+      isConnected.value = false;
+      error.value = err.message;
+    }
+  };
+
+  onMounted(() => {
+    checkHealth();
+  });
+
+  return {
+    client,
+    execute,
+    isConnected,
+    error,
+    isLoading,
+    checkHealth
+  };
+}
+</script>
+```
+
+### Vue Component
+
+```vue
+<!-- components/KubiyaInterface.vue -->
+<template>
+  <div class="kubiya-interface">
+    <div class="status">
+      Status: {{ isConnected ? 'Connected' : 'Disconnected' }}
+      <div v-if="error" class="error">Error: {{ error }}</div>
+    </div>
+    
+    <form @submit.prevent="handleSubmit">
+      <textarea
+        v-model="input"
+        placeholder="Enter text to process..."
+        :disabled="isLoading"
+      />
+      <button type="submit" :disabled="isLoading || !isConnected">
+        {{ isLoading ? 'Processing...' : 'Process' }}
+      </button>
+    </form>
+    
+    <div v-if="output" class="output">
+      <h3>Output:</h3>
+      <pre>{{ output }}</pre>
+    </div>
+  </div>
+</template>
+
+<script>
+import { ref } from 'vue';
+import { useKubiya } from '../composables/useKubiya';
+
+export default {
+  name: 'KubiyaInterface',
+  props: {
+    apiKey: {
+      type: String,
+      required: true
+    }
+  },
+  setup(props) {
+    const input = ref('');
+    const output = ref('');
+    
+    const { execute, isConnected, error, isLoading } = useKubiya(props.apiKey);
+
+    const handleSubmit = async () => {
+      try {
+        const result = await execute('text_processor', { text: input.value });
+        output.value = JSON.stringify(result, null, 2);
+      } catch (err) {
+        output.value = `Error: ${err.message}`;
+      }
+    };
+
+    return {
+      input,
+      output,
+      handleSubmit,
+      isConnected,
+      error,
+      isLoading
+    };
+  }
+};
+</script>
+```
+
+## Vanilla JavaScript
+
+### Complete Example
+
+```html
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubiya Integration</title>
+    <style>
+        .kubiya-interface {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .status {
+            margin-bottom: 20px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        .connected { background-color: #d4edda; }
+        .disconnected { background-color: #f8d7da; }
+        
+        textarea {
+            width: 100%;
+            height: 100px;
+            margin-bottom: 10px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .output {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <div class="kubiya-interface">
+        <div id="status" class="status"></div>
+        
+        <form id="kubiya-form">
+            <textarea id="input" placeholder="Enter text to process..."></textarea>
+            <button type="submit" id="submit-btn">Process</button>
+        </form>
+        
+        <div id="output" class="output" style="display: none;"></div>
+    </div>
+
+    <script>
+        class KubiyaInterface {
+            constructor(apiKey) {
+                this.apiKey = apiKey;
+                this.baseURL = 'https://api.kubiya.ai';
+                this.isConnected = false;
+                
+                this.init();
+            }
+
+            init() {
+                this.statusEl = document.getElementById('status');
+                this.formEl = document.getElementById('kubiya-form');
+                this.inputEl = document.getElementById('input');
+                this.submitBtn = document.getElementById('submit-btn');
+                this.outputEl = document.getElementById('output');
+
+                this.formEl.addEventListener('submit', this.handleSubmit.bind(this));
+                this.checkHealth();
+            }
+
+            async request(endpoint, options = {}) {
+                const url = `${this.baseURL}${endpoint}`;
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${this.apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    ...options
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                return response.json();
+            }
+
+            async checkHealth() {
+                try {
+                    await this.request('/v1/health');
+                    this.updateStatus(true);
+                } catch (error) {
+                    this.updateStatus(false, error.message);
+                }
+            }
+
+            updateStatus(connected, errorMessage = null) {
+                this.isConnected = connected;
+                this.statusEl.className = `status ${connected ? 'connected' : 'disconnected'}`;
+                this.statusEl.textContent = `Status: ${connected ? 'Connected' : 'Disconnected'}`;
+                
+                if (errorMessage) {
+                    this.statusEl.textContent += ` - Error: ${errorMessage}`;
+                }
+                
+                this.submitBtn.disabled = !connected;
+            }
+
+            async handleSubmit(e) {
+                e.preventDefault();
+                
+                const input = this.inputEl.value.trim();
+                if (!input) return;
+
+                this.submitBtn.disabled = true;
+                this.submitBtn.textContent = 'Processing...';
+
+                try {
+                    const result = await this.request('/v1/tools/execute', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            tool: 'text_processor',
+                            parameters: { text: input }
+                        })
+                    });
+
+                    this.displayOutput(JSON.stringify(result, null, 2));
+                } catch (error) {
+                    this.displayOutput(`Error: ${error.message}`);
+                } finally {
+                    this.submitBtn.disabled = !this.isConnected;
+                    this.submitBtn.textContent = 'Process';
+                }
+            }
+
+            displayOutput(content) {
+                this.outputEl.innerHTML = `<h3>Output:</h3><pre>${content}</pre>`;
+                this.outputEl.style.display = 'block';
+            }
+        }
+
+        // Initialize with your API key
+        const kubiya = new KubiyaInterface('your-api-key-here');
+    </script>
+</body>
+</html>
+```
+
+## Error Handling
+
+### Comprehensive Error Handler
+
+```javascript
+// error-handler.js
+class KubiyaErrorHandler {
+  static handle(error) {
+    switch (error.status) {
+      case 401:
+        return {
+          type: 'auth',
+          message: 'Invalid API key or authentication failed',
+          action: 'check_credentials'
+        };
+      case 403:
+        return {
+          type: 'permission',
+          message: 'Insufficient permissions',
+          action: 'contact_admin'
+        };
+      case 429:
+        return {
+          type: 'rate_limit',
+          message: 'Rate limit exceeded',
+          action: 'retry_later'
+        };
+      case 500:
+        return {
+          type: 'server',
+          message: 'Internal server error',
+          action: 'retry_or_contact_support'
+        };
+      default:
+        return {
+          type: 'unknown',
+          message: error.message || 'Unknown error occurred',
+          action: 'contact_support'
+        };
+    }
+  }
+}
+
+export default KubiyaErrorHandler;
+```
+
+## Best Practices
+
+### Connection Management
+
+```javascript
+// connection-manager.js
+class ConnectionManager {
+  constructor(apiKey) {
+    this.apiKey = apiKey;
+    this.retryCount = 0;
+    this.maxRetries = 3;
+    this.retryDelay = 1000;
+  }
+
+  async connectWithRetry() {
+    try {
+      await this.connect();
+      this.retryCount = 0;
+    } catch (error) {
+      if (this.retryCount < this.maxRetries) {
+        this.retryCount++;
+        setTimeout(() => {
+          this.connectWithRetry();
+        }, this.retryDelay * this.retryCount);
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  async connect() {
+    // Implementation
+  }
+}
+```
+
+### Caching
+
+```javascript
+// cache-manager.js
+class CacheManager {
+  constructor(ttl = 5 * 60 * 1000) { // 5 minutes
+    this.cache = new Map();
+    this.ttl = ttl;
+  }
+
+  set(key, value) {
+    this.cache.set(key, {
+      value,
+      timestamp: Date.now()
+    });
+  }
+
+  get(key) {
+    const item = this.cache.get(key);
+    if (!item) return null;
+    
+    if (Date.now() - item.timestamp > this.ttl) {
+      this.cache.delete(key);
+      return null;
+    }
+    
+    return item.value;
+  }
+
+  clear() {
+    this.cache.clear();
+  }
+}
+```
+
+## Related Documentation
+
+- [Vercel AI SDK Integration](/frontend/vercel-ai-sdk)
+- [Streaming UI](/mcp/streaming-ui/overview)
+- [API Reference](/api-reference/platform/overview)

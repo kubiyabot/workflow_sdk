@@ -1,0 +1,399 @@
+---
+title: "Vercel AI SDK Integration"
+description: "Integrate Kubiya with Vercel AI SDK for frontend applications"
+---
+
+# Vercel AI SDK Integration
+
+This guide shows how to integrate Kubiya agents with Vercel AI SDK for building AI-powered frontend applications.
+
+## Setup
+
+### Installation
+
+```bash
+npm install ai @ai-sdk/openai
+npm install @kubiya/sdk
+```
+
+### Basic Configuration
+
+```typescript
+import { createKubiyaClient } from '@kubiya/sdk';
+import { createOpenAI } from '@ai-sdk/openai';
+
+const kubiya = createKubiyaClient({
+  apiKey: process.env.KUBIYA_API_KEY,
+  baseURL: process.env.KUBIYA_BASE_URL
+});
+
+const openai = createOpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+```
+
+## Chat Interface
+
+### API Route
+
+```typescript
+// app/api/chat/route.ts
+import { streamText } from 'ai';
+import { createKubiyaClient } from '@kubiya/sdk';
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  
+  const kubiya = createKubiyaClient({
+    apiKey: process.env.KUBIYA_API_KEY!,
+  });
+
+  const result = await streamText({
+    model: openai('gpt-4'),
+    messages,
+    tools: {
+      kubiya_execute: {
+        description: 'Execute Kubiya tools',
+        parameters: {
+          type: 'object',
+          properties: {
+            tool: { type: 'string' },
+            parameters: { type: 'object' }
+          }
+        },
+        execute: async ({ tool, parameters }) => {
+          const result = await kubiya.tools.execute(tool, parameters);
+          return result;
+        }
+      }
+    }
+  });
+
+  return result.toAIStreamResponse();
+}
+```
+
+### React Component
+
+```tsx
+// components/ChatInterface.tsx
+import { useChat } from 'ai/react';
+import { useState } from 'react';
+
+export default function ChatInterface() {
+  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat();
+
+  return (
+    <div className="flex flex-col h-screen max-w-2xl mx-auto p-4">
+      <div className="flex-1 overflow-y-auto space-y-4">
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            className={`flex ${
+              message.role === 'user' ? 'justify-end' : 'justify-start'
+            }`}
+          >
+            <div
+              className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                message.role === 'user'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-200 text-gray-800'
+              }`}
+            >
+              {message.content}
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      <form onSubmit={handleSubmit} className="flex space-x-2">
+        <input
+          value={input}
+          onChange={handleInputChange}
+          placeholder="Ask Kubiya..."
+          className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          disabled={isLoading}
+        />
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+        >
+          {isLoading ? 'Sending...' : 'Send'}
+        </button>
+      </form>
+    </div>
+  );
+}
+```
+
+## Streaming Tool Results
+
+### Server-Side Streaming
+
+```typescript
+// app/api/stream/route.ts
+import { streamText } from 'ai';
+import { createKubiyaClient } from '@kubiya/sdk';
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  
+  const kubiya = createKubiyaClient({
+    apiKey: process.env.KUBIYA_API_KEY!,
+  });
+
+  const result = await streamText({
+    model: openai('gpt-4'),
+    messages,
+    tools: {
+      kubiya_stream: {
+        description: 'Stream Kubiya tool execution',
+        parameters: {
+          type: 'object',
+          properties: {
+            tool: { type: 'string' },
+            parameters: { type: 'object' }
+          }
+        },
+        execute: async ({ tool, parameters }) => {
+          const stream = kubiya.tools.stream(tool, parameters);
+          
+          let result = '';
+          for await (const chunk of stream) {
+            result += chunk.data;
+            // Stream intermediate results
+            yield { type: 'progress', data: chunk.data };
+          }
+          
+          return { type: 'complete', result };
+        }
+      }
+    }
+  });
+
+  return result.toAIStreamResponse();
+}
+```
+
+### Client-Side Streaming
+
+```tsx
+// components/StreamingChat.tsx
+import { useChat } from 'ai/react';
+import { useState } from 'react';
+
+export default function StreamingChat() {
+  const [streamData, setStreamData] = useState<string>('');
+  
+  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+    onFinish: (message) => {
+      setStreamData('');
+    }
+  });
+
+  return (
+    <div className="flex flex-col h-screen max-w-2xl mx-auto p-4">
+      <div className="flex-1 overflow-y-auto space-y-4">
+        {messages.map((message) => (
+          <div key={message.id} className="message">
+            <div className="role">{message.role}</div>
+            <div className="content">{message.content}</div>
+          </div>
+        ))}
+        
+        {streamData && (
+          <div className="streaming-message">
+            <div className="role">assistant</div>
+            <div className="content">{streamData}</div>
+          </div>
+        )}
+      </div>
+      
+      <form onSubmit={handleSubmit}>
+        <input
+          value={input}
+          onChange={handleInputChange}
+          placeholder="Ask Kubiya..."
+          disabled={isLoading}
+        />
+        <button type="submit" disabled={isLoading}>
+          Send
+        </button>
+      </form>
+    </div>
+  );
+}
+```
+
+## Tool Integration
+
+### Custom Tool Wrapper
+
+```typescript
+// lib/kubiya-tools.ts
+import { createKubiyaClient } from '@kubiya/sdk';
+
+const kubiya = createKubiyaClient({
+  apiKey: process.env.KUBIYA_API_KEY!,
+});
+
+export const kubiyaTools = {
+  execute: async (tool: string, parameters: any) => {
+    try {
+      const result = await kubiya.tools.execute(tool, parameters);
+      return {
+        success: true,
+        data: result
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  },
+  
+  list: async () => {
+    const tools = await kubiya.tools.list();
+    return tools;
+  },
+  
+  discover: async () => {
+    const capabilities = await kubiya.discovery();
+    return capabilities;
+  }
+};
+```
+
+### Tool Execution Hook
+
+```typescript
+// hooks/useKubiyaTools.ts
+import { useState, useCallback } from 'react';
+import { kubiyaTools } from '../lib/kubiya-tools';
+
+export function useKubiyaTools() {
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const execute = useCallback(async (tool: string, parameters: any) => {
+    setIsExecuting(true);
+    setError(null);
+    
+    try {
+      const result = await kubiyaTools.execute(tool, parameters);
+      return result;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setIsExecuting(false);
+    }
+  }, []);
+
+  return {
+    execute,
+    isExecuting,
+    error
+  };
+}
+```
+
+## Advanced Features
+
+### File Upload Integration
+
+```tsx
+// components/FileUpload.tsx
+import { useState } from 'react';
+import { useKubiyaTools } from '../hooks/useKubiyaTools';
+
+export default function FileUpload() {
+  const [file, setFile] = useState<File | null>(null);
+  const { execute, isExecuting } = useKubiyaTools();
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setFile(file);
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+      const result = await execute('file_processor', {
+        file: formData,
+        action: 'analyze'
+      });
+      
+      console.log('File processed:', result);
+    } catch (error) {
+      console.error('File processing failed:', error);
+    }
+  };
+
+  return (
+    <div className="file-upload">
+      <input
+        type="file"
+        onChange={handleFileUpload}
+        disabled={isExecuting}
+        className="file-input"
+      />
+      {isExecuting && <div>Processing file...</div>}
+    </div>
+  );
+}
+```
+
+### Real-time Updates
+
+```tsx
+// components/RealtimeUpdates.tsx
+import { useEffect, useState } from 'react';
+
+export default function RealtimeUpdates() {
+  const [updates, setUpdates] = useState<any[]>([]);
+
+  useEffect(() => {
+    const eventSource = new EventSource('/api/kubiya/stream');
+    
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      setUpdates(prev => [...prev, data]);
+    };
+    
+    return () => {
+      eventSource.close();
+    };
+  }, []);
+
+  return (
+    <div className="realtime-updates">
+      <h3>Live Updates</h3>
+      {updates.map((update, index) => (
+        <div key={index} className="update">
+          <span className="timestamp">{update.timestamp}</span>
+          <span className="message">{update.message}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+## Environment Variables
+
+```env
+KUBIYA_API_KEY=your_kubiya_api_key
+KUBIYA_BASE_URL=https://api.kubiya.ai
+OPENAI_API_KEY=your_openai_api_key
+```
+
+## Related Documentation
+
+- [Streaming UI Overview](/mcp/streaming-ui/overview)
+- [Custom Integration](/frontend/custom-integration)
+- [MCP Protocol](/api-reference/mcp/protocol)

@@ -1,0 +1,378 @@
+---
+title: "Tools Overview"
+description: "Overview of Kubiya tools and how to use them"
+---
+
+# Tools Overview
+
+Kubiya tools are the building blocks of workflows, enabling agents to perform specific tasks and operations.
+
+## What Are Tools?
+
+Tools in Kubiya are reusable components that:
+- Execute specific functions or operations
+- Accept parameters and return results
+- Can be chained together in workflows
+- Are discoverable through the platform
+
+## Tool Types
+
+### System Tools
+
+Built-in tools provided by the platform:
+
+```yaml
+tools:
+  - name: http_request
+    description: Make HTTP requests
+    parameters:
+      url: string
+      method: string
+      headers: object
+      
+  - name: file_processor
+    description: Process files
+    parameters:
+      file: file
+      action: string
+      
+  - name: data_transformer
+    description: Transform data
+    parameters:
+      data: object
+      transformation: string
+```
+
+### Custom Tools
+
+User-defined tools for specific use cases:
+
+```python
+# custom_tool.py
+from kubiya import Tool
+
+class CustomTool(Tool):
+    name = "custom_processor"
+    description = "Process custom data"
+    
+    def execute(self, data: dict) -> dict:
+        # Custom processing logic
+        result = process_data(data)
+        return {"result": result}
+```
+
+### Integration Tools
+
+Tools that connect to external services:
+
+```yaml
+tools:
+  - name: github_client
+    description: GitHub API client
+    parameters:
+      repo: string
+      action: string
+      token: string
+      
+  - name: slack_messenger
+    description: Send Slack messages
+    parameters:
+      channel: string
+      message: string
+      webhook_url: string
+```
+
+## Tool Discovery
+
+### List Available Tools
+
+```bash
+# CLI
+kubiya tools list
+
+# API
+curl -H "Authorization: Bearer $API_KEY" \
+  https://api.kubiya.ai/v1/tools
+```
+
+### Tool Details
+
+```bash
+# Get tool information
+kubiya tools describe http_request
+
+# Test tool
+kubiya tools test http_request --params '{"url": "https://api.example.com"}'
+```
+
+## Tool Execution
+
+### Direct Execution
+
+```python
+from kubiya import KubiyaClient
+
+client = KubiyaClient(api_key="your-api-key")
+
+# Execute tool
+result = client.tools.execute("http_request", {
+    "url": "https://api.example.com/data",
+    "method": "GET"
+})
+
+print(result)
+```
+
+### Workflow Integration
+
+```yaml
+# workflow.yaml
+name: data_processing_workflow
+steps:
+  - name: fetch_data
+    tool: http_request
+    parameters:
+      url: "https://api.example.com/data"
+      method: GET
+      
+  - name: process_data
+    tool: data_transformer
+    parameters:
+      data: "{{ steps.fetch_data.result }}"
+      transformation: "json_to_csv"
+      
+  - name: save_result
+    tool: file_processor
+    parameters:
+      file: "{{ steps.process_data.result }}"
+      action: "save"
+```
+
+## Tool Parameters
+
+### Parameter Types
+
+```yaml
+parameters:
+  string_param:
+    type: string
+    description: "A string parameter"
+    required: true
+    
+  number_param:
+    type: number
+    description: "A numeric parameter"
+    default: 10
+    
+  boolean_param:
+    type: boolean
+    description: "A boolean parameter"
+    default: false
+    
+  object_param:
+    type: object
+    description: "An object parameter"
+    properties:
+      name: string
+      value: number
+      
+  array_param:
+    type: array
+    description: "An array parameter"
+    items:
+      type: string
+```
+
+### Parameter Validation
+
+```python
+from kubiya import Tool, Parameter
+
+class ValidatedTool(Tool):
+    name = "validated_tool"
+    
+    parameters = [
+        Parameter("email", type="string", pattern=r"^[^@]+@[^@]+\.[^@]+$"),
+        Parameter("age", type="number", minimum=0, maximum=150),
+        Parameter("tags", type="array", items={"type": "string"})
+    ]
+    
+    def execute(self, email: str, age: int, tags: list) -> dict:
+        # Tool logic here
+        return {"status": "success"}
+```
+
+## Tool Development
+
+### Creating Custom Tools
+
+```python
+# my_custom_tool.py
+from kubiya import Tool
+import requests
+
+class WeatherTool(Tool):
+    name = "weather_checker"
+    description = "Check weather for a location"
+    
+    def execute(self, location: str, api_key: str) -> dict:
+        url = f"https://api.openweathermap.org/data/2.5/weather"
+        params = {
+            "q": location,
+            "appid": api_key,
+            "units": "metric"
+        }
+        
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        
+        data = response.json()
+        return {
+            "location": location,
+            "temperature": data["main"]["temp"],
+            "description": data["weather"][0]["description"],
+            "humidity": data["main"]["humidity"]
+        }
+```
+
+### Tool Registration
+
+```python
+# register_tool.py
+from kubiya import register_tool
+from my_custom_tool import WeatherTool
+
+# Register the tool
+register_tool(WeatherTool)
+```
+
+### Tool Testing
+
+```python
+# test_tool.py
+import unittest
+from my_custom_tool import WeatherTool
+
+class TestWeatherTool(unittest.TestCase):
+    def setUp(self):
+        self.tool = WeatherTool()
+    
+    def test_weather_check(self):
+        result = self.tool.execute(
+            location="London",
+            api_key="test-api-key"
+        )
+        
+        self.assertIn("temperature", result)
+        self.assertIn("description", result)
+        self.assertEqual(result["location"], "London")
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+## Tool Configuration
+
+### Environment Variables
+
+```env
+# Tool-specific configuration
+WEATHER_API_KEY=your_weather_api_key
+SLACK_WEBHOOK_URL=your_slack_webhook_url
+GITHUB_TOKEN=your_github_token
+
+# Global tool settings
+KUBIYA_TOOL_TIMEOUT=30
+KUBIYA_TOOL_RETRY_COUNT=3
+```
+
+### Configuration Files
+
+```yaml
+# tools.yaml
+tools:
+  weather_checker:
+    api_key: "${WEATHER_API_KEY}"
+    timeout: 10
+    retry_count: 3
+    
+  slack_messenger:
+    webhook_url: "${SLACK_WEBHOOK_URL}"
+    default_channel: "#general"
+    
+  github_client:
+    token: "${GITHUB_TOKEN}"
+    base_url: "https://api.github.com"
+```
+
+## Error Handling
+
+### Tool Errors
+
+```python
+from kubiya import Tool, ToolError
+
+class RobustTool(Tool):
+    name = "robust_tool"
+    
+    def execute(self, data: dict) -> dict:
+        try:
+            # Tool logic
+            result = process_data(data)
+            return {"success": True, "result": result}
+        except ValueError as e:
+            raise ToolError(f"Invalid data: {e}")
+        except Exception as e:
+            raise ToolError(f"Unexpected error: {e}")
+```
+
+### Retry Logic
+
+```python
+from kubiya import Tool
+import time
+
+class RetryableTool(Tool):
+    name = "retryable_tool"
+    
+    def execute(self, data: dict, max_retries: int = 3) -> dict:
+        for attempt in range(max_retries):
+            try:
+                result = external_api_call(data)
+                return {"success": True, "result": result}
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    time.sleep(2 ** attempt)  # Exponential backoff
+                    continue
+                raise ToolError(f"Failed after {max_retries} attempts: {e}")
+```
+
+## Best Practices
+
+### Tool Design
+
+1. **Single Responsibility**: Each tool should do one thing well
+2. **Clear Documentation**: Provide clear descriptions and examples
+3. **Error Handling**: Handle errors gracefully
+4. **Parameter Validation**: Validate inputs before processing
+5. **Logging**: Log important events and errors
+
+### Performance
+
+1. **Caching**: Cache results when appropriate
+2. **Async Operations**: Use async for I/O operations
+3. **Resource Management**: Clean up resources properly
+4. **Timeouts**: Set appropriate timeouts for operations
+
+### Security
+
+1. **Input Sanitization**: Sanitize all inputs
+2. **Secrets Management**: Use secure secret storage
+3. **Access Control**: Implement proper access controls
+4. **Audit Logging**: Log sensitive operations
+
+## Related Documentation
+
+- [Workflow Examples](/workflows/examples)
+- [Tool Development Guide](/mcp/tools-reference)
+- [API Reference](/api-reference/platform/overview)

@@ -1,0 +1,288 @@
+---
+title: "Kubernetes Deployment"
+description: "Deploy Kubiya agents on Kubernetes clusters"
+---
+
+# Kubernetes Deployment
+
+This guide covers deploying Kubiya agents on Kubernetes clusters.
+
+## Basic Deployment
+
+### Deployment Manifest
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubiya-agent
+  namespace: kubiya
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: kubiya-agent
+  template:
+    metadata:
+      labels:
+        app: kubiya-agent
+    spec:
+      containers:
+      - name: kubiya-agent
+        image: kubiya-agent:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: KUBIYA_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: kubiya-secrets
+              key: api-key
+        - name: KUBIYA_ENVIRONMENT
+          value: "production"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+```
+
+### Service
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubiya-agent-service
+  namespace: kubiya
+spec:
+  selector:
+    app: kubiya-agent
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8000
+  type: ClusterIP
+```
+
+### Ingress
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kubiya-agent-ingress
+  namespace: kubiya
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: agent.your-domain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: kubiya-agent-service
+            port:
+              number: 80
+```
+
+## Configuration Management
+
+### ConfigMap
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubiya-config
+  namespace: kubiya
+data:
+  config.yaml: |
+    server:
+      port: 8000
+      host: "0.0.0.0"
+    logging:
+      level: INFO
+    features:
+      streaming: true
+      metrics: true
+```
+
+### Secret
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kubiya-secrets
+  namespace: kubiya
+type: Opaque
+data:
+  api-key: <base64-encoded-api-key>
+  jwt-secret: <base64-encoded-jwt-secret>
+```
+
+## Scaling
+
+### Horizontal Pod Autoscaler
+
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: kubiya-agent-hpa
+  namespace: kubiya
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: kubiya-agent
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+```
+
+## Security
+
+### Service Account
+
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubiya-agent-sa
+  namespace: kubiya
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kubiya-agent-role
+  namespace: kubiya
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubiya-agent-binding
+  namespace: kubiya
+subjects:
+- kind: ServiceAccount
+  name: kubiya-agent-sa
+  namespace: kubiya
+roleRef:
+  kind: Role
+  name: kubiya-agent-role
+  apiGroup: rbac.authorization.k8s.io
+```
+
+### Network Policy
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kubiya-agent-netpol
+  namespace: kubiya
+spec:
+  podSelector:
+    matchLabels:
+      app: kubiya-agent
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8000
+  egress:
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
+```
+
+## Monitoring
+
+### ServiceMonitor (Prometheus)
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kubiya-agent-metrics
+  namespace: kubiya
+spec:
+  selector:
+    matchLabels:
+      app: kubiya-agent
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+```
+
+## Deployment Commands
+
+```bash
+# Create namespace
+kubectl create namespace kubiya
+
+# Apply manifests
+kubectl apply -f deployment.yaml
+kubectl apply -f service.yaml
+kubectl apply -f ingress.yaml
+
+# Check status
+kubectl get pods -n kubiya
+kubectl get services -n kubiya
+
+# View logs
+kubectl logs -f deployment/kubiya-agent -n kubiya
+
+# Scale deployment
+kubectl scale deployment kubiya-agent --replicas=5 -n kubiya
+```
+
+## Related Documentation
+
+- [Docker Deployment](/deployment/docker)
+- [Helm Chart](/concepts/runners/helm-chart)
+- [Server Overview](/servers/overview)

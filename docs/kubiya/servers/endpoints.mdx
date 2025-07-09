@@ -1,0 +1,91 @@
+---
+title: "Server Endpoints"
+description: "API endpoints for Kubiya agent servers"
+---
+
+# Server Endpoints
+
+This page documents the core API endpoints available on Kubiya agent servers.
+
+## Health Check
+
+### GET /health
+
+Returns the health status of the server.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "timestamp": "2024-01-01T00:00:00Z",
+  "uptime": "1h23m45s"
+}
+```
+
+## Discovery
+
+### GET /discovery
+
+Returns server capabilities and available tools.
+
+**Response:**
+```json
+{
+  "tools": [
+    {
+      "name": "tool_name",
+      "description": "Tool description",
+      "inputSchema": {...}
+    }
+  ],
+  "serverInfo": {
+    "name": "server_name",
+    "version": "1.0.0"
+  }
+}
+```
+
+## Tool Execution
+
+### POST /execute
+
+Executes a tool with the provided parameters.
+
+**Request:**
+```json
+{
+  "tool": "tool_name",
+  "parameters": {
+    "param1": "value1",
+    "param2": "value2"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "result": "Tool execution result",
+  "status": "success",
+  "executionTime": "123ms"
+}
+```
+
+## Streaming
+
+### GET /stream
+
+Server-sent events endpoint for real-time updates.
+
+**Response:**
+```
+data: {"type": "status", "message": "Connected"}
+data: {"type": "result", "data": "..."}
+```
+
+## Related Documentation
+
+- [Server Overview](/servers/overview)
+- [Authentication](/servers/authentication)
+- [SSE Streaming](/servers/sse-streaming)
+- [MCP Protocol](/api-reference/mcp/protocol)

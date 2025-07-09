@@ -1,0 +1,125 @@
+---
+title: "SSE Streaming"
+description: "Server-sent events streaming for real-time updates"
+---
+
+# SSE Streaming
+
+Server-sent events (SSE) provide real-time streaming of data from Kubiya agent servers.
+
+## Overview
+
+SSE allows servers to push data to clients in real-time, perfect for:
+- Live workflow execution updates
+- Real-time tool execution results
+- Progress notifications
+- Error streaming
+
+## Implementation
+
+### Server-Side Setup
+
+```python
+from flask import Flask, Response
+import json
+import time
+
+app = Flask(__name__)
+
+@app.route('/stream')
+def stream():
+    def event_stream():
+        while True:
+            # Get data from your workflow
+            data = get_workflow_status()
+            yield f"data: {json.dumps(data)}\n\n"
+            time.sleep(1)
+    
+    return Response(event_stream(), mimetype="text/plain")
+```
+
+### Client-Side Usage
+
+```javascript
+const eventSource = new EventSource('/stream');
+
+eventSource.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+    console.log('Received:', data);
+};
+
+eventSource.onerror = function(event) {
+    console.error('SSE error:', event);
+};
+```
+
+## Event Types
+
+### Status Events
+
+```json
+{
+  "type": "status",
+  "status": "running",
+  "progress": 45,
+  "message": "Processing step 3 of 7"
+}
+```
+
+### Result Events
+
+```json
+{
+  "type": "result",
+  "tool": "file_processor",
+  "result": "File processed successfully",
+  "timestamp": "2024-01-01T00:00:00Z"
+}
+```
+
+### Error Events
+
+```json
+{
+  "type": "error",
+  "error": "Tool execution failed",
+  "details": "Connection timeout",
+  "timestamp": "2024-01-01T00:00:00Z"
+}
+```
+
+## Configuration
+
+### Server Configuration
+
+```yaml
+streaming:
+  enabled: true
+  max_connections: 100
+  heartbeat_interval: 30
+  buffer_size: 8192
+```
+
+### Client Configuration
+
+```javascript
+const eventSource = new EventSource('/stream', {
+  withCredentials: true,
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN'
+  }
+});
+```
+
+## Best Practices
+
+1. **Connection Management**: Implement proper connection cleanup
+2. **Error Handling**: Handle network errors gracefully
+3. **Rate Limiting**: Prevent event spam
+4. **Authentication**: Secure streaming endpoints
+
+## Related Documentation
+
+- [Server Overview](/servers/overview)
+- [Server Endpoints](/servers/endpoints)
+- [Streaming UI](/mcp/streaming-ui/overview)
