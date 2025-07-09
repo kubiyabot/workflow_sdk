@@ -1,300 +1,371 @@
 ---
 title: MCP Authentication
-description: Secure your Kubiya MCP server with OAuth/OIDC authentication
+description: Secure your Kubiya MCP server with authentication and authorization
 icon: shield
 ---
 
 # MCP Authentication
 
-The Kubiya MCP server supports multiple authentication methods to secure your workflows and protect API access.
-
-## Why Authentication Matters
-
-The MCP authentication system serves a critical purpose: **identity delegation**. When users interact with Kubiya through various interfaces (Composer UI, API, CLI), the MCP server ensures that:
-
-1. **User Identity is Preserved** - The authenticated user's identity flows through to workflow execution
-2. **Workflows Run on User's Behalf** - All actions are performed with the user's permissions and API key
-3. **Audit Trail is Maintained** - Every workflow execution is tied to the user who initiated it
-4. **Multi-tenant Security** - Different users can safely share the same MCP server with isolated execution contexts
-
-## How Identity Delegation Works
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant Kubiya Composer
-    participant Auth Provider
-    participant MCP Server
-    participant Kubiya API
-    
-    User->>Kubiya Composer: Login
-    Kubiya Composer->>Auth Provider: Authenticate
-    Auth Provider-->>Kubiya Composer: JWT with user info + API key
-    Kubiya Composer->>MCP Server: Execute workflow (Bearer token)
-    MCP Server->>MCP Server: Extract user identity & API key
-    MCP Server->>Kubiya API: Execute as user
-    Kubiya API-->>User: Results (tied to user's account)
-```
-
-When a user accesses Kubiya through the Composer UI or any other interface:
-1. They authenticate with your organization's identity provider
-2. The identity provider issues a JWT containing the user's identity AND their Kubiya API key
-3. This JWT is passed to the MCP server with each request
-4. The MCP server extracts the user's API key and executes workflows on their behalf
-5. All workflow executions are tied to the authenticated user in Kubiya's audit logs
+The Kubiya MCP server supports multiple authentication methods to secure your tools and protect API access.
 
 ## Authentication Methods
 
-### 1. Simple API Key (Default)
+### 1. API Key Authentication (Default)
 
-The simplest approach - pass your Kubiya API key directly:
+The simplest and most common approach - use your Kubiya API key:
 
-```python
-# Method 1: As a parameter
-result = await execute_tool.ainvoke({
-    "name": "my-workflow",
-    "params": {"env": "production"},
-    "api_key": "your-kubiya-api-key"
-})
-
-# Method 2: Environment variable
-export KUBIYA_API_KEY="your-api-key"
-```
-
-This approach works well for:
-- Development and testing
-- Simple integrations
-- Single-user scenarios
-
-⚠️ **Note**: With this method, all workflows execute with the same identity (the API key owner).
-
-### 2. OAuth/OIDC Authentication (Production)
-
-For production deployments, use OAuth 2.0 or OpenID Connect authentication with the `mcpauth` library. This enables proper user identity delegation.
-
-## Setting Up OAuth/OIDC Authentication
-
-### Installation
+#### Environment Variable (Recommended)
 
 ```bash
-pip install kubiya-workflow-sdk[auth]
-# or
-pip install mcpauth
+# Set your API key
+export KUBIYA_API_KEY="your-kubiya-api-key"
+
+# Start the MCP server
+kubiya mcp serve
 ```
 
-### Basic Configuration
+#### Configuration File
 
-```python
-from kubiya_workflow_sdk.mcp.server_auth import create_mcp_server_auth
-
-# Create server with OIDC authentication
-server = create_mcp_server_auth(
-    name="Kubiya MCP Server",
-    auth_server_url="https://your-auth-server.com",
-    auth_server_type="oidc",  # or "oauth"
-    required_scopes=["read", "write", "execute"]
-)
-
-# Run the server
-app = server.create_app()
-```
-
-### Running with Authentication
-
-```bash
-# With command line arguments
-python -m kubiya_workflow_sdk.mcp.server_auth \
-  --auth-server https://your-auth-server.com \
-  --auth-type oidc \
-  --required-scopes read write execute
-
-# Or with environment variables
-export KUBIYA_AUTH_SERVER="https://your-auth-server.com"
-python -m kubiya_workflow_sdk.mcp.server_auth
-```
-
-## Supported Auth Providers
-
-The MCP server works with any OAuth 2.0 or OpenID Connect provider:
-
-### Popular Providers
-
-- **Auth0**: Full OIDC support
-- **Okta**: Enterprise SSO
-- **Google**: Google Workspace integration
-- **Microsoft Azure AD**: Enterprise Microsoft integration
-- **Keycloak**: Open-source identity management
-
-### Provider Configuration
-
-Each provider needs to support:
-- OAuth 2.0 Authorization Server Metadata (RFC 8414)
-- OpenID Connect Discovery (for OIDC)
-- JWT tokens with standard claims
-
-## API Key in JWT Claims
-
-When using OAuth/OIDC, include the Kubiya API key in JWT claims:
-
-### Standard Locations
-
-The server checks these claim locations:
-1. `kubiya_api_key` - Custom claim
-2. `api_key` - Generic API key claim
-3. `metadata.kubiya_api_key` - Nested in metadata
-
-### Example JWT Payload
+Add to your MCP server configuration (`~/.kubiya/mcp-server.json`):
 
 ```json
 {
-  "sub": "user123",
-  "name": "John Doe",
-  "email": "john@example.com",
-  "scope": "read write execute",
-  "kubiya_api_key": "kb-1234567890abcdef",
-  "iat": 1677654321,
-  "exp": 1677657921
+  "api_key": "your-kubiya-api-key",
+  "enable_runners": true,
+  "allow_platform_apis": false
 }
 ```
 
-## User-Specific API Keys
+#### Claude Desktop Configuration
 
-For proper identity delegation, each user should have their own Kubiya API key. This ensures:
-
-1. **Individual Accountability** - Each action is traceable to a specific user
-2. **Granular Permissions** - Different users can have different access levels
-3. **Security Isolation** - Compromised keys affect only one user
-4. **Usage Tracking** - Monitor and limit usage per user
-
-### Setting Up User API Keys
-
-1. **During User Onboarding**:
-   ```javascript
-   // In your identity provider's user creation flow
-   const kubiyaApiKey = await kubiyaClient.createApiKey({
-     userId: user.id,
-     name: `${user.name} - MCP Access`,
-     scopes: ['workflows:execute']
-   });
-   
-   // Store in user's profile/claims
-   user.metadata.kubiya_api_key = kubiyaApiKey;
-   ```
-
-2. **In JWT Token Claims**:
-   ```javascript
-   // When issuing JWT tokens
-   const token = jwt.sign({
-     sub: user.id,
-     name: user.name,
-     email: user.email,
-     kubiya_api_key: user.metadata.kubiya_api_key,
-     scope: "read write execute"
-   }, privateKey);
-   ```
-
-## Scope-Based Authorization
-
-Define required scopes for different operations:
-
-```python
-server = create_mcp_server_auth(
-    auth_server_url="https://auth.example.com",
-    required_scopes=["read", "write", "execute"]
-)
+```json
+{
+  "mcpServers": {
+    "kubiya": {
+      "command": "kubiya",
+      "args": ["mcp", "serve"],
+      "env": {
+        "KUBIYA_API_KEY": "your-kubiya-api-key"
+      }
+    }
+  }
+}
 ```
 
-### Common Scope Patterns
+### 2. Session-Based Authentication
 
-| Scope | Permissions |
-|-------|------------|
-| `read` | List and view workflows |
-| `write` | Create and modify workflows |
-| `execute` | Execute workflows |
-| `admin` | Full access including deletion |
-
-## Testing Authentication
-
-### 1. Check Metadata Endpoint
+For production environments, enable session management:
 
 ```bash
-curl http://localhost:8000/.well-known/oauth-authorization-server
+# Start with session management
+kubiya mcp serve --production --require-auth --session-timeout 3600
 ```
 
-### 2. Test with Bearer Token
+This enables:
+- User session management
+- Session timeout (default: 30 minutes)
+- Authentication middleware
+- Access logging
+
+### 3. Token-Based Authentication
+
+Use temporary tokens for enhanced security:
 
 ```bash
-# Get token from your auth provider
-TOKEN="your-jwt-token"
+# Generate a temporary token
+kubiya auth token generate --expires 1h
 
-# Make authenticated request
-curl -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  http://localhost:8000/
+# Use the token
+export KUBIYA_AUTH_TOKEN="your-temporary-token"
+kubiya mcp serve --require-auth
 ```
 
-### 3. Using MCP Client
+## Configuration Options
 
-```python
-from fastmcp.client import Client
-from fastmcp.client.transports import StreamableHttpTransport
+### Basic Configuration
 
-transport = StreamableHttpTransport(
-    "http://localhost:8000/mcp",
-    auth="your-jwt-token"  # JWT from auth provider
-)
+```json
+{
+  "enable_runners": true,
+  "allow_platform_apis": false,
+  "enable_opa_policies": false,
+  "verbose_logging": false,
+  "require_auth": false,
+  "session_timeout": 1800
+}
+```
 
-client = Client(transport)
+### Enterprise Configuration
+
+```json
+{
+  "enable_runners": true,
+  "allow_platform_apis": true,
+  "enable_opa_policies": true,
+  "verbose_logging": true,
+  "require_auth": true,
+  "session_timeout": 3600,
+  "whitelisted_tools": [
+    {
+      "name": "kubectl",
+      "description": "Kubernetes CLI tool",
+      "type": "docker",
+      "image": "kubiya/kubectl-light:latest"
+    }
+  ]
+}
+```
+
+## Security Features
+
+### 1. OPA Policy Enforcement
+
+Enable Open Policy Agent (OPA) for policy-based access control:
+
+```bash
+# Enable OPA policies
+kubiya mcp serve --enable-opa-policies
+
+# Or via environment variable
+export KUBIYA_OPA_ENFORCE=true
+kubiya mcp serve
+```
+
+### 2. Tool Whitelisting
+
+Restrict which tools can be executed:
+
+```json
+{
+  "whitelisted_tools": [
+    {
+      "name": "kubectl",
+      "description": "Kubernetes commands",
+      "type": "docker",
+      "image": "kubiya/kubectl-light:latest"
+    },
+    {
+      "name": "terraform",
+      "description": "Infrastructure as code",
+      "type": "docker",
+      "image": "hashicorp/terraform:latest"
+    }
+  ]
+}
+```
+
+### 3. Runner Restrictions
+
+Control which runners can be used:
+
+```bash
+# Disable runners entirely
+kubiya mcp serve --disable-runners
+
+# Or limit to specific runners
+kubiya mcp serve --allowed-runners runner1,runner2
+```
+
+## API Key Management
+
+### Creating API Keys
+
+1. Go to [Kubiya Settings](https://app.kubiya.ai/settings)
+2. Navigate to "API Keys"
+3. Click "Create New Key"
+4. Set appropriate permissions
+5. Copy the key securely
+
+### Key Rotation
+
+```bash
+# Create a new key
+kubiya auth key create --name "mcp-server-key" --expires 30d
+
+# Update your configuration
+export KUBIYA_API_KEY="new-api-key"
+
+# Revoke old key
+kubiya auth key revoke old-key-id
+```
+
+### Key Permissions
+
+Configure API key permissions:
+
+| Permission | Description |
+|------------|-------------|
+| `tools:execute` | Execute tools and workflows |
+| `tools:list` | List available tools |
+| `runners:read` | View runner status |
+| `runners:manage` | Create/delete runners |
+| `agents:read` | View agents |
+| `agents:manage` | Create/modify agents |
+
+## Access Control
+
+### Role-Based Access
+
+Define roles for different users:
+
+```json
+{
+  "roles": {
+    "developer": {
+      "permissions": ["tools:execute", "tools:list", "runners:read"],
+      "allowed_tools": ["kubectl", "docker", "git"]
+    },
+    "admin": {
+      "permissions": ["*"],
+      "allowed_tools": ["*"]
+    }
+  }
+}
+```
+
+### IP Whitelisting
+
+Restrict access by IP address:
+
+```json
+{
+  "allowed_ips": [
+    "192.168.1.0/24",
+    "10.0.0.0/8"
+  ]
+}
+```
+
+## Monitoring and Logging
+
+### Authentication Logs
+
+Enable detailed authentication logging:
+
+```bash
+# Enable verbose logging
+kubiya mcp serve --verbose
+
+# Or via environment
+export LOG_LEVEL=DEBUG
+kubiya mcp serve
+```
+
+### Audit Trail
+
+All authenticated actions are logged:
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:00Z",
+  "user_id": "user123",
+  "action": "execute_tool",
+  "tool_name": "kubectl",
+  "parameters": {"command": "get pods"},
+  "result": "success"
+}
 ```
 
 ## Security Best Practices
 
-1. **Always use HTTPS** in production
-2. **Rotate API keys** regularly
-3. **Use short-lived JWT tokens** (1 hour or less)
-4. **Implement proper scope restrictions**
-5. **Monitor authentication logs**
-6. **Use environment variables** for sensitive data
-7. **Assign unique API keys** to each user
-8. **Audit workflow executions** by user identity
+### 1. Environment Security
+
+- Use environment variables for sensitive data
+- Never commit API keys to version control
+- Rotate keys regularly
+- Use separate keys for different environments
+
+### 2. Network Security
+
+- Use HTTPS/TLS for all communications
+- Implement IP whitelisting
+- Use VPN for remote access
+- Monitor network traffic
+
+### 3. Access Control
+
+- Implement least privilege principle
+- Use role-based access control
+- Enable OPA policies for fine-grained control
+- Regular access reviews
+
+### 4. Monitoring
+
+- Enable comprehensive logging
+- Set up alerts for failed authentications
+- Monitor API key usage
+- Track tool execution patterns
 
 ## Troubleshooting
 
-### "No API token provided" Error
+### Common Issues
 
-The server couldn't find an API key. Check:
-1. JWT claims include `kubiya_api_key`
-2. Environment variable `KUBIYA_API_KEY` is set
-3. API key parameter is passed correctly
+#### "Authentication failed" Error
 
-### "Invalid token" Error
+Check:
+1. API key is valid and not expired
+2. Environment variable is set correctly
+3. Key has required permissions
+4. Network connectivity to Kubiya API
 
-JWT validation failed. Verify:
-1. Token hasn't expired
-2. Token signature is valid
-3. Required scopes are present
-4. Auth server URL is correct
+#### "Insufficient permissions" Error
 
-### "Insufficient permissions" Error
+Verify:
+1. API key has necessary permissions
+2. Tool is whitelisted (if using whitelist)
+3. OPA policies allow the action
+4. User role includes required permissions
 
-User lacks required scopes. Ensure:
-1. JWT includes all required scopes
-2. Auth provider grants necessary permissions
-3. Scope names match exactly
+#### "Session expired" Error
+
+Solutions:
+1. Extend session timeout
+2. Re-authenticate with fresh token
+3. Check system clock synchronization
+4. Verify token expiration time
+
+### Debug Mode
+
+Enable debug mode for detailed troubleshooting:
+
+```bash
+# Start with debug logging
+kubiya --debug mcp serve
+
+# Or set environment variable
+export DEBUG=true
+kubiya mcp serve
+```
 
 ## Migration Guide
 
-### From Simple to OAuth
+### From Basic to Secure Setup
 
-1. Install `mcpauth`: `pip install mcpauth`
-2. Set up auth provider (Auth0, Okta, etc.)
-3. Configure provider to include `kubiya_api_key` in claims
-4. Update server startup to use `server_auth`
-5. Update clients to obtain JWT tokens
-6. Test thoroughly before switching production
+1. **Enable Authentication**:
+   ```bash
+   kubiya mcp serve --require-auth
+   ```
+
+2. **Add OPA Policies**:
+   ```bash
+   kubiya mcp serve --enable-opa-policies
+   ```
+
+3. **Configure Whitelisting**:
+   ```json
+   {
+     "whitelisted_tools": ["kubectl", "terraform"]
+   }
+   ```
+
+4. **Test Thoroughly**:
+   - Verify all tools work
+   - Test authentication flows
+   - Validate policy enforcement
 
 ## Next Steps
 
-- [Configure your auth provider](/mcp/auth-providers)
-- [Set up scope-based permissions](/mcp/authorization)
-- [Monitor authentication events](/mcp/monitoring) 
+- [Configure OPA Policies](/mcp/opa-policies)
+- [Set up Monitoring](/mcp/monitoring)
+- [Explore Tools Reference](/mcp/tools-reference)
+- [Join our community](https://discord.gg/kubiya)

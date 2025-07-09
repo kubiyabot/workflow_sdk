@@ -6,7 +6,7 @@ icon: "plug"
 
 # FastMCP Provider
 
-FastMCP is a provider that enables direct tool execution through the Model Context Protocol (MCP). Unlike ADK which generates workflows from natural language, FastMCP focuses on executing specific tools directly.
+FastMCP is a provider that enables direct tool execution through the Model Context Protocol (MCP). It provides a streamlined way to execute tools without complex workflow orchestration.
 
 ## When to Use FastMCP
 
@@ -18,178 +18,405 @@ Use FastMCP when you:
 
 ## Quick Start
 
-### 1. Install the SDK
+### 1. Install Kubiya CLI
 
 ```bash
-pip install kubiya-workflow-sdk
+# Install Kubiya CLI
+curl -fsSL https://raw.githubusercontent.com/kubiyabot/cli/main/install.sh | bash
+
+# Set your API key
+export KUBIYA_API_KEY="your-api-key"
 ```
 
 ### 2. Start MCP Server
 
 ```bash
-# Point to your MCP server implementation
-export KUBIYA_MCP_SERVER_PATH="/path/to/mcp/server"
-
-# Start the FastMCP provider
-python -m kubiya_workflow_sdk.providers.fastmcp.provider
+# Start the Kubiya MCP server
+kubiya mcp serve
 ```
 
-### 3. Execute Tools
+### 3. Connect to MCP Server
 
-```python
-from kubiya_workflow_sdk.providers import get_provider
+```bash
+# Test connection
+kubiya mcp serve --test
 
-# Initialize FastMCP provider
-mcp = get_provider("fastmcp", server_path="/path/to/mcp/server")
-
-# Execute a tool directly
-result = await mcp.execute_tool(
-    tool_name="file_operations",
-    arguments={
-        "action": "read",
-        "path": "/data/report.csv"
+# Or use with Claude Desktop
+# Add to ~/.config/Claude/claude_desktop_config.json:
+{
+  "mcpServers": {
+    "kubiya": {
+      "command": "kubiya",
+      "args": ["mcp", "serve"]
     }
-)
-
-print(result)  # Tool execution result
+  }
+}
 ```
 
 ## Available MCP Tools
 
-FastMCP can work with any MCP-compatible tools:
+The Kubiya MCP server provides 21+ enterprise-grade tools:
+
+### Core Execution Tools
 
 <CardGroup cols={2}>
-  <Card title="File System" icon="folder">
-    Read, write, and manage files
-    ```python
-    await mcp.execute_tool("fs_read", {"path": "/data/file.txt"})
+  <Card title="execute_tool" icon="play">
+    Execute any containerized tool
+    ```bash
+    kubectl get pods
     ```
   </Card>
   
-  <Card title="GitHub" icon="github">
-    Interact with GitHub repositories
-    ```python
-    await mcp.execute_tool("github_create_issue", {
-        "repo": "owner/repo",
-        "title": "Bug report"
-    })
+  <Card title="execute_whitelisted_tool" icon="shield">
+    Execute pre-approved tools
+    ```bash
+    helm list
     ```
   </Card>
   
-  <Card title="Database" icon="database">
-    Query and update databases
+  <Card title="create_on_demand_tool" icon="wrench">
+    Build custom tools on-the-fly
     ```python
-    await mcp.execute_tool("db_query", {
-        "query": "SELECT * FROM users"
-    })
+    python analyze_logs.py
     ```
   </Card>
   
-  <Card title="Custom Tools" icon="wrench">
-    Your own MCP-compatible tools
-    ```python
-    await mcp.execute_tool("custom_tool", {
-        "param": "value"
-    })
+  <Card title="execute_workflow" icon="workflow">
+    Run complete workflows
+    ```bash
+    deploy-to-staging
     ```
   </Card>
 </CardGroup>
 
-## Integration with Workflows
+### Platform Management Tools
 
-You can use FastMCP within Kubiya workflows:
+<CardGroup cols={2}>
+  <Card title="list_runners" icon="server">
+    List execution infrastructure
+    ```bash
+    Show available runners
+    ```
+  </Card>
+  
+  <Card title="check_runner_health" icon="heartbeat">
+    Monitor system health
+    ```bash
+    Health check all runners
+    ```
+  </Card>
+  
+  <Card title="find_available_runner" icon="search">
+    Auto-select optimal runners
+    ```bash
+    Find best runner for task
+    ```
+  </Card>
+  
+  <Card title="list_agents" icon="robot">
+    Discover AI agents
+    ```bash
+    Show all agents
+    ```
+  </Card>
+</CardGroup>
 
-```python
-from kubiya_workflow_sdk.dsl import workflow, step
-from kubiya_workflow_sdk.providers import get_provider
+### Knowledge & Security Tools
 
-@workflow
-def data_pipeline():
-    # Step 1: Read data using MCP tool
-    read_data = step("read_csv").mcp_tool(
-        tool="fs_read",
-        arguments={"path": "/data/input.csv"}
-    )
-    
-    # Step 2: Process data (your logic)
-    process = step("process").python(
-        code="""
-        import pandas as pd
-        df = pd.read_csv(io.StringIO(inputs['csv_data']))
-        result = df.groupby('category').sum()
-        print(result.to_json())
-        """,
-        inputs={"csv_data": "${read_data.content}"}
-    ).depends("read_csv")
-    
-    # Step 3: Write results using MCP tool
-    write_result = step("write_results").mcp_tool(
-        tool="fs_write",
-        arguments={
-            "path": "/data/output.json",
-            "content": "${process.stdout}"
-        }
-    ).depends("process")
-```
-
-## FastMCP vs ADK
-
-| Feature | FastMCP | ADK |
-|---------|---------|-----|
-| **Purpose** | Direct tool execution | AI workflow generation |
-| **Input** | Tool name + parameters | Natural language |
-| **Use Case** | "Execute database query" | "Analyze sales data and create report" |
-| **AI Required** | No | Yes |
-| **Streaming** | Tool output only | Full workflow progress |
+<CardGroup cols={2}>
+  <Card title="search_kb" icon="book">
+    Search organizational knowledge
+    ```bash
+    Find documentation
+    ```
+  </Card>
+  
+  <Card title="list_kb" icon="library">
+    Browse documentation
+    ```bash
+    Show knowledge base
+    ```
+  </Card>
+  
+  <Card title="list_secrets" icon="key">
+    View available credentials
+    ```bash
+    Show secrets
+    ```
+  </Card>
+  
+  <Card title="list_integrations" icon="plug">
+    See available integrations
+    ```bash
+    Show integrations
+    ```
+  </Card>
+</CardGroup>
 
 ## Configuration
 
-### Environment Variables
+### Basic Configuration
+
+```json
+{
+  "enable_runners": true,
+  "allow_platform_apis": false,
+  "enable_opa_policies": false,
+  "verbose_logging": false
+}
+```
+
+### Enterprise Configuration
+
+```json
+{
+  "enable_runners": true,
+  "allow_platform_apis": true,
+  "enable_opa_policies": true,
+  "verbose_logging": true,
+  "whitelisted_tools": [
+    {
+      "name": "kubectl",
+      "description": "Kubernetes CLI tool",
+      "type": "docker",
+      "image": "kubiya/kubectl-light:latest"
+    }
+  ]
+}
+```
+
+## Environment Variables
 
 ```bash
-# MCP server location
-export KUBIYA_MCP_SERVER_PATH="/usr/local/bin/mcp-server"
+# Core configuration
+export KUBIYA_API_KEY="your-api-key"
+export KUBIYA_MCP_ENABLE_RUNNERS=true
+export KUBIYA_MCP_ALLOW_PLATFORM_APIS=false
 
-# Server configuration
-export KUBIYA_FASTMCP_PORT=8002
-export KUBIYA_FASTMCP_HOST="0.0.0.0"
+# Security
+export KUBIYA_OPA_ENFORCE=true
+export KUBIYA_MCP_REQUIRE_AUTH=true
 
-# Tool discovery
-export KUBIYA_MCP_AUTO_DISCOVER=true
+# Logging
+export LOG_LEVEL=INFO
+export KUBIYA_MCP_VERBOSE=true
 ```
 
-### Custom MCP Server
+## Usage Examples
 
-Create your own MCP-compatible tool:
+### Basic Tool Execution
+
+```bash
+# Ask your AI assistant:
+"Use Kubiya to check the health of our Kubernetes cluster"
+
+# The MCP server will execute:
+# - kubectl get nodes
+# - kubectl get pods --all-namespaces
+# - kubectl top nodes
+```
+
+### Infrastructure Operations
+
+```bash
+# Deploy application
+"Deploy version 2.1.0 to staging using Kubiya"
+
+# Database backup
+"Create a backup of the production database"
+
+# Log analysis
+"Analyze the application logs for errors in the last hour"
+```
+
+### Custom Tool Creation
+
+```bash
+# Create custom monitoring tool
+"Create a tool that monitors disk space and sends alerts"
+
+# Data processing
+"Build a tool that processes CSV files and generates reports"
+```
+
+## Integration Patterns
+
+### Claude Desktop Integration
+
+```json
+{
+  "mcpServers": {
+    "kubiya": {
+      "command": "kubiya",
+      "args": ["mcp", "serve"],
+      "env": {
+        "KUBIYA_API_KEY": "your-api-key"
+      }
+    }
+  }
+}
+```
+
+### Cursor IDE Integration
+
+```json
+{
+  "mcp.servers": {
+    "kubiya": {
+      "command": "kubiya",
+      "args": ["mcp", "serve"],
+      "env": {
+        "KUBIYA_API_KEY": "your-api-key"
+      }
+    }
+  }
+}
+```
+
+### Direct MCP Protocol
 
 ```python
-# my_mcp_tool.py
-from kubiya_workflow_sdk.mcp import MCPTool, MCPServer
+import asyncio
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import StdioServerTransport
 
-class MyCustomTool(MCPTool):
-    name = "my_tool"
-    description = "Custom tool for specific task"
+async def use_kubiya_mcp():
+    server_params = StdioServerParameters(
+        command="kubiya",
+        args=["mcp", "serve"],
+        env={"KUBIYA_API_KEY": "your-key"}
+    )
     
-    async def execute(self, **kwargs):
-        # Your tool logic here
-        return {"result": "success", "data": kwargs}
+    async with StdioServerTransport(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            
+            # Execute a tool
+            result = await session.call_tool(
+                "execute_tool",
+                {
+                    "tool_name": "kubectl",
+                    "args": {"command": "get pods"},
+                    "runner": "auto"
+                }
+            )
+            print(result.content)
 
-# Register and run
-server = MCPServer()
-server.register_tool(MyCustomTool())
-server.run()
+asyncio.run(use_kubiya_mcp())
 ```
+
+## Security Features
+
+### OPA Policy Enforcement
+
+```bash
+# Enable policy enforcement
+kubiya mcp serve --enable-opa-policies
+```
+
+### Tool Whitelisting
+
+```json
+{
+  "whitelisted_tools": [
+    {
+      "name": "kubectl",
+      "description": "Kubernetes commands",
+      "type": "docker",
+      "image": "kubiya/kubectl-light:latest"
+    }
+  ]
+}
+```
+
+### Authentication
+
+```bash
+# Require authentication
+kubiya mcp serve --require-auth --session-timeout 3600
+```
+
+## Monitoring and Logging
+
+### Debug Mode
+
+```bash
+# Enable verbose logging
+kubiya mcp serve --verbose
+
+# Or via environment
+export LOG_LEVEL=DEBUG
+kubiya mcp serve
+```
+
+### Health Checks
+
+```bash
+# Test MCP server health
+kubiya mcp serve --test
+
+# Check runner health
+kubiya runner health
+```
+
+## Best Practices
+
+1. **Security First**
+   - Always use API keys via environment variables
+   - Enable OPA policies for production
+   - Use tool whitelisting for restricted environments
+
+2. **Performance**
+   - Use appropriate runners for different workloads
+   - Monitor resource usage
+   - Set reasonable timeouts
+
+3. **Reliability**
+   - Implement proper error handling
+   - Use health checks
+   - Monitor execution logs
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Connection Failed**
+   ```bash
+   # Check MCP server status
+   kubiya mcp serve --test
+   
+   # Verify API key
+   echo $KUBIYA_API_KEY
+   ```
+
+2. **Tool Execution Failed**
+   ```bash
+   # Check runner availability
+   kubiya runner list
+   
+   # Test with simple command
+   kubiya tool execute --name "echo" --args "hello world"
+   ```
+
+3. **Permission Denied**
+   ```bash
+   # Check tool whitelist
+   kubiya mcp serve --list-tools
+   
+   # Verify API key permissions
+   kubiya auth verify
+   ```
 
 ## Next Steps
 
 <Cards>
-  <Card title="MCP Protocol" icon="book" href="/mcp/overview">
-    Learn about the Model Context Protocol
+  <Card title="MCP Quickstart" icon="rocket" href="/mcp/quickstart">
+    Get started with Kubiya MCP in 5 minutes
   </Card>
-  <Card title="Build MCP Tools" icon="hammer" href="/servers/overview">
-    Create your own MCP-compatible tools
+  <Card title="Tools Reference" icon="book" href="/mcp/tools-reference">
+    Complete documentation of all MCP tools
   </Card>
-  <Card title="Try ADK" icon="robot" href="/providers/adk/getting-started">
-    Explore AI-powered workflow generation
+  <Card title="Authentication" icon="shield" href="/mcp/authentication">
+    Secure your MCP server
   </Card>
-</Cards> 
+</Cards>
