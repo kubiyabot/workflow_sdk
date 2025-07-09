@@ -119,16 +119,40 @@ from .tools import (
 
 # Server (optional)
 try:
-    from .server import WorkflowServer, create_server
+    from kubiya_workflow_sdk.server import WorkflowServer, create_server
 except ImportError:
     WorkflowServer = None
     create_server = None
 
 # MCP Protocol (optional)
 try:
-    from .mcp import KubiyaWorkflowServer as MCPServer
+    from kubiya_workflow_sdk.mcp import KubiyaWorkflowServer as MCPServer
 except ImportError:
     MCPServer = None
+
+# Sentry integration (optional)
+try:
+    from kubiya_workflow_sdk.core import (
+        initialize_sentry,
+        capture_exception,
+        capture_message,
+        add_breadcrumb,
+        set_workflow_context,
+        is_sentry_enabled,
+        is_sentry_initialized,
+        shutdown_sentry,
+    )
+except ImportError:
+    # Fallback no-op functions
+    initialize_sentry = lambda *args, **kwargs: False
+    capture_exception = lambda *args, **kwargs: None
+    capture_message = lambda *args, **kwargs: None
+    add_breadcrumb = lambda *args, **kwargs: None
+    set_user_context = lambda *args, **kwargs: None
+    set_workflow_context = lambda *args, **kwargs: None
+    is_sentry_enabled = lambda: False
+    is_sentry_initialized = lambda: False
+    shutdown_sentry = lambda: None
 
 
 # Main exports
@@ -195,6 +219,15 @@ __all__ = [
     "create_server",
     # MCP (optional)
     "MCPServer",
+    # Sentry (optional)
+    "initialize_sentry",
+    "capture_exception",
+    "capture_message",
+    "add_breadcrumb",
+    "set_workflow_context",
+    "is_sentry_enabled",
+    "is_sentry_initialized",
+    "shutdown_sentry",
 ]
 
 
@@ -207,4 +240,13 @@ def get_version_info() -> dict:
         "license": __license__,
         "has_server": WorkflowServer is not None,
         "has_mcp": MCPServer is not None,
+        "has_sentry": is_sentry_initialized(),
     }
+
+
+# Auto-initialize Sentry if enabled via environment variables
+if is_sentry_enabled():
+    initialize_sentry()
+    # Register shutdown handler
+    import atexit
+    atexit.register(shutdown_sentry)

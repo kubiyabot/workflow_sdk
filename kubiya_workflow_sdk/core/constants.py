@@ -26,6 +26,11 @@ MAX_WORKFLOW_SIZE: Final[int] = 10 * 1024 * 1024  # 10MB
 TOOL_EXEC_TIMEOUT: Final[int] = 600  # 10 minutes
 TOOL_OUTPUT_BUFFER_SIZE: Final[int] = 8192
 
+# Sentry Configuration
+SENTRY_DEFAULT_TRACES_SAMPLE_RATE: Final[float] = 0.1
+SENTRY_DEFAULT_PROFILES_SAMPLE_RATE: Final[float] = 0.1
+SENTRY_DEFAULT_ENVIRONMENT: Final[str] = "development"
+
 
 class ExecutorType(str, Enum):
     """Supported executor types."""
@@ -158,6 +163,10 @@ ENV_VARS = {
     "LOG_LEVEL": "KUBIYA_LOG_LEVEL",
     "WORKSPACE": "KUBIYA_WORKSPACE",
     "EXECUTION_ID": "KUBIYA_EXECUTION_ID",
+    "SENTRY_DSN": "KUBIYA_SENTRY_DSN",
+    "SENTRY_ENVIRONMENT": "KUBIYA_SENTRY_ENVIRONMENT",
+    "SENTRY_RELEASE": "KUBIYA_SENTRY_RELEASE",
+    "SENTRY_ENABLED": "KUBIYA_SENTRY_ENABLED",
 }
 
 # Workflow metadata keys

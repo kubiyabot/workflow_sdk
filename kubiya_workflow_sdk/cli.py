@@ -15,8 +15,11 @@ logger = logging.getLogger(__name__)
 
 @click.group()
 @click.option("--debug", is_flag=True, help="Enable debug logging")
+@click.option("--sentry-dsn", envvar="KUBIYA_SENTRY_DSN", help="Sentry DSN for error tracking")
+@click.option("--sentry-env", envvar="KUBIYA_SENTRY_ENVIRONMENT", default="development", help="Sentry environment")
+@click.option("--with-sentry", is_flag=True, envvar="KUBIYA_SENTRY_ENABLED", help="Enable Sentry error tracking")
 @click.pass_context
-def cli(ctx, debug):
+def cli(ctx, debug, sentry_dsn, sentry_env, with_sentry):
     """Kubiya Workflow SDK - MCP Server and Agent Management."""
     if debug:
         logging.basicConfig(level=logging.DEBUG)
@@ -25,6 +28,31 @@ def cli(ctx, debug):
 
     ctx.ensure_object(dict)
     ctx.obj["debug"] = debug
+    ctx.obj["sentry_dsn"] = sentry_dsn
+    ctx.obj["sentry_env"] = sentry_env
+    ctx.obj["enable_sentry"] = with_sentry
+    
+    # Initialize Sentry if enabled and DSN is available
+    # DSN can come from CLI flag or environment variable
+    effective_dsn = sentry_dsn or os.getenv("KUBIYA_SENTRY_DSN")
+    should_enable_sentry = with_sentry or os.getenv("KUBIYA_SENTRY_ENABLED", "").lower() == "true"
+    
+    if should_enable_sentry and effective_dsn:
+        try:
+            from kubiya_workflow_sdk import initialize_sentry
+            success = initialize_sentry(
+                dsn=effective_dsn,
+                environment=sentry_env,
+                enabled=True
+            )
+            if success:
+                console.print(f"[green]✅ Sentry initialized for environment: {sentry_env}[/green]")
+            else:
+                console.print("[yellow]⚠️  Failed to initialize Sentry[/yellow]")
+        except ImportError:
+            console.print("[yellow]⚠️  Sentry SDK not available[/yellow]")
+    elif should_enable_sentry:
+        console.print("[yellow]⚠️  Sentry enabled but no DSN provided[/yellow]")
 
 
 @cli.group()
@@ -160,7 +188,7 @@ def chat(provider, model, api_key, kubiya_key):
     }
     
     if not model:
-        model = default_models.get(provider)
+        model = default_models.get(provider, "gpt-4")  # fallback to gpt-4 if provider not found
     
     console.print(f"[green]💬 Starting interactive chat with {provider}/{model}[/green]")
     console.print("[yellow]Type 'exit' or 'quit' to end the conversation[/yellow]")
@@ -237,11 +265,11 @@ def test(provider, model, api_key, kubiya_key, scenario, interactive, output):
 @cli.command()
 def version():
     """Show version information."""
-    from . import __version__
+    from .__version__ import __version__
     
     console.print(Panel(
         f"[bold]Kubiya Workflow SDK[/bold]\n\n"
-        f"Version: {__version__.VERSION}\n"
+        f"Version: {__version__}\n"
         f"Python: {sys.version.split()[0]}\n"
         f"Platform: {sys.platform}",
         title="Version Information",

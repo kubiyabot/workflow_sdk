@@ -90,6 +90,30 @@ from .exceptions import (
     StreamingError,
 )
 
+# Sentry configuration (optional)
+try:
+    from kubiya_workflow_sdk.core.sentry_config import (
+        initialize_sentry,
+        capture_exception,
+        capture_message,
+        add_breadcrumb,
+        set_workflow_context,
+        is_sentry_enabled,
+        is_initialized as is_sentry_initialized,
+        shutdown_sentry,
+    )
+except ImportError:
+    # Sentry not available, create no-op functions
+    initialize_sentry = lambda *args, **kwargs: False
+    capture_exception = lambda *args, **kwargs: None
+    capture_message = lambda *args, **kwargs: None
+    add_breadcrumb = lambda *args, **kwargs: None
+    set_user_context = lambda *args, **kwargs: None
+    set_workflow_context = lambda *args, **kwargs: None
+    is_sentry_enabled = lambda: False
+    is_sentry_initialized = lambda: False
+    shutdown_sentry = lambda: None
+
 __all__ = [
     # Types
     "T",
@@ -159,4 +183,13 @@ __all__ = [
     "ExecutorConfigurationError",
     "ServerError",
     "StreamingError",
+    # Sentry (optional)
+    "initialize_sentry",
+    "capture_exception",
+    "capture_message",
+    "add_breadcrumb",
+    "set_workflow_context",
+    "is_sentry_enabled",
+    "is_sentry_initialized",
+    "shutdown_sentry",
 ]

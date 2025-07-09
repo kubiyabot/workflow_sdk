@@ -45,6 +45,12 @@ kubiya mcp agent --provider openai --model gpt-4 --port 8000
 kubiya mcp agent --provider anthropic --model claude-3-5-sonnet-20241022 --port 8000
 ```
 
+### Enable Sentry for error tracking
+```bash
+# Start with Sentry Enabled
+kubiya --with-sentry --sentry-dsn https://your-dsn@sentry.io/project-id mcp agent --provider anthropic --model claude-3-5-sonnet-20241022 --port 8000
+```
+
 ### Configuration Options
 
 | Option | Description | Default |
@@ -54,6 +60,9 @@ kubiya mcp agent --provider anthropic --model claude-3-5-sonnet-20241022 --port 
 | `--port` | HTTP port to listen on | 8000 |
 | `--host` | Host to bind to | 0.0.0.0 |
 | `--api-key` | Provider API key (or use env var) | From environment |
+| `--with-sentry` | Enable Sentry error tracking |
+| `--sentry-dsn` | Sentry DSN for error tracking |
+| `--sentry-env` | Sentry environment |
 
 ### Environment Variables
 

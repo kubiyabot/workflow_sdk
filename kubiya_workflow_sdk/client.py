@@ -13,8 +13,9 @@ from urllib3.util.retry import Retry
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from .core.constants import WorkflowStatus
-from .core.exceptions import (
+from .__version__ import __version__
+from kubiya_workflow_sdk.core.constants import WorkflowStatus
+from kubiya_workflow_sdk.core.exceptions import (
     APIError as KubiyaAPIError,
     WorkflowExecutionError,
     ConnectionError as KubiyaConnectionError,
@@ -22,6 +23,22 @@ from .core.exceptions import (
     AuthenticationError as KubiyaAuthenticationError,
     WorkflowError as WorkflowNotFoundError,
 )
+
+# Optional Sentry integration
+try:
+    from kubiya_workflow_sdk.core.sentry_config import (
+        capture_exception,
+        capture_message,
+        add_breadcrumb,
+        set_workflow_context,
+    )
+except ImportError:
+    # Fallback no-op functions if Sentry not available
+    capture_exception = lambda *args, **kwargs: None
+    capture_message = lambda *args, **kwargs: None
+    add_breadcrumb = lambda *args, **kwargs: None
+    set_user_context = lambda *args, **kwargs: None
+    set_workflow_context = lambda *args, **kwargs: None
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +86,7 @@ class StreamingKubiyaClient:
             "Authorization": f"UserKey {api_key}",
             "Content-Type": "application/json",
             "Accept": "text/event-stream",
-            "User-Agent": "kubiya_workflow_sdk"
+            "User-Agent": f"kubiya_workflow_sdk@{__version__}"
         }
 
     async def __aenter__(self):
@@ -137,34 +154,48 @@ class StreamingKubiyaClient:
             WorkflowExecutionError: If execution fails
             KubiyaAPIError: For API errors
         """
-        # Prepare request body
-        request_body = {**workflow}
+        # Use the runner from the workflow definition if specified, otherwise use default
+        runner = workflow.pop('runner', self.runner)
+        # Prepare request body - workflow fields at top level
+        request_body = {**workflow}  # Spread workflow fields at top level
 
         if params:
             request_body["parameters"] = params
 
-        # Use the runner from the workflow definition if specified, otherwise use default
-        runner = workflow.get('runner', self.runner)
-        request_body.pop("runner", None)
-
         # Execute the workflow
         url = urljoin(self.base_url, f"/api/v1/workflow?runner={runner}&operation=execute_workflow&native_sse=true")
+
+        # Add breadcrumb for workflow execution start
+        add_breadcrumb(
+            crumb={"message": "Execute workflow async", "category": "workflow_execution"},
+            hint={"category": "workflow_execution"},
+            data={"workflow_name": workflow.get("name"), "runner": runner}
+        )
 
         try:
             async with self._session.post(url, json=request_body) as response:
                 # Check for authentication errors
                 if response.status == 401:
-                    raise KubiyaAuthenticationError("Invalid API token or unauthorized access")
+                    error = KubiyaAuthenticationError("Invalid API token or unauthorized access")
+                    capture_exception(error, extra={"api_url": str(response.url), "status_code": response.status})
+                    raise error
 
                 # Check for other errors
                 if response.status >= 400:
                     error_text = await response.text()
                     logger.error(f"API Error Response: {error_text}")
-                    raise KubiyaAPIError(
+                    error = KubiyaAPIError(
                         f"API request failed: HTTP {response.status} - {error_text[:200]}",
                         status_code=response.status,
                         response_body=error_text,
                     )
+                    capture_exception(error, extra={
+                        "request_body": request_body,
+                        "api_url": str(response.url),
+                        "status_code": response.status,
+                        "response_body": error_text
+                    })
+                    raise error
 
                 try:
                     # Process the streaming response
@@ -192,22 +223,37 @@ class StreamingKubiyaClient:
                         elif line.startswith("event: "):
                             event_type = line[7:].strip()
                             if event_type in ["end", "error"]:
+                                if event_type == "error":
+                                    error = WorkflowExecutionError("Streaming execution failed")
+                                    try:
+                                        error_data = json.loads(data)
+                                    except json.JSONDecodeError:
+                                        error_data = {"raw_data": data}
+                                    capture_exception(error, extra=error_data)
                                 yield {"type": "event", "event_type": event_type}
                                 if event_type == "end":
                                     break
                 except Exception as e:
-                    raise WorkflowExecutionError(f"Streaming execution failed: {str(e)}")
+                    error = WorkflowExecutionError(f"Streaming execution failed: {str(e)}")
+                    capture_exception(error, extra={"workflow_name": workflow.get("name"), "runner": runner})
+                    raise error
 
 
         except aiohttp.ClientError as e:
-            raise KubiyaConnectionError(f"Failed to connect to Kubiya API: {str(e)}")
+            error = KubiyaConnectionError(f"Failed to connect to Kubiya API: {str(e)}")
+            capture_exception(error, extra={"api_url": url, "runner": runner})
+            raise error
         except asyncio.TimeoutError:
-            raise KubiyaTimeoutError(f"Request timed out after {self.timeout} seconds")
+            error = KubiyaTimeoutError(f"Request timed out after {self.timeout} seconds")
+            capture_exception(error, extra={"timeout": self.timeout, "api_url": url})
+            raise error
         except Exception as e:
             if not isinstance(
                 e, (KubiyaAPIError, KubiyaAuthenticationError, KubiyaConnectionError, WorkflowExecutionError)
             ):
-                raise WorkflowExecutionError(f"Streaming execution failed: {str(e)}")
+                error = WorkflowExecutionError(f"Streaming execution failed: {str(e)}")
+                capture_exception(error, extra={"workflow_name": workflow.get("name"), "runner": runner})
+                raise error
             raise
 
 
@@ -255,7 +301,7 @@ class KubiyaClient:
         self.session.headers.update({
             "Authorization": f"UserKey {api_key}",
             "Content-Type": "application/json",
-            "User-Agent": "kubiya_workflow_sdk"
+            "User-Agent": f"kubiya_workflow_sdk@{__version__}"
         })
     
     def _make_request(
@@ -304,7 +350,9 @@ class KubiyaClient:
 
             # Check for authentication errors
             if response.status_code == 401:
-                raise KubiyaAuthenticationError("Invalid API key or unauthorized access")
+                error = KubiyaAuthenticationError("Invalid API token or unauthorized access")
+                capture_exception(error, extra={"api_url": str(response.url), "status_code": response.status_code})
+                raise error
 
             # For non-streaming responses, check status
             if not stream:
@@ -316,23 +364,36 @@ class KubiyaClient:
                         error_data = response.json()
                     except:
                         pass
-                    raise KubiyaAPIError(
+                    error = KubiyaAPIError(
                         f"API request failed: {str(e)}",
                         status_code=response.status_code,
                         response_body=json.dumps(error_data) if error_data else None,
                     )
+                    capture_exception(error, extra={
+                        "request_body": data,
+                        "api_url": url,
+                        "status_code": response.status_code,
+                        "response_body": error_data
+                    })
+                    raise error
 
             if stream:
                 return self._handle_stream(response)
             return response
 
         except requests.exceptions.Timeout:
-            raise KubiyaTimeoutError(f"Request to {url} timed out after {self.timeout} seconds")
+            error = KubiyaTimeoutError(f"Request timed out after {self.timeout} seconds")
+            capture_exception(error, extra={"timeout": self.timeout, "api_url": url})
+            raise error
         except requests.exceptions.ConnectionError as e:
-            raise KubiyaConnectionError(f"Failed to connect to Kubiya API: {str(e)}")
+            error = KubiyaConnectionError(f"Failed to connect to Kubiya API: {str(e)}")
+            capture_exception(error, extra={"api_url": url})
+            raise error
         except requests.exceptions.RequestException as e:
             if not isinstance(e, (KubiyaAPIError, KubiyaAuthenticationError)):
-                raise KubiyaAPIError(f"Request failed: {str(e)}")
+                error = KubiyaAPIError(f"Request failed: {str(e)}")
+                capture_exception(error)
+                raise error
             raise
 
     def _handle_stream(self, response: requests.Response) -> Generator[str, None, None]:
@@ -417,7 +478,9 @@ class KubiyaClient:
                         yield line
 
         except Exception as e:
-            raise WorkflowExecutionError(f"Error processing stream: {str(e)}")
+            error = WorkflowExecutionError(f"Error processing stream: {str(e)}")
+            capture_exception(error)
+            raise error
         finally:
             response.close()
 
@@ -447,11 +510,15 @@ class KubiyaClient:
             try:
                 workflow_definition = json.loads(workflow_definition)
             except json.JSONDecodeError as e:
-                raise WorkflowExecutionError(f"Invalid workflow JSON: {str(e)}")
+                error = WorkflowExecutionError(f"Invalid workflow JSON: {str(e)}")
+                capture_exception(error)
+                raise error
 
         # Ensure workflow_definition is properly formatted
         if not isinstance(workflow_definition, dict):
-            raise WorkflowExecutionError("Workflow definition must be a dictionary")
+            error = WorkflowExecutionError("Workflow definition must be a dictionary")
+            capture_exception(error)
+            raise error
 
         # Add parameters if provided
         if parameters:
@@ -573,7 +640,9 @@ class KubiyaClient:
                 for runner in data
             ]
         else:
-            raise KubiyaAPIError("Unexpected response format from runners endpoint")
+            error = KubiyaAPIError("Unexpected response format from get runners endpoint.")
+            capture_exception(error, extra={"response": data})
+            raise error
 
     def get_runner_health(self, runner_name: str) -> Dict[str, Any]:
         """Get health status of a specific runner.
@@ -687,7 +756,9 @@ class KubiyaClient:
                 }
                 runner_copy["health_status"] = "error"
                 runner_copy["is_healthy"] = False
-            
+
+                capture_exception(e, extra={"response": runner_copy})
+
             # Check component requirements if specified
             if required_components and runner_copy.get("is_healthy"):
                 meets_requirements = True
@@ -753,6 +824,8 @@ class KubiyaClient:
                         "health": {"error": str(e)}
                     })
                     enriched_runners.append(runner_copy)
+
+                    capture_exception(e, extra={"response": runner_copy})
         
         # Sort by name for consistent ordering
         enriched_runners.sort(key=lambda r: r.get("name", ""))
@@ -777,7 +850,9 @@ class KubiyaClient:
         elif isinstance(data, dict) and "integrations" in data:
             return data["integrations"]
         else:
-            raise KubiyaAPIError("Unexpected response format from integrations endpoint")
+            error = KubiyaAPIError("Unexpected response format from integrations endpoint")
+            capture_exception(error, extra={"response": data})
+            raise error
 
     def list_secrets(self) -> List[Dict[str, Any]]:
         """List available secrets in the organization.
@@ -797,7 +872,9 @@ class KubiyaClient:
         elif isinstance(data, dict) and "secrets" in data:
             return data["secrets"]
         else:
-            raise KubiyaAPIError("Unexpected response format from secrets endpoint")
+            error = KubiyaAPIError("Unexpected response format from secrets endpoint")
+            capture_exception(error, extra={"response": data})
+            raise error
 
     def get_secrets_metadata(self) -> List[Dict[str, Any]]:
         """Get metadata about available secrets (names only, not values).
@@ -819,7 +896,9 @@ class KubiyaClient:
         elif isinstance(data, dict) and "secrets" in data:
             return data["secrets"]
         else:
-            raise KubiyaAPIError("Unexpected response format from secrets endpoint")
+            error = KubiyaAPIError("Unexpected response format from secrets endpoint")
+            capture_exception(error, extra={"response": data})
+            raise error
 
     def get_organization_info(self) -> Dict[str, Any]:
         """Get organization information.
@@ -932,7 +1011,9 @@ class KubiyaClient:
         elif isinstance(data, dict) and "agents" in data:
             return data["agents"]
         else:
-            raise KubiyaAPIError("Unexpected response format from agents endpoint")
+            error = KubiyaAPIError("Unexpected response format from agents endpoint")
+            capture_exception(error, extra={"response": data})
+            raise error
 
     def execute_agent(
         self,
