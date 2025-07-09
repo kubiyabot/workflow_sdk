@@ -1,16 +1,29 @@
 """Enhanced workflow execution with logging and validation."""
 
 import json
-import time
 from datetime import datetime
 from typing import Dict, Any, Optional, Generator, Union, Callable, List, AsyncGenerator
 from enum import Enum
-import asyncio
 import traceback
 import uuid
 
 from .client import execute_workflow as _execute_workflow_raw
 from .core.exceptions import WorkflowValidationError
+
+# Optional Sentry integration
+try:
+    from kubiya_workflow_sdk.core.sentry_config import (
+        capture_exception,
+        capture_message,
+        add_breadcrumb,
+        set_workflow_context,
+    )
+except ImportError:
+    # Fallback no-op functions if Sentry not available
+    capture_exception = lambda *args, **kwargs: None
+    capture_message = lambda *args, **kwargs: None
+    add_breadcrumb = lambda *args, **kwargs: None
+    set_workflow_context = lambda *args, **kwargs: None
 
 
 class LogLevel(str, Enum):
@@ -182,13 +195,32 @@ def execute_workflow_with_logging(
         try:
             workflow_definition = json.loads(workflow_definition)
         except json.JSONDecodeError as e:
-            raise WorkflowValidationError(f"Invalid workflow JSON: {str(e)}")
+            error = WorkflowValidationError(f"Invalid workflow JSON: {str(e)}")
+            capture_exception(error, extra={"workflow_json": workflow_definition[:1000]})
+            raise error
+    
+    # Set workflow context for Sentry
+    workflow_id = str(uuid.uuid4())
+    workflow_name = workflow_definition.get("name", "unknown")
+    set_workflow_context(workflow_id, workflow_name, runner=workflow_definition.get("runner"))
+    
+    # Add breadcrumb for workflow execution start
+    add_breadcrumb(
+        crumb={"message": "Starting workflow execution with enhanced logging", "category": "workflow_execution"},
+        hint={"category": "workflow_execution"},
+        data={"workflow_name": workflow_name}
+    )
 
     # Validate workflow if requested
     if validate:
         errors = validate_workflow_definition(workflow_definition)
         if errors:
-            raise WorkflowValidationError(f"Workflow validation failed: {'; '.join(errors)}")
+            error = WorkflowValidationError(f"Workflow validation failed: {'; '.join(errors)}")
+            capture_exception(error, extra={
+                "workflow_name": workflow_definition.get("name", "unknown"),
+                "validation_errors": errors
+            })
+            raise error
 
     # Raw mode - just pass through
     if mode == ExecutionMode.RAW:

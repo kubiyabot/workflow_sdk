@@ -1,0 +1,280 @@
+# Sentry Integration for Kubiya Workflow SDK
+
+The Kubiya Workflow SDK now includes optional Sentry integration for error tracking and performance monitoring. This integration is completely optional and can be enabled through environment variables or CLI flags.
+
+## Features
+
+- **Optional Integration**: Sentry is completely optional and the SDK works without it
+- **Environment Variable Configuration**: Enable and configure Sentry through environment variables
+- **CLI Flag Support**: Enable Sentry through command line flags
+- **Automatic Error Tracking**: Automatically tracks exceptions across the SDK
+- **Performance Monitoring**: Tracks API calls and workflow execution performance
+- **Breadcrumb Logging**: Provides detailed execution traces
+- **Workflow Context**: Adds workflow-specific context to error reports
+
+## Installation
+
+Install the Sentry optional dependency:
+
+```bash
+# Install with Sentry support
+pip install kubiya-workflow-sdk[sentry]
+
+# Or install with all optional dependencies
+pip install kubiya-workflow-sdk[all]
+```
+
+## Configuration
+
+### Environment Variables
+
+The following environment variables can be used to configure Sentry:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `KUBIYA_SENTRY_ENABLED` | Enable Sentry integration | `false` |
+| `KUBIYA_SENTRY_DSN` | Sentry DSN URL | None (required if enabled) |
+| `KUBIYA_SENTRY_ENVIRONMENT` | Environment name | `development` |
+| `KUBIYA_SENTRY_RELEASE` | Release version | Package version |
+| `KUBIYA_SENTRY_TRACES_SAMPLE_RATE` | Traces sampling rate | `0.1` |
+| `KUBIYA_SENTRY_PROFILES_SAMPLE_RATE` | Profiles sampling rate | `0.1` |
+| `KUBIYA_SENTRY_DEBUG` | Enable Sentry debug logging | `false` |
+
+### Example Configuration
+
+```bash
+# Enable Sentry with basic configuration
+export KUBIYA_SENTRY_ENABLED=true
+export KUBIYA_SENTRY_DSN="https://your-dsn@sentry.io/project-id"
+export KUBIYA_SENTRY_ENVIRONMENT="production"
+
+# Advanced configuration
+export KUBIYA_SENTRY_TRACES_SAMPLE_RATE=0.2
+export KUBIYA_SENTRY_PROFILES_SAMPLE_RATE=0.1
+export KUBIYA_SENTRY_RELEASE="v1.0.0"
+```
+
+## Usage
+
+### Automatic Initialization
+
+When environment variables are set, Sentry is automatically initialized when the SDK is imported:
+
+```python
+from kubiya_workflow_sdk import workflow, step
+
+# Sentry is automatically initialized if KUBIYA_SENTRY_ENABLED=true
+```
+
+### Manual Initialization
+
+You can also initialize Sentry manually:
+
+```python
+from kubiya_workflow_sdk import initialize_sentry
+
+# Initialize with custom configuration
+success = initialize_sentry(
+    dsn="https://your-dsn@sentry.io/project-id",
+    environment="production",
+    enabled=True
+)
+
+if success:
+    print("Sentry initialized successfully")
+else:
+    print("Failed to initialize Sentry")
+```
+
+### CLI Integration
+
+The CLI commands support Sentry flags:
+
+```bash
+# Enable Sentry for CLI commands
+kubiya --with-sentry --sentry-dsn https://your-dsn@sentry.io/project-id mcp server
+
+# Use environment variables
+export KUBIYA_SENTRY_ENABLED=true
+export KUBIYA_SENTRY_DSN="https://your-dsn@sentry.io/project-id"
+kubiya mcp server
+```
+
+## What Gets Tracked
+
+### Automatic Error Tracking
+
+The following errors are automatically tracked:
+
+- **API Errors**: HTTP errors, authentication failures, connection issues
+- **Workflow Validation Errors**: Invalid workflow definitions, missing required fields
+- **Execution Errors**: Workflow execution failures, timeout errors
+- **Client Errors**: Network connectivity issues, timeout errors
+- **JSON Parsing Errors**: Invalid workflow JSON, malformed responses
+
+### Performance Monitoring
+
+- **HTTP Requests**: API calls to Kubiya platform
+- **Workflow Execution**: End-to-end workflow execution times
+- **Step Performance**: Individual step execution times
+
+### Breadcrumbs
+
+Detailed execution traces including:
+
+- Workflow execution start/end
+- API request initiation
+- Step transitions
+- Error occurrences
+- Configuration changes
+
+### Context Information
+
+Each error includes relevant context:
+
+- **Workflow Context**: Workflow ID, name, runner information
+- **Runtime Context**: SDK version, Python version, environment
+- **Request Context**: API URLs, request bodies (sanitized)
+
+## Manual Error Tracking
+
+You can also manually track errors and add context:
+
+```python
+from kubiya_workflow_sdk import (
+    capture_exception,
+    capture_message,
+    add_breadcrumb,
+    set_workflow_context
+)
+
+# Manual exception tracking
+try:
+    # Your code here
+    pass
+except Exception as e:
+    capture_exception(e, extra={"custom_data": "value"})
+
+# Manual message tracking
+capture_message("Custom event occurred", level="info")
+
+# Add breadcrumbs
+add_breadcrumb(
+    crumb={"message": "Custom operation started", "category": "operation_execution"},
+    hint={"category": "custom"},
+    extra={"operation_name": "data_processing"}
+)
+
+# Set workflow context
+set_workflow_context("workflow-id", "my-workflow", runner="production")
+```
+
+## Security and Privacy
+
+### Data Privacy
+
+- **No PII**: Personal identifiable information is not sent to Sentry
+- **Sanitized Data**: Request/response bodies are truncated and sanitized
+- **API Key Protection**: API keys are never included in error reports
+
+### Configuration
+
+```python
+# Sentry configuration includes privacy settings
+{
+    "send_default_pii": False,  # Never send PII
+    "attach_stacktrace": True,  # Include stack traces
+    "max_breadcrumbs": 50,     # Limit breadcrumb history
+}
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Sentry Not Initializing**
+   - Check that `KUBIYA_SENTRY_ENABLED=true`
+   - Verify DSN is correct
+   - Ensure sentry-sdk is installed
+
+2. **No Events in Sentry**
+   - Check sampling rates (might be too low)
+   - Verify network connectivity
+   - Check Sentry project settings
+
+3. **Import Errors**
+   - Install sentry dependencies: `pip install kubiya-workflow-sdk[sentry]` or `pip install kubiya-workflow-sdk[all]`
+   - Check Python version compatibility
+
+### Debug Mode
+
+Enable debug logging to troubleshoot:
+
+```bash
+export KUBIYA_SENTRY_DEBUG=true
+export KUBIYA_SENTRY_ENABLED=true
+```
+
+### Check Initialization Status
+
+```python
+from kubiya_workflow_sdk import is_sentry_initialized, is_sentry_enabled
+
+print(f"Sentry enabled: {is_sentry_enabled()}")
+print(f"Sentry initialized: {is_sentry_initialized()}")
+```
+
+## Production Recommendations
+
+### Sampling Rates
+
+For production environments, consider these sampling rates:
+
+```bash
+# Conservative sampling for high-volume environments
+export KUBIYA_SENTRY_TRACES_SAMPLE_RATE=0.01  # 1% of transactions
+export KUBIYA_SENTRY_PROFILES_SAMPLE_RATE=0.001  # 0.1% of transactions
+
+# Moderate sampling for medium-volume environments
+export KUBIYA_SENTRY_TRACES_SAMPLE_RATE=0.1   # 10% of transactions
+export KUBIYA_SENTRY_PROFILES_SAMPLE_RATE=0.01  # 1% of transactions
+```
+
+### Environment Configuration
+
+```bash
+# Production
+export KUBIYA_SENTRY_ENVIRONMENT=production
+export KUBIYA_SENTRY_RELEASE=$(git rev-parse --short HEAD)
+
+# Staging
+export KUBIYA_SENTRY_ENVIRONMENT=staging
+
+# Development
+export KUBIYA_SENTRY_ENVIRONMENT=development
+```
+
+### Performance Considerations
+
+- Sentry integration has minimal performance impact
+- Sampling rates control the amount of data sent
+- Network calls are asynchronous and non-blocking
+- Failed Sentry calls don't affect SDK functionality
+
+## Integration with Existing Monitoring
+
+Sentry integrates well with existing monitoring solutions:
+
+- **Logs**: Sentry can capture log messages above error level
+- **Metrics**: Use Sentry's performance monitoring alongside existing metrics
+- **Alerts**: Configure Sentry alerts for critical errors
+- **Dashboards**: Combine Sentry data with existing dashboards
+
+## Support
+
+For issues related to Sentry integration:
+
+1. Check the troubleshooting section above
+2. Review Sentry documentation at https://docs.sentry.io/
+3. Open an issue in the Kubiya Workflow SDK repository
+4. Contact support with Sentry-specific questions

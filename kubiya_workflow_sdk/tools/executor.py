@@ -1,25 +1,32 @@
 """Tool execution framework for Kubiya Workflow SDK."""
 
 import asyncio
-import json
 import logging
 import os
-import tempfile
 from typing import Dict, Any, Optional, List, Union, Tuple
 from datetime import datetime
 import aiohttp
 import requests
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 
-from ..core import (
+from kubiya_workflow_sdk.core import (
     ToolDefinition,
-    ToolExecutionError,
     AuthType,
     DEFAULT_API_URL,
     DEFAULT_RUNNER,
     TOOL_EXEC_TIMEOUT,
-    HttpMethod,
 )
+
+# Optional Sentry integration
+try:
+    from kubiya_workflow_sdk.core.sentry_config import (
+        capture_exception,
+        add_breadcrumb,
+    )
+except ImportError:
+    # Fallback no-op functions if Sentry not available
+    capture_exception = lambda *args, **kwargs: None
+    add_breadcrumb = lambda *args, **kwargs: None
 
 logger = logging.getLogger(__name__)
 
@@ -332,6 +339,17 @@ class AsyncToolExecutor:
         """Execute a single tool request asynchronously."""
         start_time = datetime.now()
 
+        # Add a breadcrumb for tool execution start
+        add_breadcrumb(
+            crumb={"message": "Starting async tool execution", "category": "tool_execution"},
+            hint={"category": "tool_execution"},
+            data={
+                "tool_name": request.tool_name,
+                "runner": request.runner,
+                "timeout": request.timeout
+            }
+        )
+
         try:
             async with aiohttp.ClientSession() as session:
                 url = f"{self.base_url}/api/v1/tools/exec"
@@ -363,7 +381,7 @@ class AsyncToolExecutor:
 
         except asyncio.TimeoutError:
             end_time = datetime.now()
-            return ToolExecutionResult(
+            error_result = ToolExecutionResult(
                 tool_name=request.tool_name,
                 success=False,
                 output="",
@@ -372,10 +390,16 @@ class AsyncToolExecutor:
                 end_time=end_time,
                 duration_seconds=(end_time - start_time).total_seconds(),
             )
+            
+            # Capture timeout error to Sentry
+            timeout_error = asyncio.TimeoutError(f"Async tool execution timeout for {request.tool_name}")
+            capture_exception(timeout_error, extra=asdict(error_result))
+            
+            return error_result
 
         except Exception as e:
             end_time = datetime.now()
-            return ToolExecutionResult(
+            error_result = ToolExecutionResult(
                 tool_name=request.tool_name,
                 success=False,
                 output="",
@@ -384,6 +408,11 @@ class AsyncToolExecutor:
                 end_time=end_time,
                 duration_seconds=(end_time - start_time).total_seconds(),
             )
+
+            # Capture execution error to Sentry
+            capture_exception(e, extra=asdict(error_result))
+
+            return error_result
 
 
 # Convenience functions
