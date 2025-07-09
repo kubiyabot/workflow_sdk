@@ -85,7 +85,12 @@
               "concepts/platform-overview",
               "concepts/workflows",
               "concepts/runners",
-              "concepts/runners/helm-chart",
+              {
+                "group": "Runners",
+                "pages": [
+                  "concepts/runners/helm-chart"
+                ]
+              },
               "concepts/integrations",
               "concepts/deterministic-workflows",
               "concepts/why-kubiya",
@@ -107,6 +112,10 @@
             "pages": [
               "mcp/overview",
               "mcp/quickstart",
+              "mcp/serverless-architecture",
+              "mcp/infrastructure-compatibility",
+              "mcp/agent-integration-examples",
+              "mcp/deployment-guide",
               "mcp/agent-server",
               "mcp/authentication",
               "mcp/tools-reference",
@@ -120,8 +129,13 @@
               "mcp/full-stack-agents/architecture",
               "mcp/full-stack-agents/quickstart",
               "mcp/full-stack-agents/examples",
-              "mcp/full-stack-agents/existing-frameworks/overview",
-              "mcp/full-stack-agents/existing-frameworks/langgraph"
+              {
+                "group": "Existing Frameworks",
+                "pages": [
+                  "mcp/full-stack-agents/existing-frameworks/overview",
+                  "mcp/full-stack-agents/existing-frameworks/langgraph"
+                ]
+              }
             ]
           },
           {
@@ -170,6 +184,15 @@
               "api-reference/mcp/overview",
               "api-reference/mcp/tools",
               "api-reference/mcp/protocol"
+            ]
+          },
+          {
+            "group": "Agent Server APIs",
+            "pages": [
+              "api-reference/agent-servers/overview",
+              "api-reference/agent-servers/discovery",
+              "api-reference/agent-servers/orchestration",
+              "api-reference/agent-servers/compose"
             ]
           }
         ]
