@@ -30,11 +30,6 @@
 
   "anchors": [
     {
-      "name": "Community",
-      "icon": "discord",
-      "url": "https://discord.gg/kubiya"
-    },
-    {
       "name": "Blog",
       "icon": "newspaper",
       "url": "https://kubiya.ai/blog"
@@ -216,8 +211,8 @@
   },
   "footerSocials": {
     "github": "https://github.com/kubiyabot",
-    "linkedin": "https://www.linkedin.com/company/kubiya-ai",
-    "twitter": "https://twitter.com/kubiya_ai"
+    "linkedin": "https://www.linkedin.com/company/kubiya",
+    "twitter": "https://x.com/KubiyaDevOps"
   },
 
   "search": {

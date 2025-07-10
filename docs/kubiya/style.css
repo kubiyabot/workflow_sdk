@@ -221,7 +221,7 @@ table {
 }
 
 th {
-  background: linear-gradient(to bottom, #f8fafc, #f1f5f9) !important;
+  background: linear-gradient(to top, #0EA5E9, #6366F1) !important;
   font-weight: 600 !important;
   text-transform: uppercase !important;
   font-size: 0.75rem !important;

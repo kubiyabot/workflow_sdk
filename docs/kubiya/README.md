@@ -25,7 +25,7 @@ Make sure your `docs/kubiya` directory with the `docs.json` file is pushed to yo
 1. Go to [dash.mintlify.com](https://dash.mintlify.com)
 2. Sign in with your GitHub account
 3. Click "New Project" or "Add Documentation"
-4. Select your repository: `kubiya-ai/workflow-sdk`
+4. Select your repository: `kubiya-ai/workflow_sdk`
 5. Set the docs directory path: `docs/kubiya`
 6. Choose your subdomain (e.g., `workflow-sdk-docs`)
 7. Click "Deploy"
@@ -59,7 +59,7 @@ The documentation is configured via `docs.json`. Key settings:
 - **Colors**: Kubiya brand colors
 - **Navigation**: Organized by sections
 - **Search**: Enabled with custom prompt
-- **Social Links**: GitHub, Discord, LinkedIn, X
+- **Social Links**: GitHub,  X
 
 ## 📚 Writing Documentation
 

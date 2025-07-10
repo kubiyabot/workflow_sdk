@@ -82,9 +82,3 @@ Then open http://localhost:3000
 - **Preview deployments**: PRs get preview URLs automatically
 - **Analytics**: Available in Mintlify dashboard
 - **Search**: Automatically indexed and searchable
-
-## 🆘 Need Help?
-
-- [Mintlify Documentation](https://mintlify.com/docs)
-- [Mintlify Support](https://mintlify.com/discord)
-- [Kubiya Discord](https://discord.gg/kubiya) 
