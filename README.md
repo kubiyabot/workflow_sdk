@@ -479,8 +479,7 @@ services:
 ## 🤝 Support
 
 - 📖 [Documentation](https://docs.kubiya.ai)
-- 💬 [Discord Community](https://discord.gg/kubiya)
-- 🐛 [Issue Tracker](https://github.com/kubiya-ai/workflow-sdk/issues)
+- 🐛 [Issue Tracker](https://github.com/kubiyabot/workflow-sdk/issues)
 - 📧 [Enterprise Support](https://kubiya.ai/contact)
 
 ## 📄 License

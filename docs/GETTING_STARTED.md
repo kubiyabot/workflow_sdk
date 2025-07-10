@@ -30,7 +30,7 @@ pip install kubiya-workflow-sdk
 ### From Source
 
 ```bash
-git clone https://github.com/kubiya-ai/workflow-sdk.git
+git clone https://github.com/kubiyabot/workflow_sdk.git
 cd workflow-sdk
 pip install -e .
 ```
@@ -265,7 +265,7 @@ services:
 1. **Explore Examples**: Check out the `examples/` directory
 2. **Read the API Docs**: Visit `/docs` when running the server
 3. **Create Custom Providers**: See [Provider Development Guide](./PROVIDER_DEVELOPMENT.md)
-4. **Join the Community**: [Discord](https://discord.gg/kubiya) | [GitHub](https://github.com/kubiya-ai)
+4. **Join the Community**: [GitHub](https://github.com/kubiya-ai)
 
 ## Troubleshooting
 
@@ -290,4 +290,3 @@ services:
 
 - Documentation: [docs.kubiya.ai](https://docs.kubiya.ai)
 - Support: support@kubiya.ai
-- Community: [Discord](https://discord.gg/kubiya) 

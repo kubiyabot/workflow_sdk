@@ -88,10 +88,10 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/kubiya-ai/workflow-sdk"
-Documentation = "https://docs.kubiya.ai/workflow-sdk"
-Repository = "https://github.com/kubiya-ai/workflow-sdk"
-Issues = "https://github.com/kubiya-ai/workflow-sdk/issues"
+Homepage = "https://github.com/kubiyabot/workflow_sdk"
+Documentation = "https://docs.kubiya.ai/workflow_sdk"
+Repository = "https://github.com/kubiyabot/workflow_sdk"
+Issues = "https://github.com/kubiyabot/workflow_sdk/issues"
 
 [project.scripts]
 kubiya-workflow = "kubiya_workflow_sdk.cli:main"
