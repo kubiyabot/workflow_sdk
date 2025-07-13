@@ -141,6 +141,37 @@ class Step:
         self.data["executor"] = {"type": "tool", "config": config}
         return self
 
+    def inline_agent(
+            self,
+            message: str,
+            agent_name: str,
+            ai_instructions: str,
+            runners: List[str],
+            llm_model: str = "gpt-4o-mini",
+            description: Optional[str] = None,
+            is_debug_mode: bool = True,
+            tools: Optional[List[Dict[str, Any]]] = None,
+    ) -> "Step":
+        """Configure as inline agent executor."""
+        agent_config = {
+            "name": agent_name,
+            "ai_instructions": ai_instructions,
+            "runners": runners,
+            "llm_model": llm_model,
+            "is_debug_mode": is_debug_mode,
+        }
+
+        if description:
+            agent_config["description"] = description
+        if tools:
+            agent_config["tools"] = tools
+
+        self.data["executor"] = {
+            "type": "inline_agent",
+            "config": {"message": message, "agent": agent_config},
+        }
+        return self
+
     def agent(
         self,
         message: str,
