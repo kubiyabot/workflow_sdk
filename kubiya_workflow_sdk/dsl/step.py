@@ -50,6 +50,7 @@ class Step:
 
         if command:
             self.data["command"] = command
+            self.data["executor"] = {"type": "command", "config": {}}
         if description:
             self.data["description"] = description
         if script:
@@ -70,9 +71,10 @@ class Step:
         return self
 
     # Executor configurations
-    def shell(self, command: str) -> "Step":
+    def shell(self, command: str, **config) -> "Step":
         """Configure as shell executor."""
         self.data["command"] = command
+        self.data["executor"] = {"type": "command", "config": config}
         return self
 
     def python(self, script: str) -> "Step":
@@ -140,15 +142,15 @@ class Step:
         return self
 
     def inline_agent(
-        self,
-        message: str,
-        agent_name: str,
-        ai_instructions: str,
-        runners: List[str],
-        llm_model: str = "gpt-4o-mini",
-        description: Optional[str] = None,
-        is_debug_mode: bool = True,
-        tools: Optional[List[Dict[str, Any]]] = None,
+            self,
+            message: str,
+            agent_name: str,
+            ai_instructions: str,
+            runners: List[str],
+            llm_model: str = "gpt-4o-mini",
+            description: Optional[str] = None,
+            is_debug_mode: bool = True,
+            tools: Optional[List[Dict[str, Any]]] = None,
     ) -> "Step":
         """Configure as inline agent executor."""
         agent_config = {
@@ -167,6 +169,41 @@ class Step:
         self.data["executor"] = {
             "type": "inline_agent",
             "config": {"message": message, "agent": agent_config},
+        }
+        return self
+
+    def agent(
+        self,
+        message: str,
+        name: str,
+        runners: List[str] = None,
+        llm_model: Optional[str] = None,
+        ai_instructions: Optional[str] = None,
+        description: Optional[str] = None,
+        is_debug_mode: bool = False,
+        tools: Optional[List[Dict[str, Any]]] = None,
+    ) -> "Step":
+        """Configure as inline agent executor."""
+        agent_config = {
+            "agent_name": name,
+            "message": message,
+        }
+        if runners:
+            agent_config["runners"] = runners
+        if llm_model:
+            agent_config["llm_model"] = llm_model
+        if ai_instructions:
+            agent_config["ai_instructions"] = ai_instructions
+        if description:
+            agent_config["description"] = description
+        if is_debug_mode:
+            agent_config["is_debug_mode"] = is_debug_mode
+        if tools:
+            agent_config["tools"] = tools
+
+        self.data["executor"] = {
+            "type": "agent",
+            "config": agent_config,
         }
         return self
 
