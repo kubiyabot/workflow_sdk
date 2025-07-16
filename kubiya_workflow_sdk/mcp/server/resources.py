@@ -267,11 +267,10 @@ console.log(`Node.js ${process.version}`);
         """Common workflow patterns."""
         return {
             "retry_with_backoff": {
-                "description": "Retry failed steps with exponential backoff",
+                "description": "Retry failed steps",
                 "code": '''wf.step("flaky-operation", "curl https://unreliable-api.com").retry(
     max_attempts=5,
     delay_seconds=2,
-    backoff_multiplier=2
 )'''
             },
             "conditional_execution": {
