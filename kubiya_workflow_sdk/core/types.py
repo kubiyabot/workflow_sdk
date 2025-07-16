@@ -214,16 +214,13 @@ class RetryPolicy:
 
     max_attempts: int = 3
     delay_seconds: int = 60
-    backoff: RetryBackoff = RetryBackoff.EXPONENTIAL
-    retry_on: List[str] = field(default_factory=lambda: ["*"])
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to workflow format."""
         return {
             "limit": self.max_attempts,
             "intervalSec": self.delay_seconds,
-            "backoff": self.backoff.value,
-            "retryOn": self.retry_on,
+
         }
 
 
