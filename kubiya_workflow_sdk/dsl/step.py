@@ -235,6 +235,36 @@ class Step:
         self.data["executor"] = {"type": "ssh", "config": config}
         return self
 
+    def llm_completion(
+        self,
+        api_key: str,
+        messages: List[Dict[str, str]],
+        model: str = "gpt-4o",
+        evaluate:bool = True,
+        temperature: float = None,
+        max_tokens: Optional[int] = None,
+        timeout: Optional[int] = None,
+    ) -> "Step":
+        """Configure as llm_completion executor."""
+        executor = {
+            "type": "llm_completion",
+            "config": {
+                "api_key": api_key,
+                "model": model,
+                "messages": messages,
+                "evaluate": evaluate,
+            }
+        }
+        if temperature:
+            executor["config"]["temperature"] = temperature
+        if max_tokens:
+            executor["config"]["max_tokens"] = max_tokens
+        if timeout:
+            executor["config"]["timeout"] = timeout
+
+        self.data["executor"] = executor
+        return self
+
     def kubiya(self, url: str, method: str = "GET", **config) -> "Step":
         """Configure as Kubiya API executor."""
         self.data["executor"] = {
