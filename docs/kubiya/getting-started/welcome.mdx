@@ -32,18 +32,18 @@ icon: rocket
     from kubiya_workflow_sdk.providers import get_provider
 
     async def main():
-    # Generate workflows with AI
-    client = KubiyaClient(
-        api_key="Your Kubiya API Key Here"
-    )
+        # Generate workflows with AI
+        client = KubiyaClient(
+            api_key="Your Kubiya API Key Here"
+        )
 
-    adk = get_provider(name="adk", client=client)
+        adk = get_provider(name="adk", client=client)
 
-    async for chunk in adk.compose(
-        task="Create a zero-downtime deployment pipeline with health checks",
-        mode="act"  # Instantly execute!
-    ):
-        print(chunk)
+        async for chunk in adk.compose(
+            task="Create a zero-downtime deployment pipeline with health checks",
+            mode="act"  # Instantly execute!
+        ):
+            print(chunk)
 
     asyncio.run(main())
     ```
