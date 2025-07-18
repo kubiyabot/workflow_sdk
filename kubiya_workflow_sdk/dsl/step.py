@@ -107,6 +107,7 @@ class Step:
         image: str,
         content: str,
         args: Dict[str, Any],
+        config_args: List[Dict[str, Any]] = None,
         timeout: Optional[int] = None,
         description: Optional[str] = None,
         with_files: Optional[List[Dict[str, str]]] = None,
@@ -122,6 +123,8 @@ class Step:
             tool_def["with_files"] = with_files
         if with_services:
             tool_def["with_services"] = with_services
+        if config_args:
+            tool_def["args"] = config_args
 
         tool_def = tool_def | kwargs
 
@@ -233,6 +236,47 @@ class Step:
             config["keyFile"] = key_file
 
         self.data["executor"] = {"type": "ssh", "config": config}
+        return self
+
+    def llm_completion(
+        self,
+        api_key: str = None,
+        messages: List[Dict[str, str]] = None,
+        model: str = "gpt-4o",
+        evaluate:bool = True,
+        temperature: float = None,
+        max_tokens: Optional[int] = None,
+        timeout: Optional[int] = None,
+        system_prompt: Optional[str] = None,
+        prompt: Optional[str] = None,
+        json_mode: bool = False,
+    ) -> "Step":
+        """Configure as llm_completion executor."""
+        executor = {
+            "type": "llm_completion",
+            "config": {
+                "model": model,
+                "evaluate": evaluate,
+            }
+        }
+        if api_key:
+            executor["config"]["api_key"] = api_key
+        if messages:
+            executor["config"]["messages"] = messages
+        if temperature:
+            executor["config"]["temperature"] = temperature
+        if max_tokens:
+            executor["config"]["max_tokens"] = max_tokens
+        if timeout:
+            executor["config"]["timeout"] = timeout
+        if prompt:
+            executor["config"]["prompt"] = prompt
+        if system_prompt:
+            executor["config"]["system_prompt"] = system_prompt
+        if json_mode:
+            executor["config"]["json_mode"] = json_mode
+
+        self.data["executor"] = executor
         return self
 
     def kubiya(self, url: str, method: str = "GET", **config) -> "Step":
@@ -412,6 +456,11 @@ class Step:
     def timeout(self, seconds: int) -> "Step":
         """Set step timeout."""
         self.data["timeout"] = seconds
+        return self
+
+    def retries(self, count: int) -> "Step":
+        """Set step timeout."""
+        self.data["retries"] = int(count)
         return self
 
     def signal_on_stop(self, signal: str = "SIGTERM") -> "Step":
