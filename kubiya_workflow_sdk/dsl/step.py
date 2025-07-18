@@ -107,6 +107,7 @@ class Step:
         image: str,
         content: str,
         args: Dict[str, Any],
+        config_args: List[Dict[str, Any]] = None,
         timeout: Optional[int] = None,
         description: Optional[str] = None,
         with_files: Optional[List[Dict[str, str]]] = None,
@@ -122,6 +123,8 @@ class Step:
             tool_def["with_files"] = with_files
         if with_services:
             tool_def["with_services"] = with_services
+        if config_args:
+            tool_def["args"] = config_args
 
         tool_def = tool_def | kwargs
 
