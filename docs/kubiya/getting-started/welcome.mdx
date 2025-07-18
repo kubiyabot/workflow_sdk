@@ -26,25 +26,27 @@ icon: rocket
   <Tab title="🤖 AI Workflow Generation">
     ```python
     import asyncio
-
     from kubiya_workflow_sdk import KubiyaClient
     from kubiya_workflow_sdk.providers import get_provider
 
     async def main():
-        # Generate workflows with AI
+        # Initialize the Kubiya client with your API key
         client = KubiyaClient(
-            api_key="Your Kubiya API Key Here"
+            api_key="Your Kubiya API Key Here" # Replace with your actual API key
         )
 
+        # Get the workflow provider
         adk = get_provider(name="adk", client=client)
 
+        # Compose and execute a workflow
         async for chunk in adk.compose(
             task="Create a zero-downtime deployment pipeline with health checks",
             mode="act"  # Instantly execute!
         ):
             print(chunk)
 
-    asyncio.run(main())
+    if __name__ == "__main__":
+        asyncio.run(main())
     ```
   </Tab>
   
