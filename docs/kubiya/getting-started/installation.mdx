@@ -168,8 +168,18 @@ from kubiya_workflow_sdk.dsl import workflow
 
 wf = (
     workflow(name="data-pipeline")
-    .step(name="fetch", image="alpine", command="wget data.csv")
-    .step(name="process", image="python:3.11", command="python process.py data.csv")
+    .step("fetch", callback=lambda step:
+          step.docker(
+            image="alpine",
+            content="wget data.csv"
+        )
+    )
+    .step("process", callback=lambda step:
+          step.docker(
+            image="python:3.11",
+            content="process.py data.csv"
+        )
+    )
 )
 
 client = KubiyaClient(
