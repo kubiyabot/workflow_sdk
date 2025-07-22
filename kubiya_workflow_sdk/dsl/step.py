@@ -71,10 +71,11 @@ class Step:
         return self
 
     # Executor configurations
-    def shell(self, command: str, **config) -> "Step":
+    def shell(self, command: str, with_config: bool = True, **config) -> "Step":
         """Configure as shell executor."""
         self.data["command"] = command
-        self.data["executor"] = {"type": "command", "config": config}
+        if with_config:
+            self.data["executor"] = {"type": "command", "config": config}
         return self
 
     def python(self, script: str) -> "Step":
