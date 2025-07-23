@@ -448,7 +448,7 @@ class Step:
         if output:
             continue_config["output"] = output
         if mark_success:
-            continue_config["markSuccess"] = True
+            continue_config["markSuccess"] = mark_success
 
         if continue_config:
             self.data["continueOn"] = continue_config
